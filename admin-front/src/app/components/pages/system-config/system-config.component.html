@@ -1,0 +1,114 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fas fa-cogs"></i> System Configuration</h1>
+    <div class="header-actions">
+      @if (isAdmin) {
+        <button class="btn btn-outline-primary me-2" (click)="seedDefaults()"><i class="fas fa-seedling"></i> Seed Defaults</button>
+        <button class="btn btn-outline-info me-2" (click)="loadEmailConfig(); showEmailSection = !showEmailSection">
+          <i class="fas fa-envelope"></i> Email Config
+        </button>
+        <button class="btn btn-primary" (click)="openCreateModal(createModal)"><i class="fas fa-plus"></i> Add Config</button>
+      }
+    </div>
+  </div>
+
+  @if (showEmailSection && emailConfig) {
+    <div class="card mb-4">
+      <div class="card-header"><h5><i class="fas fa-envelope"></i> SMTP Email Configuration</h5></div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-4 mb-3"><label>SMTP Host</label><input class="form-control" [(ngModel)]="emailConfig.host" placeholder="smtp.example.com"></div>
+          <div class="col-md-2 mb-3"><label>Port</label><input class="form-control" type="number" [(ngModel)]="emailConfig.port"></div>
+          <div class="col-md-3 mb-3"><label>Username</label><input class="form-control" [(ngModel)]="emailConfig.username"></div>
+          <div class="col-md-3 mb-3"><label>Password</label><input class="form-control" type="password" [(ngModel)]="emailConfig.password"></div>
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-3"><label>From Email</label><input class="form-control" type="email" [(ngModel)]="emailConfig.fromEmail"></div>
+          <div class="col-md-3 mb-3"><label>Encryption</label>
+            <select class="form-control" [(ngModel)]="emailConfig.encryption">
+              <option value="NONE">None</option><option value="SSL">SSL</option><option value="TLS">TLS</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary mt-2" (click)="saveEmailConfig()"><i class="fas fa-save"></i> Save Email Config</button>
+      </div>
+    </div>
+  }
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table">
+        <thead><tr><th>ID</th><th>Key</th><th>Value</th><th>Description</th><th>Data Type</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          @for(c of configs; track c.id) {
+            <tr>
+              <td>{{ c.id }}</td>
+              <td><code>{{ c.configKey }}</code></td>
+              <td class="text-truncate" style="max-width: 250px;">{{ c.configValue }}</td>
+              <td>{{ c.description }}</td>
+              <td><span class="badge badge-info">{{ c.dataType }}</span></td>
+              <td><span class="badge" [class]="getStatusBadgeClass(c.status)">{{ c.status }}</span></td>
+              <td class="actions">
+                @if (isAdmin) {
+                  <button class="btn btn-sm btn-outline-primary" (click)="openEditModal(editModal, c)"><i class="fas fa-edit"></i></button>
+                } @else {
+                  <span class="text-muted small">View only</span>
+                }
+              </td>
+            </tr>
+          } @empty { <tr><td colspan="7" class="text-center text-muted py-4">No configurations found</td></tr> }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<ng-template #createModal let-modal>
+  <div class="modal-header"><h5 class="modal-title">Add Configuration</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <div class="modal-body">
+    <div class="form-group mb-3"><label>Config Key</label><input class="form-control" [(ngModel)]="selectedConfig.configKey" required></div>
+    <div class="form-group mb-3"><label>Config Value</label><input class="form-control" [(ngModel)]="selectedConfig.configValue" required></div>
+    <div class="form-group mb-3"><label>Description</label><textarea class="form-control" rows="2" [(ngModel)]="selectedConfig.description"></textarea></div>
+    <div class="row">
+      <div class="col-md-6 mb-3"><label>Data Type</label>
+        <select class="form-control" [(ngModel)]="selectedConfig.dataType">
+          <option value="STRING">String</option><option value="NUMBER">Number</option><option value="BOOLEAN">Boolean</option><option value="JSON">JSON</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3"><label>Status</label>
+        <select class="form-control" [(ngModel)]="selectedConfig.status">
+          <option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
+    <button class="btn btn-primary" (click)="saveConfig()">Save</button>
+  </div>
+</ng-template>
+
+<ng-template #editModal let-modal>
+  <div class="modal-header"><h5 class="modal-title">Edit Configuration</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <div class="modal-body">
+    <div class="form-group mb-3"><label>Config Key</label><input class="form-control" [(ngModel)]="selectedConfig.configKey" required></div>
+    <div class="form-group mb-3"><label>Config Value</label><input class="form-control" [(ngModel)]="selectedConfig.configValue" required></div>
+    <div class="form-group mb-3"><label>Description</label><textarea class="form-control" rows="2" [(ngModel)]="selectedConfig.description"></textarea></div>
+    <div class="row">
+      <div class="col-md-6 mb-3"><label>Data Type</label>
+        <select class="form-control" [(ngModel)]="selectedConfig.dataType">
+          <option value="STRING">String</option><option value="NUMBER">Number</option><option value="BOOLEAN">Boolean</option><option value="JSON">JSON</option>
+        </select>
+      </div>
+      <div class="col-md-6 mb-3"><label>Status</label>
+        <select class="form-control" [(ngModel)]="selectedConfig.status">
+          <option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
+    <button class="btn btn-primary" (click)="saveConfig()">Save</button>
+  </div>
+</ng-template>

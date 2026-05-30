@@ -1,0 +1,3 @@
+.actions { white-space: nowrap; display: flex; gap: 0.35rem; }
+.branch-code { font-family: var(--font-mono); font-size: 0.8rem; color: var(--nexmemo-text-secondary); background: var(--nexmemo-bg); padding: 0.15rem 0.4rem; border-radius: 4px; }
+.modal-body { max-height: 65vh; overflow-y: auto; }

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile default="true" name="Default" enabled="true" />
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="nexmemo-web" />
+        <module name="nexmemo-core" />
+        <module name="nexmemo-security" />
+        <module name="nexmemo-audit" />
+      </profile>
+      <profile name="Annotation profile for system" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.30/lombok-1.18.30.jar" />
+        </processorPath>
+        <module name="nexmemo-service" />
+      </profile>
+    </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="nexmemo-audit" options="-parameters" />
+      <module name="nexmemo-core" options="-parameters" />
+      <module name="nexmemo-security" options="-parameters" />
+      <module name="nexmemo-service" options="-parameters" />
+      <module name="nexmemo-web" options="-parameters" />
+      <module name="system" options="" />
+    </option>
+  </component>
+</project>

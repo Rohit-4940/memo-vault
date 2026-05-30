@@ -1,0 +1,131 @@
+package com.nexmemo.web.Controller;
+
+import com.nexmemo.core.dto.ApiResponse;
+import com.nexmemo.core.entity.ApprovalHistory;
+import com.nexmemo.core.entity.Memo;
+import com.nexmemo.core.entity.MemoDocument;
+import com.nexmemo.core.entity.MemoRouting;
+import com.nexmemo.core.enums.MemoStatus;
+import com.nexmemo.web.service.MemoService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/memos")
+@RequiredArgsConstructor
+public class MemoController {
+
+    private final MemoService memoService;
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<Memo>>> getAllMemos() {
+        return ResponseEntity.ok(ApiResponse.success(memoService.getAllMemos()));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<Memo>> getMemo(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(memoService.getMemoById(id)));
+    }
+
+    @GetMapping("/my")
+    public ResponseEntity<ApiResponse<List<Memo>>> getMyMemos(@AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(memoService.getMemosByCreator(userId)));
+    }
+
+    @GetMapping("/pending-approvals")
+    public ResponseEntity<ApiResponse<List<Memo>>> getPendingApprovals(@AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(memoService.getPendingApprovals(userId)));
+    }
+
+    @GetMapping("/by-status/{status}")
+    public ResponseEntity<ApiResponse<List<Memo>>> getByStatus(@PathVariable MemoStatus status) {
+        return ResponseEntity.ok(ApiResponse.success(memoService.getMemosByStatus(status)));
+    }
+
+    @GetMapping("/by-branch/{branchId}")
+    public ResponseEntity<ApiResponse<List<Memo>>> getByBranch(@PathVariable Long branchId) {
+        return ResponseEntity.ok(ApiResponse.success(memoService.getMemosByBranch(branchId)));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<Memo>>> searchMemos(@RequestParam String q) {
+        return ResponseEntity.ok(ApiResponse.success(memoService.searchMemos(q)));
+    }
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<Memo>> createMemo(@Valid @RequestBody MemoService.CreateMemoRequest request,
+                                                        @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created(memoService.createMemo(request, userId)));
+    }
+
+    @PutMapping("/{id}/submit")
+    public ResponseEntity<ApiResponse<Memo>> submitMemo(@PathVariable Long id,
+                                                        @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success("Memo submitted", memoService.submitMemo(id, userId)));
+    }
+
+    @PutMapping("/{id}/approve")
+    public ResponseEntity<ApiResponse<Memo>> approveMemo(@PathVariable Long id,
+                                                         @RequestParam(required = false) String remarks,
+                                                         @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success("Memo approved", memoService.approveMemo(id, userId, remarks)));
+    }
+
+    @PutMapping("/{id}/reject")
+    public ResponseEntity<ApiResponse<Memo>> rejectMemo(@PathVariable Long id,
+                                                        @RequestParam(required = false) String remarks,
+                                                        @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success("Memo rejected", memoService.rejectMemo(id, userId, remarks)));
+    }
+
+    @PutMapping("/{id}/return")
+    public ResponseEntity<ApiResponse<Memo>> returnMemo(@PathVariable Long id,
+                                                        @RequestParam(required = false) String remarks,
+                                                        @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success("Memo returned for revision", memoService.returnMemo(id, userId, remarks)));
+    }
+
+    @PutMapping("/{id}/forward")
+    public ResponseEntity<ApiResponse<Memo>> forwardMemo(@PathVariable Long id,
+                                                         @RequestParam Long toUserId,
+                                                         @RequestParam(required = false) String remarks,
+                                                         @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success("Memo forwarded", memoService.forwardMemo(id, userId, toUserId, remarks)));
+    }
+
+    @PutMapping("/{id}/backward")
+    public ResponseEntity<ApiResponse<Memo>> backwardMemo(@PathVariable Long id,
+                                                          @RequestParam(required = false) String remarks,
+                                                          @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success("Memo backwarded", memoService.backwardMemo(id, userId, remarks)));
+    }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<Void>> cancelMemo(@PathVariable Long id,
+                                                        @AuthenticationPrincipal Long userId) {
+        memoService.cancelMemo(id, userId);
+        return ResponseEntity.ok(ApiResponse.success("Memo cancelled", null));
+    }
+
+    @GetMapping("/{id}/routing")
+    public ResponseEntity<ApiResponse<List<MemoRouting>>> getMemoRouting(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(memoService.getMemoRoutingPath(id)));
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<ApiResponse<List<ApprovalHistory>>> getApprovalHistory(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(memoService.getApprovalHistory(id)));
+    }
+
+    @GetMapping("/{id}/documents")
+    public ResponseEntity<ApiResponse<List<MemoDocument>>> getDocuments(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(memoService.getDocuments(id)));
+    }
+}

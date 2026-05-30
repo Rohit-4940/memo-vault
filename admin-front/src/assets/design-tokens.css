@@ -1,0 +1,75 @@
+:root {
+  --nexmemo-primary: #4f46e5;
+  --nexmemo-primary-dark: #4338ca;
+  --nexmemo-primary-darker: #3730a3;
+  --nexmemo-primary-light: #eef2ff;
+  --nexmemo-primary-lighter: #e0e7ff;
+  --nexmemo-secondary: #7c3aed;
+  --nexmemo-secondary-light: #f5f3ff;
+  --nexmemo-accent: #06b6d4;
+  --nexmemo-accent-light: #ecfeff;
+
+  --nexmemo-success: #10b981;
+  --nexmemo-success-light: #d1fae5;
+  --nexmemo-success-dark: #065f46;
+  --nexmemo-warning: #f59e0b;
+  --nexmemo-warning-light: #fef3c7;
+  --nexmemo-warning-dark: #92400e;
+  --nexmemo-danger: #ef4444;
+  --nexmemo-danger-light: #fee2e2;
+  --nexmemo-danger-dark: #991b1b;
+  --nexmemo-info: #3b82f6;
+  --nexmemo-info-light: #dbeafe;
+  --nexmemo-info-dark: #1e40af;
+
+  --nexmemo-bg: #f0f2f5;
+  --nexmemo-surface: #ffffff;
+  --nexmemo-surface-hover: #f8fafc;
+  --nexmemo-border: #e5e7eb;
+  --nexmemo-border-light: #f3f4f6;
+  --nexmemo-text: #111827;
+  --nexmemo-text-secondary: #6b7280;
+  --nexmemo-text-muted: #9ca3af;
+
+  --sidebar-width: 270px;
+  --sidebar-collapsed: 0px;
+  --sidebar-bg: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  --sidebar-text: #94a3b8;
+  --sidebar-text-active: #ffffff;
+  --sidebar-active: linear-gradient(135deg, #4f46e5, #7c3aed);
+  --sidebar-hover: rgba(255,255,255,0.06);
+  --sidebar-divider: rgba(255,255,255,0.08);
+
+  --header-height: 68px;
+  --header-bg: rgba(255,255,255,0.85);
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.05);
+  --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,0.15);
+  --shadow-glow: 0 0 20px rgba(79,70,229,0.15);
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;
+
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal-backdrop: 500;
+  --z-modal: 600;
+  --z-toast: 1000;
+}

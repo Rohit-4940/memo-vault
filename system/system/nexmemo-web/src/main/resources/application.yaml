@@ -1,0 +1,427 @@
+# ════════════════════════════════════════════════════════════════════════════
+# FILE: nexmemo-web/src/main/resources/application.yml
+# Base config — shared across dev, prod, test
+# Override individual keys in application-dev.yml / application-prod.yml
+# ════════════════════════════════════════════════════════════════════════════
+
+server:
+  port: 8086
+  servlet:
+    context-path: /api/v1
+  compression:
+    enabled: true
+    mime-types: application/json,text/html
+    min-response-size: 1024
+  error:
+    include-stacktrace: never   # override per profile
+    include-message: never
+
+  # ── Tomcat thread pool (critical for handling thousands of concurrent users) ──
+  tomcat:
+    threads:
+      max: 400                    # higher = more concurrent logins handled
+      min-spare: 40               # keep 40 threads ready at all times
+    accept-count: 500             # queue 500 connections before refusing
+    max-connections: 10000        # max TCP connections before OS queue
+    connection-timeout: 20000     # 20s — drop slow connections early
+    max-swallow-size: 2MB         # don't buffer large bodies in memory
+    processor-cache: 400          # match threads.max — avoid object churn
+
+spring:
+  application:
+    name: nexmemo-dms
+
+  profiles:
+    active: ${APP_PROFILE:dev}
+
+  main:
+    allow-bean-definition-overriding: true
+
+  jackson:
+    serialization:
+      fail-on-empty-beans: false
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+  jpa:
+    hibernate:
+      ddl-auto: validate          # Liquibase owns schema — Hibernate only validates
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.SQLServerDialect
+        format_sql: false
+        jdbc:
+          batch_size: 30
+          fetch_size: 50
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: true
+
+  # Multipart file upload limits
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 55MB
+      file-size-threshold: 2KB
+
+  # Redis configuration — required for distributed rate limiting and JWT blacklist
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 16
+        max-idle: 8
+        min-idle: 2
+
+  # Async thread pool (used by @Async email + OCR)
+  task:
+    execution:
+      pool:
+        core-size: 5
+        max-size: 20
+        queue-capacity: 100
+      thread-name-prefix: nexmemo-async-
+
+  # ── Elasticsearch ─────────────────────────────────────────────────────────────
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    connection-timeout: 5s
+    socket-timeout: 60s
+
+  # ── Jasypt secret encryption ──────────────────────────────────────────────────
+# Master key comes from env var JASYPT_ENCRYPTOR_PASSWORD — never hardcode it
+jasypt:
+  encryptor:
+    bean: jasyptStringEncryptor
+    algorithm: PBEWithHMACSHA512AndAES_256
+    key-obtention-iterations: 1000
+    string-output-type: base64
+
+# ════════════════════════════════════════════════════════════════════════════
+# NexMemo custom configuration
+# ════════════════════════════════════════════════════════════════════════════
+nexmemo:
+
+  upload:
+    directory: ${FILE_UPLOAD_PATH:C:/nexmemo/uploads}
+    max-size: 50MB
+
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
+
+  # ── Security ────────────────────────────────────────────────────────────────
+  security:
+    jwt:
+      # Generate: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+      # Or:       openssl rand -base64 32
+      secret: ${JWT_SECRET:CHANGE_ME_run_openssl_rand_base64_32_and_set_env_var}
+      access-token-expiry-minutes: 15
+      refresh-token-expiry-days: 7
+      issuer: nexmemo
+
+    # AES-256-GCM key for at-rest encryption of sensitive memo content
+    # Generate: openssl rand -base64 32
+    encryption:
+      key: ${ENCRYPTION_KEY:CHANGE_ME_run_openssl_rand_base64_32_and_set_env_var}
+
+    otp:
+      expiry-minutes: 5
+      length: 6
+      max-attempts: 3
+      lockout-minutes: 15
+      skip-in-dev: false        # set true in application-dev.yml
+      fixed-dev-otp: "123456"   # only used when skip-in-dev=true
+
+    brute-force:
+      max-attempts: 5
+      lockout-duration-minutes: 30
+      attempt-window-minutes: 10
+
+    device:
+      trust-duration-days: 30
+
+    password:
+      reset-token-expiry-hours: 24
+      force-change-on-first-login: true
+      min-length: 8
+      require-uppercase: true
+      require-digit: true
+      require-special: true
+
+    # Distributed rate limiting — requires Redis for multi-instance deployments
+    rate-limit:
+      redis-enabled: false
+      login-max-per-minute: 5
+      otp-max-per-5-minutes: 3
+      api-max-per-minute: 200
+      password-reset-max-per-hour: 3
+
+    # ClamAV virus scanner — free, self-hosted
+    clamav:
+      enabled: ${CLAMAV_ENABLED:false}    # true in prod
+      host: ${CLAMAV_HOST:localhost}
+      port: ${CLAMAV_PORT:3310}
+      timeout-ms: 10000
+
+  # ── OCR ─────────────────────────────────────────────────────────────────────
+  ocr:
+    # Windows: C:/nexmemo/tessdata
+    # Linux:   /usr/share/tesseract-ocr/5/tessdata
+    tessdata-path: ${TESSDATA_PATH:C:/nexmemo/tessdata}
+    # eng=English, nep=Nepali (Devanagari)
+    language: ${OCR_LANGUAGE:eng+nep}
+    dpi: 300
+
+  # ── Email (Gmail SMTP — free 500/day) ────────────────────────────────────────
+  email:
+    # App base URL — used to build links in emails
+    app-base-url: ${APP_BASE_URL:http://localhost:3000}
+    fallback:
+      host: ${MAIL_HOST:smtp.gmail.com}
+      port: ${MAIL_PORT:587}
+      username: ${MAIL_USERNAME:}
+      # Use Gmail App Password (not your Gmail password)
+      # Generate: myaccount.google.com → Security → App Passwords
+      password: ${MAIL_PASSWORD:}
+      from-address: ${MAIL_FROM:no-reply@nexmemo.com}
+      from-name: ${MAIL_FROM_NAME:NexMemo System}
+      use-tls: true
+
+logging:
+  level:
+    root: WARN
+    com.nexmemo: INFO
+    org.springframework.security: WARN
+    liquibase: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%logger{36}] - %msg%n"
+
+---
+# ════════════════════════════════════════════════════════════════════════════
+# FILE: nexmemo-web/src/main/resources/application-dev.yml
+# Local development — SQL Server Express (free), MailHog, Tesseract
+# ════════════════════════════════════════════════════════════════════════════
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:sqlserver://localhost:1433;databaseName=new_memo_db;encrypt=false;trustServerCertificate=true
+    username: sa
+    password: root
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    hikari:
+      minimum-idle: 2
+      maximum-pool-size: 10
+      pool-name: NexMemo-Dev-Pool
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # MailHog: catches all emails locally, no real emails sent
+  # Start: docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog
+  # View emails: http://localhost:8025
+  mail:
+    host: localhost
+    port: 1025
+    username: ""
+    password: ""
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+
+nexmemo:
+  security:
+    jwt:
+      # Longer in dev so you don't have to refresh constantly
+      access-token-expiry-minutes: 480
+      refresh-token-expiry-days: 30
+      secret: bmV4bWVtby1kZXYtc2VjcmV0LWtleS0tLTMyLWJ5dGVzLWxvbmctZW5vdWdoISE=
+
+    encryption:
+      key: ZGV2LW9ubHktZW5jcnlwdGlvbi1rZXktMzItYnl0ZXMAAAA=
+
+    otp:
+      # In dev: skip OTP entirely — accept "123456" always
+      skip-in-dev: true
+      fixed-dev-otp: "123456"
+
+    rate-limit:
+      redis-enabled: false
+      login-max-per-minute: 100
+      api-max-per-minute: 500
+
+    brute-force:
+      # No lockout in dev — won't block you while testing
+      max-attempts: 9999
+
+    clamav:
+      # ClamAV off in dev — saves setup time
+      # Turn on if you want to test virus scanning locally:
+      #   docker run -d -p 3310:3310 clamav/clamav:stable
+      enabled: false
+
+  ocr:
+    tessdata-path: C:/nexmemo/tessdata
+    language: eng+nep
+
+  email:
+    app-base-url: http://localhost:3000
+    fallback:
+      host: localhost
+      port: 1025
+      from-address: dev@nexmemo.local
+      from-name: "NexMemo Dev"
+      use-tls: false
+
+  upload:
+    directory: C:/nexmemo/uploads
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:4200,http://localhost:4202,http://localhost:8080
+
+logging:
+  level:
+    com.nexmemo: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    liquibase: INFO
+
+server:
+  error:
+    include-stacktrace: always
+    include-message: always
+    include-binding-errors: always
+
+# Jasypt dev master key — OK to commit this for dev only
+jasypt:
+  encryptor:
+    password: nexmemo-dev-master-key-change-in-prod
+
+---
+# ════════════════════════════════════════════════════════════════════════════
+# FILE: nexmemo-web/src/main/resources/application-prod.yml
+# Production — ALL secrets from environment variables
+# ════════════════════════════════════════════════════════════════════════════
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    # SQL Server on your bank's server
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 30
+      pool-name: NexMemo-Prod-Pool
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  jpa:
+    show-sql: false
+
+  # Gmail SMTP for production
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${GMAIL_USERNAME}
+    password: ${GMAIL_APP_PASSWORD}   # App Password from Google Account → Security → App Passwords
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+
+nexmemo:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}           # openssl rand -base64 32
+      access-token-expiry-minutes: 15
+      refresh-token-expiry-days: 7
+
+    encryption:
+      key: ${ENCRYPTION_KEY}          # openssl rand -base64 32
+
+    otp:
+      skip-in-dev: false
+      expiry-minutes: 5
+      max-attempts: 3
+
+    rate-limit:
+      redis-enabled: true
+      login-max-per-minute: 10
+      api-max-per-minute: 500
+      password-reset-max-per-hour: 3
+
+    brute-force:
+      max-attempts: 5
+
+    clamav:
+      enabled: true                   # MANDATORY in production
+      host: ${CLAMAV_HOST:clamav}     # Docker service name or IP
+      port: 3310
+
+  ocr:
+    tessdata-path: ${TESSDATA_PATH:/usr/share/tesseract-ocr/5/tessdata}
+    language: ${OCR_LANGUAGE:eng+nep}
+
+  email:
+    app-base-url: ${APP_BASE_URL}     # https://app.nexmemo.com
+    fallback:
+      host: smtp.gmail.com
+      port: 587
+      username: ${GMAIL_USERNAME}
+      password: ${GMAIL_APP_PASSWORD}
+      from-address: ${MAIL_FROM}
+      from-name: ${MAIL_FROM_NAME:NexMemo}
+      use-tls: true
+
+  upload:
+    directory: ${FILE_UPLOAD_PATH:/var/nexmemo/uploads}
+
+  cors:
+    allowed-origins: ${CORS_ORIGINS}  # https://app.nexmemo.com
+
+logging:
+  level:
+    root: WARN
+    com.nexmemo: WARN
+  file:
+    name: /var/log/nexmemo/app.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 30
+      total-size-cap: 1GB
+
+server:
+  port: ${SERVER_PORT:8086}
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+
+# Jasypt master key — ONLY from environment variable in production
+# Set: export JASYPT_ENCRYPTOR_PASSWORD=your-very-strong-master-key
+jasypt:
+  encryptor:
+    password: ${JASYPT_ENCRYPTOR_PASSWORD}

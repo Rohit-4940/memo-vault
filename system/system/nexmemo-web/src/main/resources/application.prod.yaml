@@ -1,0 +1,84 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    # Example: jdbc:sqlserver://prod-db-server:1433;databaseName=nexmemo_prod;encrypt=true;trustServerCertificate=false
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    hikari:
+      minimum-idle: 10
+      maximum-pool-size: 80
+      pool-name: NexMemo-Prod-Pool
+      connection-timeout: 5000    # fail fast if DB is slow — don't pile up
+      idle-timeout: 300000
+      max-lifetime: 900000
+      leak-detection-threshold: 30000
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+
+nexmemo:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}           # 256-bit Base64 key — generate with: openssl rand -base64 32
+      access-token-expiry-minutes: 15
+      refresh-token-expiry-days: 7
+    otp:
+      skip-in-dev: false
+    brute-force:
+      max-attempts: 5
+  cors:
+    allowed-origins: ${CORS_ORIGINS}  # e.g. https://app.nexmemo.com
+  email:
+    fallback:
+      host: ${MAIL_HOST}
+      port: ${MAIL_PORT:587}
+      username: ${MAIL_USERNAME}
+      password: ${MAIL_PASSWORD}
+      from-address: ${MAIL_FROM}
+      from-name: ${MAIL_FROM_NAME:NexMemo}
+      use-tls: true
+  upload:
+    directory: ${FILE_UPLOAD_PATH}
+
+logging:
+  level:
+    root: WARN
+    com.nexmemo: WARN
+    org.springframework.security: WARN
+    liquibase: WARN
+  file:
+    name: /var/log/nexmemo/app.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 30
+      total-size-cap: 1GB
+
+server:
+  port: ${SERVER_PORT:8086}
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+  compression:
+    enabled: true
+    mime-types: application/json,text/html
+    min-response-size: 1024

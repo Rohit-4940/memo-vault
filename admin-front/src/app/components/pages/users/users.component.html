@@ -1,0 +1,83 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fas fa-users"></i> Users</h1>
+    <div class="header-actions">
+      <input class="search-input" type="text" placeholder="Search users..." [(ngModel)]="searchTerm">
+      <button class="btn btn-primary" (click)="openCreateModal(createModal)">
+        <i class="fas fa-plus"></i> Create User
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for(user of filteredUsers; track user.id) {
+            <tr>
+              <td>{{ user.id }}</td>
+              <td>{{ user.name }}</td>
+              <td>{{ user.username }}</td>
+              <td>{{ user.email }}</td>
+              <td><span class="badge badge-info">{{ user.roleName }}</span></td>
+              <td><span class="badge" [class.badge-success]="user.status === 'ACTIVE'" [class.badge-danger]="user.status !== 'ACTIVE'">{{ user.status }}</span></td>
+              <td class="actions">
+                <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, user)"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-outline-danger" (click)="deleteUser(user.id)"><i class="fas fa-trash"></i></button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" class="text-center text-muted py-4">No users found</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<ng-template #createModal let-modal>
+  <div class="modal-header"><h5 class="modal-title">Create User</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <div class="modal-body">
+    <div class="form-group mb-3"><label>Name</label><input class="form-control" [(ngModel)]="selectedUser.name" required></div>
+    <div class="form-group mb-3"><label>Username</label><input class="form-control" [(ngModel)]="selectedUser.username" required></div>
+    <div class="form-group mb-3"><label>Email</label><input class="form-control" type="email" [(ngModel)]="selectedUser.email" required></div>
+    <div class="form-group mb-3"><label>Role</label>
+      <select class="form-control" [(ngModel)]="selectedUser.roleId">
+        <option value="">Select Role</option>
+        @for(role of roles; track role.id) { <option [value]="role.id">{{ role.roleName }}</option> }
+      </select>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
+    <button class="btn btn-primary" (click)="saveUser()">Create</button>
+  </div>
+</ng-template>
+
+<ng-template #editModal let-modal>
+  <div class="modal-header"><h5 class="modal-title">Edit User</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <div class="modal-body">
+    <div class="form-group mb-3"><label>Name</label><input class="form-control" [(ngModel)]="selectedUser.name" required></div>
+    <div class="form-group mb-3"><label>Username</label><input class="form-control" [(ngModel)]="selectedUser.username" required></div>
+    <div class="form-group mb-3"><label>Email</label><input class="form-control" type="email" [(ngModel)]="selectedUser.email" required></div>
+    <div class="form-group mb-3"><label>Role</label>
+      <select class="form-control" [(ngModel)]="selectedUser.roleId">
+        @for(role of roles; track role.id) { <option [value]="role.id">{{ role.roleName }}</option> }
+      </select>
+    </div>
+    <div class="form-group mb-3"><label>Status</label>
+      <select class="form-control" [(ngModel)]="selectedUser.status">
+        <option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="LOCKED">Locked</option>
+      </select>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
+    <button class="btn btn-primary" (click)="saveUser()">Save</button>
+  </div>
+</ng-template>

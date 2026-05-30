@@ -1,0 +1,47 @@
+<div class="sidebar" [class.expanded]="isExpanded">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <i class="fas fa-file-alt sidebar-logo-icon"></i>
+      @if (isExpanded) {
+        <span class="sidebar-brand">NexMemo</span>
+      }
+    </div>
+  </div>
+
+  <div class="sidebar-menu-label" [class.collapsed]="!isExpanded">
+    @if (isExpanded) { <span>Main Menu</span> }
+  </div>
+
+  <nav class="nav-menu">
+    <ul class="nav-links">
+      @for(item of menuItems; track item.id || item.menuName) {
+        <li>
+          <a [routerLink]="item.frontUrl"
+             routerLinkActive="active"
+             [routerLinkActiveOptions]="{exact: item.frontUrl === '/layout/dashboard'}"
+             class="nav-link"
+             [class.tooltip-right]="!isExpanded"
+             [attr.data-tooltip]="!isExpanded ? item.menuName : null">
+            <i class="{{item.faIcon}}"></i>
+            @if (isExpanded) {
+              <span class="link-text">{{item.menuName}}</span>
+            }
+          </a>
+        </li>
+      }
+    </ul>
+  </nav>
+
+  <div class="sidebar-footer">
+    @if (isExpanded) {
+      <div class="sidebar-footer-content">
+        <i class="fas fa-chevron-left" (click)="sidebarService.toggleSidebar()"></i>
+        <span>Collapse</span>
+      </div>
+    } @else {
+      <div class="sidebar-footer-collapsed" (click)="sidebarService.toggleSidebar()">
+        <i class="fas fa-chevron-right"></i>
+      </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,90 @@
+package com.nexmemo.core.entity;
+
+import com.nexmemo.core.enums.MemoStatus;
+import com.nexmemo.core.enums.Priority;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "memo", indexes = {
+    @Index(name = "idx_memo_no", columnList = "memo_no", unique = true),
+    @Index(name = "idx_memo_status", columnList = "status"),
+    @Index(name = "idx_memo_created_by", columnList = "created_by_id")
+})
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
+public class Memo extends BaseEntity<Long> implements Serializable {
+
+    @NotBlank
+    @Column(name = "memo_no", unique = true, nullable = false)
+    private String memoNo;
+
+    @NotBlank
+    @Column(nullable = false)
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MemoStatus status = MemoStatus.DRAFT;
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Priority priority = Priority.MEDIUM;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "memo_type_id")
+    private MemoType memoType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id")
+    private Branch branch;
+
+    @Column(precision = 19, scale = 4)
+    private BigDecimal amount;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id", insertable = false, updatable = false)
+    private User createdByUser;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "current_approver_id")
+    private User currentApprover;
+
+    @Column(nullable = false)
+    private Integer approvalLevel = 0;
+
+    @Column(nullable = false)
+    private Integer totalApprovalLevels = 0;
+
+    @Column(name = "submitted_date")
+    private LocalDateTime submittedDate;
+
+    @Column(name = "approved_date")
+    private LocalDateTime approvedDate;
+
+    @OneToMany(mappedBy = "memo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("approvalLevel ASC")
+    private List<ApprovalHistory> approvalHistory = new ArrayList<>();
+
+    @OneToMany(mappedBy = "memo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<MemoDocument> documents = new ArrayList<>();
+
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
+}

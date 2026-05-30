@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<!--
+  Path: nexmemo-web/src/main/resources/templates/email/account-locked.html
+  Trigger: Too many failed login attempts → account temporarily locked
+  Variables: ${name}, ${minutes}
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.08);">
+
+    <div style="background:linear-gradient(135deg,#1a3c6e,#2563eb);padding:36px 40px;text-align:center;">
+        <span style="font-size:22px;font-weight:700;color:#fff;">NexMemo</span>
+        <div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,.65);letter-spacing:1.5px;text-transform:uppercase;">Corporate Memo System</div>
+    </div>
+
+    <div style="padding:40px;">
+        <div style="text-align:center;margin-bottom:24px;">
+            <div style="width:64px;height:64px;background:#fee2e2;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div style="display:inline-block;background:#fee2e2;color:#991b1b;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:6px 16px;border-radius:20px;">Account Locked</div>
+        </div>
+
+        <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#0f172a;text-align:center;">
+            Your account has been temporarily locked
+        </h1>
+        <p style="margin:0 0 28px;font-size:15px;color:#475569;text-align:center;line-height:1.6;">
+            Hi <strong th:text="${name}">User</strong>, too many failed login attempts were detected on your NexMemo account.
+            For your security, we have temporarily locked it.
+        </p>
+
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px 24px;margin:0 0 24px;">
+            <table style="width:100%;font-size:13px;color:#475569;border-collapse:collapse;">
+                <tr>
+                    <td style="padding:6px 0;color:#94a3b8;width:140px;">Lock duration</td>
+                    <td style="padding:6px 0;font-weight:600;color:#0f172a;" th:text="${minutes} + ' minutes'">30 minutes</td>
+                </tr>
+                <tr>
+                    <td style="padding:6px 0;color:#94a3b8;">Time</td>
+                    <td style="padding:6px 0;" th:text="${#temporals.format(#temporals.createNow(),'dd MMM yyyy HH:mm')} + ' UTC'">now</td>
+                </tr>
+                <tr>
+                    <td style="padding:6px 0;color:#94a3b8;">After lockout</td>
+                    <td style="padding:6px 0;">Account unlocks automatically</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="border-left:3px solid #ef4444;background:#fef2f2;padding:14px 18px;border-radius:0 6px 6px 0;">
+            <p style="margin:0;font-size:13px;color:#991b1b;line-height:1.6;">
+                <strong>Wasn't you?</strong> If you did not attempt to log in, your credentials may be compromised.
+                Contact your system administrator immediately.
+            </p>
+        </div>
+    </div>
+
+    <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center;">
+        <p style="margin:0;font-size:12px;color:#94a3b8;">Automated security message. Do not reply.</p>
+        <p style="margin:4px 0 0;font-size:11px;color:#cbd5e1;">&copy; 2026 NexMemo. All rights reserved.</p>
+    </div>
+
+</div>
+</body>
+</html>

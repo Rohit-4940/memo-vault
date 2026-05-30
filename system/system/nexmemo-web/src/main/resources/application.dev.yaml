@@ -1,0 +1,71 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:sqlserver://localhost:1433;databaseName=new_memo_db;encrypt=false;trustServerCertificate=true
+    username: sa
+    password: root
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    hikari:
+      minimum-idle: 2
+      maximum-pool-size: 10
+      pool-name: NexMemo-Dev-Pool
+      connection-timeout: 30000
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Dev mail — use MailHog (free local SMTP catcher, no real emails sent)
+  # Install: https://github.com/mailhog/MailHog
+  # Dashboard: http://localhost:8025
+  mail:
+    host: localhost
+    port: 1025
+    username: ""
+    password: ""
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+
+nexmemo:
+  security:
+    jwt:
+      # Longer expiry in dev — avoids constant re-login during development
+      access-token-expiry-minutes: 120
+      refresh-token-expiry-days: 30
+    otp:
+      # In dev: skip real OTP sending — accept "123456" always
+      skip-in-dev: true
+      fixed-dev-otp: "123456"
+    brute-force:
+      # No lockout in dev — won't block you while testing
+      max-attempts: 999
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:4200,http://localhost:4202,http://localhost:8080
+  email:
+    fallback:
+      host: localhost
+      port: 1025
+      from-address: dev@nexmemo.local
+      from-name: "NexMemo Dev"
+      use-tls: false
+
+logging:
+  level:
+    com.nexmemo: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    liquibase: INFO
+
+server:
+  error:
+    include-stacktrace: always
+    include-message: always
+    include-binding-errors: always

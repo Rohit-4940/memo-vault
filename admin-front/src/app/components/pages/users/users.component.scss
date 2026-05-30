@@ -1,0 +1,11 @@
+.badge { padding: 0.25rem 0.6rem; border-radius: var(--radius-full); font-size: 0.7rem; font-weight: 500; }
+.actions { white-space: nowrap; display: flex; gap: 0.35rem; }
+.user-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--nexmemo-primary), var(--nexmemo-secondary));
+  display: inline-flex; align-items: center; justify-content: center;
+  color: white; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem;
+}
+.user-cell { display: flex; align-items: center; }
+
+.modal-body { max-height: 65vh; overflow-y: auto; }

@@ -1,0 +1,60 @@
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem; margin-bottom: 1.5rem;
+}
+.stat-card {
+  padding: 1.5rem; border-radius: var(--radius-md); display: flex; align-items: flex-start; gap: 1rem;
+  color: white; position: relative; overflow: hidden;
+  &::after {
+    content: ''; position: absolute; top: -50%; right: -50%; width: 100%; height: 100%;
+    background: rgba(255,255,255,0.05); border-radius: 50%; pointer-events: none;
+  }
+  &.gradient-blue { background: linear-gradient(135deg, #4f46e5, #6366f1); }
+  &.gradient-orange { background: linear-gradient(135deg, #f59e0b, #f97316); }
+  &.gradient-green { background: linear-gradient(135deg, #10b981, #059669); }
+  &.gradient-purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+  .stat-icon {
+    width: 48px; height: 48px; border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center;
+    i { font-size: 1.25rem; }
+  }
+  .stat-body { flex: 1; }
+  .stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1.2; }
+  .stat-label { font-size: 0.8rem; opacity: 0.75; margin-top: 0.15rem; }
+  .stat-trend {
+    display: inline-flex; align-items: center; gap: 0.2rem;
+    font-size: 0.7rem; opacity: 0.6; margin-top: 0.5rem;
+    &.up { opacity: 0.9; }
+    i { font-size: 0.55rem; }
+  }
+}
+.dashboard-grid {
+  display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem;
+}
+.dashboard-sidebar {
+  display: flex; flex-direction: column; gap: 1.25rem;
+}
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  padding: 2rem; text-align: center; color: var(--nexmemo-text-muted);
+  i { font-size: 2rem; }
+  p { font-size: 0.85rem; margin: 0; }
+}
+.quick-actions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+}
+.quick-action-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+  padding: 1rem 0.5rem; background: var(--nexmemo-bg); border: 1px solid var(--nexmemo-border-light);
+  border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition-fast);
+  color: var(--nexmemo-text-secondary); font-size: 0.75rem;
+  i { font-size: 1.1rem; color: var(--nexmemo-text-muted); transition: all var(--transition-fast); }
+  &:hover {
+    background: var(--nexmemo-primary-light); border-color: var(--nexmemo-primary-lighter);
+    color: var(--nexmemo-primary); i { color: var(--nexmemo-primary); }
+  }
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+}

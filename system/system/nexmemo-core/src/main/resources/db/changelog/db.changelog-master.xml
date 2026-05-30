@@ -1,0 +1,690 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260403-2" author="Rohit Chapagain">
+        <createTable tableName="role">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="role_name" type="VARCHAR(255)"><constraints unique="true" nullable="false"/></column>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="role_type" type="VARCHAR(50)" defaultValue="APPROVAL"><constraints nullable="false"/></column>
+            <column name="role_access" type="VARCHAR(50)" defaultValue="OWN"><constraints nullable="false"/></column>
+            <column name="is_role_approvable" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="role_approval_limit_amount" type="DECIMAL(19,4)"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260403-3" author="Rohit Chapagain">
+        <createTable tableName="province">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints unique="true" nullable="false"/></column>
+            <column name="code" type="VARCHAR(10)"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260403-4" author="Rohit Chapagain">
+        <createTable tableName="district">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="district_code" type="VARCHAR(10)"/>
+            <column name="province_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="district" baseColumnNames="province_id"
+                referencedTableName="province" referencedColumnNames="id"
+                constraintName="fk_district_province"/>
+    </changeSet>
+
+    <changeSet id="20260403-5" author="Rohit Chapagain">
+        <createTable tableName="municipality_vdc">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="type" type="VARCHAR(50)"/>
+            <column name="district_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="municipality_vdc" baseColumnNames="district_id"
+                referencedTableName="district" referencedColumnNames="id"
+                constraintName="fk_muni_district"/>
+    </changeSet>
+
+    <changeSet id="20260403-6" author="Rohit Chapagain">
+        <createTable tableName="branch">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="branch_code" type="VARCHAR(100)"><constraints unique="true" nullable="false"/></column>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="province_id" type="BIGINT"/>
+            <column name="district_id" type="BIGINT"/>
+            <column name="municipality_vdc_id" type="BIGINT"/>
+            <column name="street_name" type="VARCHAR(255)"/>
+            <column name="ward_number" type="VARCHAR(50)"/>
+            <column name="branch_email" type="VARCHAR(255)"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="branch" baseColumnNames="province_id"
+                referencedTableName="province" referencedColumnNames="id"
+                constraintName="fk_branch_province"/>
+        <addForeignKeyConstraint
+                baseTableName="branch" baseColumnNames="district_id"
+                referencedTableName="district" referencedColumnNames="id"
+                constraintName="fk_branch_district"/>
+        <addForeignKeyConstraint
+                baseTableName="branch" baseColumnNames="municipality_vdc_id"
+                referencedTableName="municipality_vdc" referencedColumnNames="id"
+                constraintName="fk_branch_muni"/>
+    </changeSet>
+
+    <changeSet id="20260403-7" author="Rohit Chapagain">
+        <createTable tableName="users">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="user_name" type="VARCHAR(255)"><constraints unique="true" nullable="false"/></column>
+            <column name="email" type="VARCHAR(255)"><constraints unique="true" nullable="false"/></column>
+            <column name="password" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="last_login_mac" type="VARCHAR(255)"/>
+            <column name="last_login_ip" type="VARCHAR(255)"/>
+            <column name="reset_password_token" type="VARCHAR(255)"/>
+            <column name="reset_password_token_expiry" type="DATETIME"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"/>
+            <column name="role_id" type="BIGINT"/>
+            <column name="check_if_specifice_user" type="VARCHAR(255)"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="users" baseColumnNames="role_id"
+                referencedTableName="role" referencedColumnNames="id"
+                constraintName="fk_user_role"/>
+    </changeSet>
+
+    <changeSet id="20260403-8" author="Rohit Chapagain">
+        <createTable tableName="user_branches">
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="branch_id" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="user_branches" columnNames="user_id,branch_id"
+                       constraintName="pk_user_branches"/>
+        <addForeignKeyConstraint
+                baseTableName="user_branches" baseColumnNames="user_id"
+                referencedTableName="users" referencedColumnNames="id"
+                constraintName="fk_ub_user"/>
+        <addForeignKeyConstraint
+                baseTableName="user_branches" baseColumnNames="branch_id"
+                referencedTableName="branch" referencedColumnNames="id"
+                constraintName="fk_ub_branch"/>
+    </changeSet>
+
+    <changeSet id="20260403-9" author="Rohit Chapagain">
+        <createTable tableName="email_verification_token">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="token" type="VARCHAR(512)"><constraints unique="true" nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="token_type" type="VARCHAR(50)" defaultValue="EMAIL_VERIFICATION"><constraints nullable="false"/></column>
+            <column name="is_used" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="expires_at" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="used_at" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="email_verification_token" baseColumnNames="user_id"
+                referencedTableName="users" referencedColumnNames="id"
+                constraintName="fk_evt_user"/>
+        <createIndex tableName="email_verification_token" indexName="idx_evt_token">
+            <column name="token"/>
+        </createIndex>
+        <createIndex tableName="email_verification_token" indexName="idx_evt_user">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260403-10" author="Rohit Chapagain">
+        <createTable tableName="otp_verification">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="otp_code" type="VARCHAR(10)"><constraints nullable="false"/></column>
+            <column name="otp_type" type="VARCHAR(50)" defaultValue="LOGIN"><constraints nullable="false"/></column>
+            <column name="is_used" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="attempt_count" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="expires_at" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="verified_at" type="DATETIME"/>
+            <column name="ip_address" type="VARCHAR(100)"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="otp_verification" baseColumnNames="user_id"
+                referencedTableName="users" referencedColumnNames="id"
+                constraintName="fk_otp_user"/>
+        <createIndex tableName="otp_verification" indexName="idx_otp_user_type">
+            <column name="user_id"/>
+            <column name="otp_type"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260403-11" author="Rohit Chapagain">
+        <createTable tableName="refresh_token">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="token_hash" type="VARCHAR(512)"><constraints unique="true" nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="device_fingerprint" type="VARCHAR(512)"/>
+            <column name="device_name" type="VARCHAR(255)"/>
+            <column name="ip_address" type="VARCHAR(100)"/>
+            <column name="user_agent" type="VARCHAR(512)"/>
+            <column name="is_revoked" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="expires_at" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="last_used_at" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="refresh_token" baseColumnNames="user_id"
+                referencedTableName="users" referencedColumnNames="id"
+                constraintName="fk_rt_user"/>
+        <createIndex tableName="refresh_token" indexName="idx_rt_token_hash">
+            <column name="token_hash"/>
+        </createIndex>
+        <createIndex tableName="refresh_token" indexName="idx_rt_user">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260403-12" author="Rohit Chapagain">
+        <createTable tableName="device_registry">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="device_fingerprint" type="VARCHAR(512)"><constraints nullable="false"/></column>
+            <column name="device_name" type="VARCHAR(255)"/>
+            <column name="device_type" type="VARCHAR(50)"/>
+            <column name="mac_address" type="VARCHAR(50)"/>
+            <column name="ip_address" type="VARCHAR(100)"/>
+            <column name="user_agent" type="VARCHAR(512)"/>
+            <column name="is_trusted" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="trust_expires_at" type="DATETIME"/>
+            <column name="last_seen_at" type="DATETIME"/>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="device_registry" baseColumnNames="user_id"
+                referencedTableName="users" referencedColumnNames="id"
+                constraintName="fk_dr_user"/>
+        <createIndex tableName="device_registry" indexName="idx_dr_user_device">
+            <column name="user_id"/>
+            <column name="device_fingerprint"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260403-13" author="Rohit Chapagain">
+        <createTable tableName="audit_log">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="action" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="entity_type" type="VARCHAR(100)"/>
+            <column name="entity_id" type="BIGINT"/>
+            <column name="performed_by_id" type="BIGINT"/>
+            <column name="performed_by_username" type="VARCHAR(255)"/>
+            <column name="ip_address" type="VARCHAR(100)"/>
+            <column name="user_agent" type="VARCHAR(512)"/>
+            <column name="device_fingerprint" type="VARCHAR(512)"/>
+            <column name="details" type="TEXT"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="SUCCESS"><constraints nullable="false"/></column>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="audit_log" indexName="idx_al_user_action">
+            <column name="performed_by_id"/>
+            <column name="action"/>
+        </createIndex>
+        <createIndex tableName="audit_log" indexName="idx_al_entity">
+            <column name="entity_type"/>
+            <column name="entity_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260403-14" author="Rohit Chapagain">
+        <createTable tableName="login_attempt">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="username" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="ip_address" type="VARCHAR(100)"/>
+            <column name="is_success" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="failure_reason" type="VARCHAR(255)"/>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="login_attempt" indexName="idx_la_username_created">
+            <column name="username"/>
+            <column name="created_date"/>
+        </createIndex>
+        <createIndex tableName="login_attempt" indexName="idx_la_ip_created">
+            <column name="ip_address"/>
+            <column name="created_date"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260403-15" author="Rohit Chapagain">
+        <createTable tableName="email_config">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config_key" type="VARCHAR(100)">
+                <constraints unique="true" nullable="false"/>
+            </column>
+            <column name="smtp_host" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="smtp_port" type="INT" defaultValueNumeric="587">
+                <constraints nullable="false"/>
+            </column>
+            <column name="smtp_username" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="smtp_password_encrypted" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="from_address" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="from_name" type="VARCHAR(255)"/>
+            <column name="use_tls" type="BIT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BIT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="modified_by" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260403-16" author="Rohit Chapagain">
+        <addColumn tableName="users">
+            <column name="email_verified" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="account_locked" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="failed_login_attempts" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="locked_until" type="DATETIME"/>
+            <column name="last_login_at" type="DATETIME"/>
+            <column name="password_changed_at" type="DATETIME"/>
+            <column name="force_password_change" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260403-17" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="province" columnName="name_nepali"/></not>
+        </preConditions>
+        <addColumn tableName="province">
+            <column name="name_nepali" type="VARCHAR(255)"/>
+        </addColumn>
+        <addColumn tableName="district">
+            <column name="name_nepali" type="VARCHAR(255)"/>
+        </addColumn>
+        <addColumn tableName="municipality_vdc">
+            <column name="name_nepali" type="VARCHAR(255)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260529-1" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="menu"/></not>
+        </preConditions>
+        <createTable tableName="menu">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="menu_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="fa_icon" type="VARCHAR(255)"/>
+            <column name="front_url" type="VARCHAR(255)"/>
+            <column name="parent_id" type="BIGINT"/>
+            <column name="orders" type="BIGINT"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260529-2" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="url_api"/></not>
+        </preConditions>
+        <createTable tableName="url_api">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="url" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="method" type="VARCHAR(10)" defaultValue="GET"><constraints nullable="false"/></column>
+            <column name="description" type="VARCHAR(255)"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260529-3" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="role_permission_rights"/></not>
+        </preConditions>
+        <createTable tableName="role_permission_rights">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="role_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="menu_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260529-4" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="role_permission_api"/></not>
+        </preConditions>
+        <createTable tableName="role_permission_api">
+            <column name="rights_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="api_id" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260529-5" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="department"/></not></preConditions>
+        <createTable tableName="department">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints unique="true" nullable="false"/></column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260529-6" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="memo_type"/></not></preConditions>
+        <createTable tableName="memo_type">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints unique="true" nullable="false"/></column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260529-7" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="memo"/></not></preConditions>
+        <createTable tableName="memo">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="memo_no" type="VARCHAR(50)"><constraints unique="true" nullable="false"/></column>
+            <column name="title" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="description" type="TEXT"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="DRAFT"><constraints nullable="false"/></column>
+            <column name="priority" type="VARCHAR(50)" defaultValue="MEDIUM"><constraints nullable="false"/></column>
+            <column name="memo_type_id" type="BIGINT"/>
+            <column name="department_id" type="BIGINT"/>
+            <column name="branch_id" type="BIGINT"/>
+            <column name="amount" type="DECIMAL(19,4)"/>
+            <column name="current_approver_id" type="BIGINT"/>
+            <column name="approval_level" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_approval_levels" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="submitted_date" type="DATETIME"/>
+            <column name="approved_date" type="DATETIME"/>
+            <column name="is_deleted" type="BIT" defaultValueNumeric="0"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260529-8" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="memo_document"/></not></preConditions>
+        <createTable tableName="memo_document">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="memo_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="file_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="file_path" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="file_type" type="VARCHAR(100)"/>
+            <column name="file_size" type="BIGINT"/>
+            <column name="extracted_text" type="TEXT"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260529-9" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="approval_history"/></not></preConditions>
+        <createTable tableName="approval_history">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="memo_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="approver_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="action" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="remarks" type="VARCHAR(500)"/>
+            <column name="approval_level" type="INT"><constraints nullable="false"/></column>
+            <column name="action_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260530-1" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="fiscal_year"/></not></preConditions>
+        <createTable tableName="fiscal_year">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(100)"><constraints unique="true" nullable="false"/></column>
+            <column name="start_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="end_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="is_active" type="BIT" defaultValueNumeric="0"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260530-2" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="memo_template"/></not></preConditions>
+        <createTable tableName="memo_template">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="content" type="TEXT"/>
+            <column name="memo_type_id" type="BIGINT"/>
+            <column name="department_id" type="BIGINT"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260530-3" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="memo_routing"/></not></preConditions>
+        <createTable tableName="memo_routing">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="memo_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="from_branch_id" type="BIGINT"/>
+            <column name="to_branch_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="routing_order" type="INT"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="PENDING"><constraints nullable="false"/></column>
+            <column name="remarks" type="VARCHAR(500)"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260530-4" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="leave_tracker"/></not></preConditions>
+        <createTable tableName="leave_tracker">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="start_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="end_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="leave_type" type="VARCHAR(100)"/>
+            <column name="reason" type="TEXT"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="PENDING"><constraints nullable="false"/></column>
+            <column name="approved_by_id" type="BIGINT"/>
+            <column name="remarks" type="VARCHAR(500)"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260530-5" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="system_config"/></not></preConditions>
+        <createTable tableName="system_config">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="config_key" type="VARCHAR(100)"><constraints unique="true" nullable="false"/></column>
+            <column name="config_value" type="TEXT"/>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="data_type" type="VARCHAR(50)" defaultValue="STRING"/>
+            <column name="is_active" type="BIT" defaultValueNumeric="1"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260530-6" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="budget_allocation"/></not></preConditions>
+        <createTable tableName="budget_allocation">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="fiscal_year_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="department_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="branch_id" type="BIGINT"/>
+            <column name="allocated_amount" type="DECIMAL(19,4)"><constraints nullable="false"/></column>
+            <column name="utilized_amount" type="DECIMAL(19,4)" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="remaining_amount" type="DECIMAL(19,4)"/>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260530-7" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><foreignKeyConstraintExists foreignKeyName="fk_memo_type"/></not></preConditions>
+        <addForeignKeyConstraint baseTableName="memo" baseColumnNames="memo_type_id"
+                                 referencedTableName="memo_type" referencedColumnNames="id"
+                                 constraintName="fk_memo_type"/>
+        <addForeignKeyConstraint baseTableName="memo" baseColumnNames="department_id"
+                                 referencedTableName="department" referencedColumnNames="id"
+                                 constraintName="fk_memo_department"/>
+        <addForeignKeyConstraint baseTableName="memo" baseColumnNames="branch_id"
+                                 referencedTableName="branch" referencedColumnNames="id"
+                                 constraintName="fk_memo_branch"/>
+        <addForeignKeyConstraint baseTableName="memo" baseColumnNames="current_approver_id"
+                                 referencedTableName="users" referencedColumnNames="id"
+                                 constraintName="fk_memo_current_approver"/>
+        <addForeignKeyConstraint baseTableName="memo_document" baseColumnNames="memo_id"
+                                 referencedTableName="memo" referencedColumnNames="id"
+                                 constraintName="fk_doc_memo"/>
+        <addForeignKeyConstraint baseTableName="approval_history" baseColumnNames="memo_id"
+                                 referencedTableName="memo" referencedColumnNames="id"
+                                 constraintName="fk_ah_memo"/>
+        <addForeignKeyConstraint baseTableName="approval_history" baseColumnNames="approver_id"
+                                 referencedTableName="users" referencedColumnNames="id"
+                                 constraintName="fk_ah_approver"/>
+        <addForeignKeyConstraint baseTableName="memo_template" baseColumnNames="memo_type_id"
+                                 referencedTableName="memo_type" referencedColumnNames="id"
+                                 constraintName="fk_mt_type"/>
+        <addForeignKeyConstraint baseTableName="memo_template" baseColumnNames="department_id"
+                                 referencedTableName="department" referencedColumnNames="id"
+                                 constraintName="fk_mt_department"/>
+        <addForeignKeyConstraint baseTableName="memo_routing" baseColumnNames="memo_id"
+                                 referencedTableName="memo" referencedColumnNames="id"
+                                 constraintName="fk_mr_memo"/>
+        <addForeignKeyConstraint baseTableName="memo_routing" baseColumnNames="from_branch_id"
+                                 referencedTableName="branch" referencedColumnNames="id"
+                                 constraintName="fk_mr_from_branch"/>
+        <addForeignKeyConstraint baseTableName="memo_routing" baseColumnNames="to_branch_id"
+                                 referencedTableName="branch" referencedColumnNames="id"
+                                 constraintName="fk_mr_to_branch"/>
+        <addForeignKeyConstraint baseTableName="leave_tracker" baseColumnNames="user_id"
+                                 referencedTableName="users" referencedColumnNames="id"
+                                 constraintName="fk_lt_user"/>
+        <addForeignKeyConstraint baseTableName="leave_tracker" baseColumnNames="approved_by_id"
+                                 referencedTableName="users" referencedColumnNames="id"
+                                 constraintName="fk_lt_approver"/>
+        <addForeignKeyConstraint baseTableName="budget_allocation" baseColumnNames="fiscal_year_id"
+                                 referencedTableName="fiscal_year" referencedColumnNames="id"
+                                 constraintName="fk_ba_fy"/>
+        <addForeignKeyConstraint baseTableName="budget_allocation" baseColumnNames="department_id"
+                                 referencedTableName="department" referencedColumnNames="id"
+                                 constraintName="fk_ba_dept"/>
+        <addForeignKeyConstraint baseTableName="budget_allocation" baseColumnNames="branch_id"
+                                 referencedTableName="branch" referencedColumnNames="id"
+                                 constraintName="fk_ba_branch"/>
+    </changeSet>
+
+</databaseChangeLog>

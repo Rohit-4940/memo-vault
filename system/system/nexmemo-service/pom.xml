@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.nexmemo</groupId>
+        <artifactId>system</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>nexmemo-service</artifactId>
+
+    <dependencies>
+
+        <!-- ── Internal modules ─────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>com.nexmemo</groupId>
+            <artifactId>nexmemo-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- ── Spring Boot ──────────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- ── Lombok ───────────────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             Tess4J — Tesseract OCR Java wrapper (Apache 2.0, free forever)
+             Version 5.11.0 includes bundled native DLLs for Windows (x64).
+             No separate native install needed for dev — DLLs auto-extract
+             from the jar to java.io.tmpdir at first use.
+
+             IMPORTANT: Tess4J depends on JNA. If you see
+               "Unable to load library 'tesseract'"
+             it means Tesseract is not installed on the OS.
+             Windows: install from https://github.com/UB-Mannheim/tesseract/wiki
+             Linux:   apt-get install tesseract-ocr
+
+             Tess4J itself does NOT bundle the .traineddata language files.
+             You must place them in your tessdata-path directory:
+               eng.traineddata  → https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata
+               nep.traineddata  → https://github.com/tesseract-ocr/tessdata/raw/main/nep.traineddata
+        ══════════════════════════════════════════════════════════════════ -->
+        <dependency>
+            <groupId>net.sourceforge.tess4j</groupId>
+            <artifactId>tess4j</artifactId>
+            <version>5.11.0</version>
+            <!--
+                Tess4J pulls in many transitive dependencies (ghost4j, pdfbox, etc.)
+                Some of these conflict with Spring Boot's managed versions.
+                The exclusions below prevent version conflicts.
+            -->
+            <exclusions>
+                <!-- Exclude old slf4j binding — Spring Boot manages its own -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+                <!-- Exclude tess4j's bundled pdfbox — we include our own version below -->
+                <exclusion>
+                    <groupId>org.apache.pdfbox</groupId>
+                    <artifactId>pdfbox</artifactId>
+                </exclusion>
+                <!-- Exclude old commons-logging — Spring Boot uses jcl-over-slf4j -->
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- ── PDFBox — PDF → image for OCR (Apache 2.0, free) ─────────────── -->
+        <!--
+            Used by ImagePreprocessingService to render PDF pages as BufferedImage.
+            We declare our own version to override Tess4J's transitive dependency.
+        -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+
+        <!-- ── imgscalr — image resize for OCR pre-processing (Apache 2.0) ─── -->
+        <!--
+            Resizes images to 300 DPI equivalent before OCR.
+            Higher resolution = better OCR accuracy on scanned memos.
+        -->
+        <dependency>
+            <groupId>org.imgscalr</groupId>
+            <artifactId>imgscalr-lib</artifactId>
+            <version>4.2</version>
+        </dependency>
+
+        <!-- ── JNA — needed by Tess4J to load native Tesseract library ──────── -->
+        <!--
+            Tess4J transitively includes JNA, but we pin the version to avoid
+            conflicts with other Spring Boot components.
+        -->
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>5.14.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna-platform</artifactId>
+            <version>5.14.0</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

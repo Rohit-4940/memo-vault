@@ -1,0 +1,22 @@
+.table .custom-header th {
+  background-color: #ec1c24 !important;
+  color: white !important;
+}
+
+.table th, .table td {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.table {
+  font-family: Arial, sans-serif;
+}
+.table th, .table td {
+  vertical-align: middle;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+

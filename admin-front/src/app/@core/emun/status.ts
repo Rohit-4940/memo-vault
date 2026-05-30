@@ -1,0 +1,8 @@
+export enum Status {
+  // UNREGISTER = 'UNREGISTER',
+  // UNVERIFIED = 'UNVERIFIED',
+  ACTIVE = 'ACTIVE',
+  EXPIRED = 'EXPIRED',
+  DISABLED = 'DISABLED',
+  DELETED = 'DELETED'
+}

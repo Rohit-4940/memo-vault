@@ -1,0 +1,16 @@
+.mb-4 mb-1{
+  font-size: 15px;
+}
+.mb-4{
+  font-size: 15px !important;
+}
+/* Remove underline from the button */
+.btn-link {
+  text-decoration: none !important;
+}
+
+/* Ensure no underline on the label as well */
+.black-label {
+  color: black !important;
+  text-decoration: none !important;
+}

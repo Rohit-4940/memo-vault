@@ -1,0 +1,73 @@
+<div class="layout-container">
+  @if (isLoading$ | async) {
+    <div class="loading-bar-active"></div>
+  }
+
+  <header class="header">
+    <div class="header-left">
+      <button class="toggle-btn" (click)="toggleSidebar()" [class.collapsed]="!isExpanded">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="header-brand">
+        <i class="fas fa-file-alt header-logo"></i>
+        <span class="header-title">NexMemo</span>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <div class="header-search">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Search memos, documents..." />
+        <span class="search-shortcut">Ctrl+K</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button class="header-action-btn">
+        <i class="fas fa-bell"></i>
+        <span class="notification-dot"></span>
+      </button>
+      <button class="header-action-btn">
+        <i class="fas fa-envelope"></i>
+      </button>
+      <div class="profile-container" (mouseenter)="showDropdown = true" (mouseleave)="showDropdown = false">
+        <div class="profile-avatar">
+          <span>{{ userName.charAt(0).toUpperCase() }}</span>
+        </div>
+        <div class="profile-info">
+          <span class="profile-name">{{ userName }}</span>
+          <span class="profile-role">{{ roleTitle }}</span>
+        </div>
+        <i class="fas fa-chevron-down profile-chevron" [class.open]="showDropdown"></i>
+
+        <div class="dropdown" *ngIf="showDropdown">
+          <div class="dropdown-header">
+            <div class="dropdown-avatar">{{ userName.charAt(0).toUpperCase() }}</div>
+            <div>
+              <div class="dropdown-name">{{ userName }}</div>
+              <div class="dropdown-role">{{ roleTitle }}</div>
+            </div>
+          </div>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" (click)="viewProfile()">
+            <i class="fas fa-user-circle"></i> View Profile
+          </a>
+          <a class="dropdown-item" href="#">
+            <i class="fas fa-cog"></i> Settings
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item text-danger" (click)="logout()">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="content-wrapper">
+    <app-sidebar></app-sidebar>
+    <main class="main-content" [class.expanded]="isExpanded">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

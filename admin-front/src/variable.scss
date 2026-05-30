@@ -1,0 +1,95 @@
+// ------------------------------
+// Font and Typography Variables
+// ------------------------------
+$font-family: 'Roboto', sans-serif;
+$font-size-base: 16px;              // Base Font Size
+$font-size-small: 0.875rem;         // Font Size for Small Devices
+$font-size-large: 1.125rem;         // Font Size for Large Devices
+$font-weight-normal: 400;           // Normal Font Weight
+$font-weight-bold: 700;             // Bold Font Weight
+
+// ------------------------------
+// Primary Colors
+// ------------------------------
+$primary-color: #007bff;            // Primary Color
+$primary-hover-color: darken($primary-color, 10%); // Hover Color
+
+// ------------------------------
+// Secondary Colors
+// ------------------------------
+$secondary-color: #6c757d;          // Secondary Color
+$secondary-hover-color: darken($secondary-color, 10%); // Hover Color
+
+// ------------------------------
+// Text Colors
+// ------------------------------
+$text-color: #343a40;               // Default Text Color
+$input-text-color: #2d3638;         // Default Input Text Color
+$input-text-color-focused: #444444; // Focused Input Text Color
+$input-text-color-disabled: #a3a6ac; // Disabled Input Text Color
+$input-text-color-error: #ec251e;   // Error Input Text Color
+$placeholder-color: #414143;        // Placeholder Color
+$error-text-color: #ec251e;         // Error Message Color
+$label-color: #444444;              // Label Color
+$disable-color: #444444;              // Disable Color
+
+// ------------------------------
+// Border Colors
+// ------------------------------
+$border-color: #888;             // Default Border Color
+$error-border-color: #ec251e;       // Error Border Color
+$focused-border-color: #80bdff;     // Focused Border Color
+$disabled-border-color: #201A1B1F;  // Disabled Border Color
+$input-border-color: $border-color;  // Default Input Border Color
+$box-shadow: rgba(0, 123, 255, 0.25);  // Default Input Border Color
+
+// ------------------------------
+// Background Colors
+// ------------------------------
+$background-color: #ffffff;         // Default Background Color
+$disabled-background-color: #e8e8e9; // Disabled Background Color
+$input-background-color: #888;    // Input Background Color
+$filled-background-color: #fff;      // Filled Background Color
+
+// ------------------------------
+// Notification Colors
+// ------------------------------
+$error-color: #dc3545;              // Error Color
+$success-color: #28a745;            // Success Color
+$info-color: #17a2b8;               // Info Color
+$warning-color: #ffc107;            // Warning Color
+$pending-color: #FFA500FF;          // Pending Color
+
+// ------------------------------
+// Button Colors
+// ------------------------------
+$button-text-color: #ffffff;        // Button Text Color
+$add-button-color: $success-color;   // Add Button Color
+$delete-button-color: $error-color;  // Delete Button Color
+$submit-button-color: $primary-color; // Submit Button Color
+$disabled-button-color: #6c757d;    // Disabled Button Color
+$button-hover-color: darken($primary-color, 10%); // Button Hover Color
+
+// ------------------------------
+// Link Colors
+// ------------------------------
+$link-color: $primary-color;        // Default Link Color
+$link-hover-color: darken($link-color, 10%); // Link Hover Color
+
+// ------------------------------
+// Responsive Breakpoints
+// ------------------------------
+$breakpoint-xs: 320px;              // Extra Small Devices
+$breakpoint-sm: 576px;              // Small Devices
+$breakpoint-md: 768px;              // Medium Devices (Tablets)
+$breakpoint-lg: 992px;              // Large Devices (Small Laptops)
+$breakpoint-xl: 1200px;             // Extra Large Devices (Desktops)
+$breakpoint-xxl: 1400px;            // 2XL Devices (Larger Desktops)
+$breakpoint-xxxl: 1600px;           // 3XL Devices (Large TVs, Ultra-Wide Screens)
+$breakpoint-xxxxl: 1920px;          // 4XL Devices (Full HD, Large LED Screens)
+
+// ------------------------------
+// Input Focus States
+// ------------------------------
+$input-focus-border-color: $primary-color; // Focused Input Border Color
+$input-error-border-color: $error-color;    // Error Input Border Color

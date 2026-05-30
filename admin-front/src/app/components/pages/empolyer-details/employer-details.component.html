@@ -1,0 +1,283 @@
+<section style="background-color: #eee;">
+  <div class="container py-5">
+    <div class="row">
+      <div class="col-lg-4">
+        <div class="card mb-4">
+          <div class="card-body text-center">
+            <img src="https://mdbcdn.b-cdn.net/img/Photos/new-templates/bootstrap-chat/ava3.webp" alt="avatar"
+                 class="rounded-circle img-fluid" style="width: 150px;">
+            <h5 class="my-3">{{employerDetail?.name}}</h5>
+            <p class="text-muted mb-1">{{employerDetail?.email}}</p>
+            <p class="text-muted mb-4">{{employerDetail?.address}}</p>
+<!--            <div class="d-flex justify-content-center mb-2">-->
+<!--              <button  type="button" data-mdb-button-init data-mdb-ripple-init class="btn btn-primary">Follow</button>-->
+<!--              <button  type="button" data-mdb-button-init data-mdb-ripple-init class="btn btn-outline-primary ms-1">Message</button>-->
+<!--            </div>-->
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-8">
+        <div class="row" style="height: 325px">
+          <div class="col-md-6">
+            <div class="card mb-4" style="height: 98%">
+              <div class="card-body">
+                <h4>Employer Details</h4>
+                <br>
+                <p class="mb-4 mb-1">Wallet Id: {{employerDetail?.walletId? employerDetail.walletId: 'N/A'}}</p>
+                <p class="mt-4 mb-1">Bank Account Number: {{employerDetail?.bankAccountNumber? employerDetail.bankAccountNumber: 'N/A'}}</p>
+                <p class="mt-4 mb-1">BankIfsc Code: {{employerDetail?.bankIfscCode? employerDetail.bankIfscCode: 'N/A'}}</p>
+                <p class="mt-4 mb-1">Preferred Disbursement Type: {{employerDetail?.preferredDisbursementType? employerDetail.preferredDisbursementType: 'N/A'}}</p>
+                <p class="mt-4 mb-1">Wallet Balance: {{employerDetail?.walletBalance? employerDetail.walletBalance: 'N/A'}}</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card mb-4" style="height: 98%">
+              <div class="card-body">
+                <h4>HR Details</h4>
+                <p class="mt-4 mb-1">Name: {{employerDetail?.hr?.name? employerDetail.hr.name: 'N/A'}}</p>
+                <p class="mt-4 mb-1">E-mail: {{employerDetail?.hr?.email? employerDetail.hr.email: 'N/A'}}</p>
+                <p class="mt-4 mb-1">Address: {{employerDetail?.hr?.address? employerDetail.hr.address: 'N/A'}}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+          <div class="card-header">
+            <h4>Employers Loan Configurations</h4>
+          </div>
+          <div class="card" style="padding: 0">
+            <div class="card-body">
+              <form [formGroup]="employerLoanConfigurationForm" (ngSubmit)="createEmployerLoanConfiguration()">
+                <div class="modal-body">
+                  <div formGroupName="newConfig" class="col-md-12">
+                    <div id="accordion">
+                      <div class="card">
+                        <div class="card-header" id="headingOne">
+                          <h5 class="mb-0">
+                            <button type="button" class="btn btn-link" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                              <div class="row">
+                                <div class="col-md-12">
+                                  <div class="d-flex align-items-center">
+                                    <label class="form-check-label me-2 black-label" for="serviceChargeEnabled">Enable Service Charge</label>
+                                    <input formControlName="serviceChargeEnabled" class="form-check-input" (change)="toggleServiceCharge($event)" type="checkbox" id="serviceChargeEnabled" checked>
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          </h5>
+                        </div>
+                        <div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#accordion">
+                          <div class="row" *ngIf="isServiceFlag"  style="padding: 10px">
+                            <div class="col-md-6">
+                              <label for="serviceChargeType">Service Charge Type</label>
+                              <select id="serviceChargeType" class="form-control" formControlName="serviceChargeType">
+                                <option value="">Select Type</option>
+                                <option value="PERCENTAGE">PERCENTAGE</option>
+                                <option value="FLAT">FLAT</option>
+                              </select>
+                              <div *ngIf="employerLoanConfigurationForm.get('newConfig.serviceChargeType')?.invalid && employerLoanConfigurationForm.get('newConfig.serviceChargeType')?.touched" class="text-danger">
+                                Service charge type is required.
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <label for="serviceChargeValue">Service Charge Value</label>
+                              <input type="text" id="serviceChargeValue" class="form-control" formControlName="serviceChargeValue" placeholder="Enter Service Charge value" appNumberOnly>
+                              <div *ngIf="employerLoanConfigurationForm.get('newConfig.serviceChargeValue')?.invalid && employerLoanConfigurationForm.get('newConfig.serviceChargeValue')?.touched" class="text-danger">
+                                Service charge value is required.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <br>
+                      <div class="card">
+                        <div class="card-header" id="headingTwo">
+                          <h5 class="mb-0">
+                            <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
+                              <div class="row">
+                                <div class="col-md-12">
+                                  <div class="d-flex align-items-center">
+                                    <label class="form-check-label me-2 black-label" for="interestEnabled">Enable Interest</label>
+                                    <input formControlName="interestEnabled" class="form-check-input" type="checkbox" (change)="toggleInterestType($event)" id="interestEnabled" checked>
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          </h5>
+                        </div>
+                        <div id="collapseTwo" class="collapse show" aria-labelledby="headingTwo" data-parent="#accordion">
+                          <div class="row"  *ngIf="isInterestFlag" style="padding: 10px">
+                            <div class="col-md-6">
+                              <label for="interestType">Interest Type</label>
+                              <select id="interestType" class="form-control" formControlName="interestType">
+                                <option value="">Select Type</option>
+                                <option value="PERCENTAGE">PERCENTAGE</option>
+                                <option value="FLAT">FLAT</option>
+                              </select>
+                              <div *ngIf="employerLoanConfigurationForm.get('newConfig.interestType')?.invalid && employerLoanConfigurationForm.get('newConfig.interestType')?.touched" class="text-danger">
+                                Interest type is required.
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <label for="interestValue">Interest Charge Value</label>
+                              <input type="text" id="interestValue" class="form-control" formControlName="interestValue" placeholder="Enter Interest Charge Value" appNumberOnly>
+                              <div *ngIf="employerLoanConfigurationForm.get('newConfig.interestValue')?.invalid && employerLoanConfigurationForm.get('newConfig.interestValue')?.touched" class="text-danger">
+                                Interest charge value is required.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <br>
+                      <div class="card">
+                        <div class="card-header" id="headingThree">
+                          <h5 class="mb-0">
+                            <button class="btn btn-link" data-toggle="collapse" type="button" data-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                              <div class="row">
+                                <div class="col-md-12">
+                                  <div class="d-flex align-items-center">
+                                    <label class="form-check-label me-2 black-label" for="penaltyEnabled">Enable Penalty</label>
+                                    <input formControlName="penaltyEnabled" class="form-check-input" (change)="togglePenalty($event)" type="checkbox" id="penaltyEnabled" checked>
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          </h5>
+                        </div>
+                        <div id="collapseThree" class="collapse show" aria-labelledby="headingThree" data-parent="#accordion">
+                          <div class="row" *ngIf="isPenaltyFlag" style="padding: 10px">
+                            <div class="col-md-6">
+                              <label for="penaltyType" style="padding-left: 10px; margin-bottom: 7px">Penalty Type</label>
+                              <select id="penaltyType" class="form-control" formControlName="penaltyType">
+                                <option value="">Select Type</option>
+                                <option value="PERCENTAGE">PERCENTAGE</option>
+                                <option value="FLAT">FLAT</option>
+                              </select>
+                              <div *ngIf="employerLoanConfigurationForm.get('newConfig.penaltyType')?.invalid && employerLoanConfigurationForm.get('newConfig.penaltyType')?.touched" class="text-danger">
+                                Penalty type is required.
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <label for="penaltyValue" style="margin-bottom: 7px">Penalty Charge Value</label>
+                              <input type="text" id="penaltyValue" class="form-control" formControlName="penaltyValue" placeholder="Enter Penalty Charge Value" appNumberOnly>
+                              <div *ngIf="employerLoanConfigurationForm.get('newConfig.penaltyValue')?.invalid && employerLoanConfigurationForm.get('newConfig.penaltyValue')?.touched" class="text-danger">
+                                Penalty charge value is required.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div><br>
+                      <div class="row">
+                        <div class="col-md-12">
+                          <div class="d-flex align-items-center">
+                            <label class="form-check-label me-2" for="renewalAllowed">Enable Renewal</label>
+                            <input formControlName="renewalAllowed" class="form-check-input" type="checkbox" id="renewalAllowed" checked>
+                          </div>
+                        </div>
+                      </div>
+                      <br>
+                      <div class="row">
+                        <div class="col-md-12">
+                          <div class="d-flex align-items-center">
+                            <label class="form-check-label me-2" for="partialSettlementAllowed">Enable Partial Settlement</label>
+                            <input formControlName="partialSettlementAllowed" class="form-check-input" type="checkbox" id="partialSettlementAllowed" checked>
+                          </div>
+                        </div>
+                      </div>
+                      <br>
+                      <div class="row">
+                          <div class="col-md-6">
+                            <label for="gracePeriodDays" style="margin-bottom: 7px">Grace Period Days Value</label>
+                            <input type="text" id="gracePeriodDays" class="form-control" formControlName="gracePeriodDays" placeholder="Enter Grace Period Days Value" appNumberOnly>
+                            <div *ngIf="employerLoanConfigurationForm.get('newConfig.gracePeriodDays')?.invalid && employerLoanConfigurationForm.get('newConfig.gracePeriodDays')?.touched" class="text-danger">
+                              Grace Period Days value is required.
+                            </div>
+                          </div>
+                          <div class="col-md-6">
+                            <label for="settlementDay" style="margin-bottom: 7px">Settlement Days Value</label>
+                            <input type="text" id="settlementDay" class="form-control" formControlName="settlementDay" placeholder="Enter Settlement Days Value" appNumberOnly>
+                            <div *ngIf="employerLoanConfigurationForm.get('newConfig.settlementDay')?.invalid && employerLoanConfigurationForm.get('newConfig.settlementDay')?.touched" class="text-danger">
+                              Settlement Day value is required.
+                            </div>
+                          </div>
+                      </div>
+                      <br>
+                      <div class="row">
+                        <div class="col-md-6">
+                          <label for="settlementType" style="margin-bottom: 7px">Settlement Type</label>
+                          <select id="settlementType" class="form-control" formControlName="settlementType">
+                            <option value="">Select Type</option>
+                            <option value="WALLET">WALLET</option>
+                            <option value="BANK">BANK</option>
+                          </select>
+                          <div *ngIf="employerLoanConfigurationForm.get('newConfig.settlementType')?.invalid && employerLoanConfigurationForm.get('newConfig.settlementType')?.touched" class="text-danger">
+                            Settlement type is required.
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <label for="eligiblePercentage" style="margin-bottom: 7px">Eligible Percentage</label>
+                          <input id="eligiblePercentage" class="form-control" formControlName="eligiblePercentage" placeholder="Enter Eligible Percentage" appCustomNumber>
+                          <div *ngIf="employerLoanConfigurationForm.get('newConfig.eligiblePercentage')?.invalid && employerLoanConfigurationForm.get('newConfig.eligiblePercentage')?.touched" class="text-danger">
+                            Eligible Percentage is required.
+                          </div>
+                        </div>
+                      </div>
+                      <br>
+                      <div class="row">
+                        <div class="col-md-6">
+                          <label for="minimumAmount" style="margin-bottom: 7px">Minimum Amount</label>
+                          <input id="minimumAmount" class="form-control" formControlName="minimumAmount" placeholder="Enter Minimum Amount" appNumberOnly>
+                          <div *ngIf="employerLoanConfigurationForm.get('newConfig.minimumAmount')?.invalid && employerLoanConfigurationForm.get('newConfig.minimumAmount')?.touched" class="text-danger">
+                            Minimum Amount is required.
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <label for="totalMaximumAmountPerMonth" style="margin-bottom: 7px">Total Maximum Amount Per Month</label>
+                          <input id="totalMaximumAmountPerMonth" class="form-control" formControlName="totalMaximumAmountPerMonth" placeholder="Enter Total Maximum Amount Per  Month" appNumberOnly>
+                          <div *ngIf="employerLoanConfigurationForm.get('newConfig.totalMaximumAmountPerMonth')?.invalid && employerLoanConfigurationForm.get('newConfig.totalMaximumAmountPerMonth')?.touched" class="text-danger">
+                           Maximum Amount Per is required.
+                          </div>
+                        </div>
+                      </div><br>
+                      <div class="row">
+                        <div class="col-md-6">
+                          <label for="individualMaximumAmount" style="margin-bottom: 7px">Individual Maximum Amount</label>
+                          <input id="individualMaximumAmount" class="form-control" formControlName="individualMaximumAmount" placeholder="Enter Individual Maximum Amount" appNumberOnly>
+                          <div *ngIf="employerLoanConfigurationForm.get('newConfig.individualMaximumAmount')?.invalid && employerLoanConfigurationForm.get('newConfig.individualMaximumAmount')?.touched" class="text-danger">
+                            Individual Maximum Amount is required.
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <label for="payDay">Pay Day</label>
+                          <input id="payDay" class="form-control" formControlName="payDay" placeholder="Enter Pay Day" appNumberOnly>
+                          <div *ngIf="employerLoanConfigurationForm.get('newConfig.payDay')?.invalid && employerLoanConfigurationForm.get('newConfig.payDay')?.touched" class="text-danger">
+                            Pay day is required.
+                          </div>
+                        </div>
+                      </div>
+                      <br>
+                    </div>
+                  </div>
+                </div>
+<!--                <div class="row">-->
+<!--                  <div class="col-md-12">-->
+<!--                    <label>Reason</label>-->
+<!--                    <textarea class="form-control" formControlName="reason" cols="6" rows="4" maxlength="256" placeholder=" Enter Reason"></textarea>-->
+<!--                    <div *ngIf="employerLoanConfigurationForm.get('newConfig.reason')?.invalid && employerLoanConfigurationForm.get('newConfig.reason')?.touched" class="text-danger">-->
+<!--                      Reason should not exceed 256 characters.-->
+<!--                    </div>-->
+<!--                  </div>-->
+<!--                </div>-->
+                <br>
+                <div class="modal-footer">
+                  <button type="submit" class="btn btn-outline-success" [disabled]="employerLoanConfigurationForm.invalid">
+                    Add
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+  </div>
+</section>

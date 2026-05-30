@@ -1,0 +1,4 @@
+.actions { white-space: nowrap; display: flex; gap: 0.35rem; }
+.modal-body { max-height: 65vh; overflow-y: auto; }
+.timeline-icon { font-size: 1.1rem; color: var(--nexmemo-primary, #4361ee); }
+.timeline-content { border-left: 2px solid #e0e0e0; padding-left: 12px; }

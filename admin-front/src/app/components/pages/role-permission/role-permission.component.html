@@ -1,0 +1,147 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fas fa-user-shield"></i> Role & Permission</h1>
+    <button class="btn btn-primary" (click)="openCreateModal(createModal)">
+      <i class="fas fa-plus"></i> Create Role
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Role Name</th><th>Type</th><th>Access</th><th>Approvable</th><th>Approval Limit</th><th>Menus</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for(role of roles; track role.id) {
+            <tr>
+              <td>{{ role.id }}</td>
+              <td><strong>{{ role.roleName }}</strong></td>
+              <td><span class="badge badge-info">{{ role.roleType }}</span></td>
+              <td><span class="badge badge-secondary">{{ role.roleAccess }}</span></td>
+              <td><span class="badge" [class.badge-success]="role.isRoleApprovable" [class.badge-danger]="!role.isRoleApprovable">{{ role.isRoleApprovable ? 'Yes' : 'No' }}</span></td>
+              <td>{{ role.roleApprovalLimitAmount ? 'रू ' + role.roleApprovalLimitAmount : '-' }}</td>
+              <td><span class="menu-count">{{ (role.menuIds || []).length }} menus</span></td>
+              <td class="actions">
+                <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, role)"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-outline-danger" (click)="deleteRole(role.id)"><i class="fas fa-trash"></i></button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8" class="text-center text-muted py-4">No roles found</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<ng-template #createModal let-modal>
+  <div class="modal-header"><h5 class="modal-title">Create Role</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <div class="modal-body">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group mb-3"><label>Role Name</label><input class="form-control" [(ngModel)]="selectedRole.roleName" required></div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group mb-3"><label>Role Type</label>
+          <select class="form-control" [(ngModel)]="selectedRole.roleType">
+            <option value="SUPER_ADMIN">Super Admin</option><option value="ADMIN">Admin</option>
+            <option value="MAKER">Maker</option><option value="APPROVAL">Approval</option>
+            <option value="COMMITTEE">Committee</option><option value="USER">User</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group mb-3"><label>Access Level</label>
+          <select class="form-control" [(ngModel)]="selectedRole.roleAccess">
+            <option value="ALL">All</option><option value="OWN">Own</option><option value="SPECIFIC">Specific</option>
+          </select>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-check mt-4">
+          <input class="form-check-input" type="checkbox" id="isApprovable" [(ngModel)]="selectedRole.isRoleApprovable">
+          <label class="form-check-label" for="isApprovable">Can Approve Memos</label>
+        </div>
+      </div>
+    </div>
+    <div class="form-group mb-3">
+      <label>Approval Limit Amount (रू)</label>
+      <input class="form-control" type="number" [(ngModel)]="selectedRole.roleApprovalLimitAmount">
+    </div>
+    <hr>
+    <label class="mb-2"><strong>Menu Permissions</strong></label>
+    <div class="menu-grid">
+      @for(menu of menus; track menu.id) {
+        <div class="menu-checkbox" (click)="toggleMenu(menu.id)" [class.selected]="isMenuSelected(menu.id)">
+          <i class="{{ menu.icon }}"></i>
+          <span>{{ menu.menuName }}</span>
+          <i class="fas fa-check check-icon" *ngIf="isMenuSelected(menu.id)"></i>
+        </div>
+      }
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
+    <button class="btn btn-primary" (click)="saveRole()">{{ isEditing ? 'Update' : 'Create' }}</button>
+  </div>
+</ng-template>
+
+<ng-template #editModal let-modal>
+  <div class="modal-header"><h5 class="modal-title">Edit Role: {{ selectedRole.roleName }}</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <div class="modal-body">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group mb-3"><label>Role Name</label><input class="form-control" [(ngModel)]="selectedRole.roleName" required></div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group mb-3"><label>Role Type</label>
+          <select class="form-control" [(ngModel)]="selectedRole.roleType">
+            <option value="SUPER_ADMIN">Super Admin</option><option value="ADMIN">Admin</option>
+            <option value="MAKER">Maker</option><option value="APPROVAL">Approval</option>
+            <option value="COMMITTEE">Committee</option><option value="USER">User</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group mb-3"><label>Access Level</label>
+          <select class="form-control" [(ngModel)]="selectedRole.roleAccess">
+            <option value="ALL">All</option><option value="OWN">Own</option><option value="SPECIFIC">Specific</option>
+          </select>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-check mt-4">
+          <input class="form-check-input" type="checkbox" id="editIsApprovable" [(ngModel)]="selectedRole.isRoleApprovable">
+          <label class="form-check-label" for="editIsApprovable">Can Approve Memos</label>
+        </div>
+      </div>
+    </div>
+    <div class="form-group mb-3">
+      <label>Approval Limit Amount (रू)</label>
+      <input class="form-control" type="number" [(ngModel)]="selectedRole.roleApprovalLimitAmount">
+    </div>
+    <hr>
+    <label class="mb-2"><strong>Menu Permissions</strong></label>
+    <div class="menu-grid">
+      @for(menu of menus; track menu.id) {
+        <div class="menu-checkbox" (click)="toggleMenu(menu.id)" [class.selected]="isMenuSelected(menu.id)">
+          <i class="{{ menu.icon }}"></i>
+          <span>{{ menu.menuName }}</span>
+          <i class="fas fa-check check-icon" *ngIf="isMenuSelected(menu.id)"></i>
+        </div>
+      }
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
+    <button class="btn btn-primary" (click)="saveRole()">Save</button>
+  </div>
+</ng-template>

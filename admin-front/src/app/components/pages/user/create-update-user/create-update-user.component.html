@@ -1,0 +1,198 @@
+<div class="modal-header" style="background-color: #ef2f2f; color: white">
+  <h4 class="modal-title">{{ isEditMode ? 'Edit' : 'Add' }} User Form</h4>
+  <button type="button" class="btn-close" aria-label="Close" (click)="activeModal.dismiss()"></button>
+</div>
+<div class="modal-body">
+  <form [formGroup]="userForm" (ngSubmit)="onSubmit()">
+    <div class="row">
+      <div class="col-md-6 mb-2">
+        <label for="name" class="form-label">Name</label>
+        <input
+          id="name"
+          class="form-control"
+          formControlName="name"
+          [class.is-invalid]="userForm.get('name')?.invalid && userForm.get('name')?.touched">
+        @if (userForm.get('name')?.invalid && userForm.get('name')?.touched) {
+          <div class="float-end fst-italic">
+            <small class="error-message">
+              * Name is required.
+            </small>
+          </div>
+        }
+      </div>
+      <div class="col-md-6 mb-2">
+        <label for="userName" class="form-label">Username</label>
+        <input
+          id="userName"
+          class="form-control"
+          formControlName="userName"
+          (change)="checkIfUsernameExists($event)"
+          [readonly]="isEditMode"
+          [class.is-invalid]="userForm.get('userName')?.invalid && userForm.get('userName')?.touched">
+        @if (userForm.get('userName')?.invalid && userForm.get('userName')?.touched) {
+          <div class="float-end fst-italic">
+            <small class="error-message">
+              * Username is required.
+            </small>
+          </div>
+        }
+        @if (usernameExists) {
+          <div class="float-end fst-italic">
+            <small class="error-message">
+              * Username already exist.
+            </small>
+          </div>
+        }
+      </div>
+      <div class="col-md-6 mb-2">
+        <label for="userName" class="form-label">Password</label>
+        <input
+          id="password"
+          class="form-control"
+          formControlName="password"
+          type="password"
+          [class.is-invalid]="userForm.get('password')?.invalid && userForm.get('password')?.touched">
+        @if (userForm.get('password')?.invalid && userForm.get('password')?.touched) {
+          <div class="float-end fst-italic">
+            <small class="error-message">
+              * Password is required.
+            </small>
+          </div>
+        }
+      </div>
+      <div class="col-md-6 mb-2">
+        <label for="email" class="form-label">Email</label>
+        <input
+          id="email"
+          class="form-control"
+          formControlName="email"
+          type="email"
+          [class.is-invalid]="userForm.get('email')?.invalid && userForm.get('email')?.touched">
+        @if (userForm.get('email')?.invalid && userForm.get('email')?.touched) {
+          <div class="float-end fst-italic">
+            <small class="error-message">
+              @if (userForm.get('email')?.errors?.['required']) {
+                * Email is required
+              } @else if (userForm.get('email')?.errors?.['email']) {
+                * Please enter a valid email address
+              }
+            </small>
+          </div>
+        }
+      </div>
+      <div class="col-md-6 mb-2">
+        <label for="contactNo" class="form-label">Contact No</label>
+        <input
+          id="contactNo"
+          class="form-control"
+          formControlName="contactNo"
+          type="text"
+          [class.is-invalid]="userForm.get('contactNo')?.invalid && userForm.get('contactNo')?.touched"
+          maxlength="10">
+        <div *ngIf="userForm.get('contactNo')?.invalid && userForm.get('contactNo')?.touched" class="float-end fst-italic">
+          <small class="error-message">
+            <div *ngIf="userForm.get('contactNo')?.errors?.['required']">
+              * Contact Number is required.
+            </div>
+            <div *ngIf="userForm.get('contactNo')?.errors?.['pattern']">
+              * Contact Number must contain only numbers.
+            </div>
+            <div *ngIf="userForm.get('contactNo')?.errors?.['maxlength']">
+              * Contact Number cannot exceed 10 digits.
+            </div>
+          </small>
+        </div>
+      </div>
+      <div class="col-md-6 mb-2">
+          <label class="form-label">User Type</label>
+          <ng-select [class.is-invalid]="userForm.get('userType')?.invalid && userForm.get('userType')?.touched"
+                     [items]="userType"
+                     bindLabel="value"
+                     bindValue="key"
+                     formControlName="userType"
+                     placeholder="Select user type"
+                     [searchable]="true"
+                     [multiple]="false"
+                     [clearable]="true">
+          </ng-select>
+
+      </div>
+      <div class="col-md-6 mb-2">
+        <label for="roles" class="form-label">Role</label>
+        <input
+          id="roles"
+          class="form-control"
+          formControlName="roles"
+          [class.is-invalid]="userForm.get('roles')?.invalid && userForm.get('roles')?.touched">
+        @if (userForm.get('roles')?.invalid && userForm.get('roles')?.touched) {
+          <div class="float-end fst-italic">
+            <small class="error-message">
+              * Role is required.
+            </small>
+          </div>
+        }
+      </div>
+      <div class="col-md-6 mb-2">
+        <label for="branch" class="form-label">Branch</label>
+        <input
+          id="branch"
+          class="form-control"
+          formControlName="branch"
+          [class.is-invalid]="userForm.get('branch')?.invalid && userForm.get('branch')?.touched">
+        @if (userForm.get('branch')?.invalid && userForm.get('branch')?.touched) {
+          <div class="float-end fst-italic">
+            <small class="error-message">
+              * Branch is required.
+            </small>
+          </div>
+        }
+      </div>
+      <div class="col-md-6 mb-2">
+        <label class="form-label">Status</label>
+        <ng-select [items]="statusOptions"
+                   formControlName="status"
+                   placeholder="Select status"
+                   bindLabel="status">
+        </ng-select>
+      </div>
+      <div class="col-md-6 mb-2">
+        <label for="department" class="form-label">Department</label>
+        <input
+          id="department"
+          class="form-control"
+          formControlName="department"
+          [class.is-invalid]="userForm.get('department')?.invalid && userForm.get('department')?.touched">
+        @if (userForm.get('department')?.invalid && userForm.get('department')?.touched) {
+          <div class="float-end fst-italic">
+            <small class="error-message">
+              * Department is required.
+            </small>
+          </div>
+        }
+      </div>
+      <div class="col-md-6 mb-2">
+        <label for="address" class="form-label">Address</label>
+        <input
+          id="address"
+          class="form-control"
+          formControlName="address"
+          [class.is-invalid]="userForm.get('address')?.invalid && userForm.get('address')?.touched">
+        @if (userForm.get('address')?.invalid && userForm.get('address')?.touched) {
+          <div class="float-end fst-italic">
+            <small class="error-message">
+              * Address is required.
+            </small>
+          </div>
+        }
+      </div>
+    </div>
+    <div class="modal-footer mt-4">
+      <button type="button" class="btn btn-sm btn-outline-danger" (click)="activeModal.dismiss()">
+        Cancel <i class="bi bi-x-circle"></i>
+      </button>
+      <button type="submit" class="btn btn-sm btn-outline-success" [disabled]="userForm.invalid">
+        {{ isEditMode ? 'Save' : 'Submit' }} <i class="bi bi-floppy"></i>
+      </button>
+    </div>
+  </form>
+</div>

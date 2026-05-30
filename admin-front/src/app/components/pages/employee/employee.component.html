@@ -1,0 +1,343 @@
+<div class="row mt-3">
+  <div class="col-md-12">
+    <div class="table-responsive shadow p-3 mb-5 bg-body rounded" style="border-top: #ef3238 5px solid;">
+      <div class="d-flex justify-content-end mb-2 p-2">
+        <button class="btn btn-sm btn-outline-success" (click)="openModal(employeeModel)">
+          Add Employers <i class="bi bi-person-plus"></i>
+        </button>
+      </div>
+
+      <table class="table table-sm table-hover table-striped">
+        <thead>
+        <tr class="custom-header">
+          <th>S.N</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Address</th>
+          <th>Description</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr *ngFor="let employee of employeeList; let i = index">
+          <td class="pointer" (click)="goToEmployerDetailsPage(employee?.id)">{{i + 1}}</td>
+          <td class="pointer" (click)="goToEmployerDetailsPage(employee?.id)">{{employee?.name}}</td>
+          <td class="pointer" (click)="goToEmployerDetailsPage(employee?.id)">{{employee?.email}}</td>
+          <td class="pointer" (click)="goToEmployerDetailsPage(employee?.id)">{{employee?.address}}</td>
+          <td>
+            <app-show-more-less
+              [text]="employee?.description"
+              [wordLimit]="20"
+            >
+            </app-show-more-less>
+          </td>
+          <td class="pointer" (click)="goToEmployerDetailsPage(employee?.id)">{{employee?.status}}</td>
+          <td>
+            <div class="d-flex justify-content-between">
+              <button class="btn btn-sm btn-outline-info me-2" title="Edit"
+                      (click)="openModal(employeeModel, employee)">
+                <i class="bi bi-pencil-square" style="color:#28a745"></i>
+              </button>
+              <button [ngClass]="employee.status === 'DISABLED' ? 'btn-outline-success' : 'btn-outline-danger'"
+                      class="btn btn-sm"
+                      [title]="employee.status === 'DISABLED' ? 'Enable' : 'Disable'"
+                      (click)="openDisableModal(employee)">
+                <i *ngIf="employee.status != 'DISABLED'" class="bi bi-slash-circle" style="color: #dc3545;"></i>
+                <i *ngIf="employee.status === 'DISABLED'" class="bi bi-check-circle" style="color: #28a745;"></i>
+              </button>
+
+              <button class="btn btn-sm btn-outline-danger" title="Delete"
+                      (click)="openDeleteModal(employee?.id)">
+                <i class="bi bi-trash" style="color:#ec251e"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+      <app-sb-pagination
+        [pageable]="pageable"
+        (changePage)="onPageChange($event)"
+        (changePageSize)="onPageSizeChange($event)">
+      </app-sb-pagination>
+    </div>
+  </div>
+</div>
+<ng-template #employeeModel let-modal>
+  <div class="modal-header" style="background-color: #ef2f2f; color: white">
+    <h4 class="modal-title">{{ selectEmployee ? 'Edit Employee' : 'Add Employee' }}</h4>
+    <button type="button" class="btn-close btn-close-white" (click)="modal.dismiss('Cross click')"></button>
+  </div>
+  <form [formGroup]="employeeForm" (ngSubmit)="selectEmployee ? updateEmployee() : createEmployee()">
+    <div class="modal-body">
+      <div class="row">
+        <div class="col-md-6">
+          <label>Name</label>
+          <input type="text" class="form-control" formControlName="name" [readonly]="selectEmployee ? true : false"
+          [disabled]="selectEmployee ? true : false">
+          <div *ngIf="employeeForm?.get('name')?.invalid && employeeForm?.get('name')?.touched" class="text-danger">
+            Name is required.
+          </div>
+        </div>
+        <div class="col-md-6">
+          <label>Email</label>
+          <input type="text" class="form-control" formControlName="email">
+          <div *ngIf="employeeForm?.get('email')?.invalid && employeeForm?.get('email')?.touched" class="text-danger">
+            Valid email is required.
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <label>Status</label>
+          <ng-select [items]="statusOptions"
+                     formControlName="status"
+                     bindLabel="status"
+                     placeholder="{{!selectEmployee ? 'Select Status' : ''}}">
+          </ng-select>
+        </div>
+        <div class="col-md-6">
+          <label>Address</label>
+          <input type="text" class="form-control" formControlName="address">
+          <div *ngIf="employeeForm?.get('address')?.invalid && employeeForm?.get('address')?.touched" class="text-danger">
+            Address is required.
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <label>Human Resources Name</label>
+          <ng-select [items]="humanResourcesList"
+                     formControlName="hrId"
+                     bindLabel="name"
+                     placeholder="{{!selectEmployee ? 'Select Human Resources' : ''}}">
+          </ng-select>
+        </div>
+        <div class="col-md-6">
+          <label>User Name</label>
+          <input type="text" class="form-control" formControlName="userName">
+          <div *ngIf="employeeForm?.get('userName')?.invalid && employeeForm?.get('userName')?.touched" class="text-danger">
+            User Name is required.
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <label>User E-mail</label>
+          <input type="email" class="form-control" appValidEmail  name="email" formControlName="userEmail">
+          <div *ngIf="employeeForm?.get('userEmail')?.invalid && employeeForm?.get('userEmail')?.touched" class="text-danger">
+            User E-mail is required.
+          </div>
+        </div>
+        <div class="col-md-6">
+          <label>Password</label>
+          <input [type]="showPassword ? 'text' : 'password'" autocomplete="password" formControlName="password" class="form-control" name="password" required  placeholder="Enter your password"/>
+          <span  [ngClass]="{'fa fa-fw field-icon password-toggler': true,'fa-eye-slash': showPassword,'fa-eye': !showPassword}"></span>
+          <div *ngIf="employeeForm?.get('password')?.invalid && employeeForm?.get('password')?.touched" class="text-danger">
+           Password is required.
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12">
+          <label>Description</label>
+          <textarea class="form-control" formControlName="description" cols="6" rows="4" maxlength="256" placeholder="Description"></textarea>
+          <div *ngIf="employeeForm?.get('description')?.invalid && employeeForm?.get('description')?.touched" class="text-danger">
+            Description should not exceed 256 characters.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="submit" class="btn btn-outline-success" [disabled]="employeeForm.invalid">
+        {{ selectEmployee ? 'Update' : 'Create' }}
+      </button>
+    </div>
+  </form>
+</ng-template>
+
+<ng-template #employerLoanConfigurationModel let-modal>
+  <div class="modal-header" style="background-color: #ef2f2f; color: white">
+    <h4 class="modal-title">Add Employers Loan Configurations</h4>
+    <button type="button" class="btn-close btn-close-white" (click)="modal.dismiss('Cross click')"></button>
+  </div>
+  <form [formGroup]="employerLoanConfigurationForm" (ngSubmit)="createEmployerLoanConfiguration()">
+    <div class="modal-body">
+      <div formGroupName="newConfig" class="col-md-12">
+        <div class="row">
+          <div class="col-md-12">
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-check-label" for="flexSwitchCheckChecked">Enable Service Charge</label>
+              </div>
+              <div class="col-md-6">
+                <input formControlName="serviceChargeEnabled" class="form-check-input" type="checkbox" id="flexSwitchCheckChecked" checked>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <label for="serviceChargeType">Service Charge Type</label>
+            <select id="serviceChargeType" class="form-control" formControlName="serviceChargeType">
+              <option value="">Select Type</option>
+              <option value="PERCENTAGE">PERCENTAGE</option>
+              <option value="FLAT">FLAT</option>
+            </select>
+            <div *ngIf="employerLoanConfigurationForm.get('newConfig.serviceChargeType')?.invalid && employerLoanConfigurationForm.get('newConfig.serviceChargeType')?.touched" class="text-danger">
+              Service charge type is required.
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label for="serviceChargeValue">Service Charge Value</label>
+            <input type="number" id="serviceChargeValue" class="form-control" formControlName="serviceChargeValue">
+            <div *ngIf="employerLoanConfigurationForm.get('newConfig.serviceChargeValue')?.invalid && employerLoanConfigurationForm.get('newConfig.serviceChargeValue')?.touched" class="text-danger">
+              Service charge value is required.
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-12">
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-check-label" for="flexSwitchCheckChecked1">Enable Interest</label>
+              </div>
+              <div class="col-md-6">
+                <input formControlName="interestEnabled" class="form-check-input" type="checkbox" id="flexSwitchCheckChecked1" checked>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <label for="interestType">Interest Type</label>
+            <select id="interestType" class="form-control" formControlName="interestType">
+              <option value="">Select Type</option>
+              <option value="PERCENTAGE">PERCENTAGE</option>
+              <option value="FLAT">FLAT</option>
+            </select>
+            <div *ngIf="employerLoanConfigurationForm.get('newConfig.interestType')?.invalid && employerLoanConfigurationForm.get('newConfig.interestType')?.touched" class="text-danger">
+              Interest type is required.
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label for="interestValue">Interest Charge Value</label>
+            <input type="number" id="interestValue" class="form-control" formControlName="interestValue">
+            <div *ngIf="employerLoanConfigurationForm.get('newConfig.interestValue')?.invalid && employerLoanConfigurationForm.get('newConfig.interestValue')?.touched" class="text-danger">
+              Interest charge value is required.
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-12">
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-check-label" for="flexSwitchCheckChecked2">Enable Renewal</label>
+              </div>
+              <div class="col-md-6">
+                <input formControlName="renewalAllowed" class="form-check-input" type="checkbox" id="flexSwitchCheckChecked2" checked>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-12">
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-check-label" for="flexSwitchCheckChecked3">Enable Penalty</label>
+              </div>
+              <div class="col-md-6">
+                <input formControlName="penaltyEnabled" class="form-check-input" type="checkbox" id="flexSwitchCheckChecked3" checked>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <label for="penaltyType">Penalty Type</label>
+            <select id="penaltyType" class="form-control" formControlName="penaltyType">
+              <option value="">Select Type</option>
+              <option value="PERCENTAGE">PERCENTAGE</option>
+              <option value="FLAT">FLAT</option>
+            </select>
+            <div *ngIf="employerLoanConfigurationForm.get('newConfig.penaltyType')?.invalid && employerLoanConfigurationForm.get('newConfig.penaltyType')?.touched" class="text-danger">
+              Penalty type is required.
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label for="penaltyValue">Penalty Charge Value</label>
+            <input type="number" id="penaltyValue" class="form-control" formControlName="penaltyValue">
+            <div *ngIf="employerLoanConfigurationForm.get('newConfig.penaltyValue')?.invalid && employerLoanConfigurationForm.get('newConfig.penaltyValue')?.touched" class="text-danger">
+              Penalty charge value is required.
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <label for="gracePeriodDays">Grace Period Days Value</label>
+            <input type="number" id="gracePeriodDays" class="form-control" formControlName="gracePeriodDays">
+            <div *ngIf="employerLoanConfigurationForm.get('newConfig.gracePeriodDays')?.invalid && employerLoanConfigurationForm.get('newConfig.gracePeriodDays')?.touched" class="text-danger">
+              Grace Period Days value is required.
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label for="settlementDay">Settlement Days Value</label>
+            <input type="number" id="settlementDay" class="form-control" formControlName="settlementDay">
+            <div *ngIf="employerLoanConfigurationForm.get('newConfig.settlementDay')?.invalid && employerLoanConfigurationForm.get('newConfig.settlementDay')?.touched" class="text-danger">
+              Settlement Day value is required.
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6">
+            <label for="settlementType">Settlement Type</label>
+            <select id="settlementType" class="form-control" formControlName="settlementType">
+              <option value="">Select Type</option>
+              <option value="WALLET">WALLET</option>
+              <option value="BANK">BANK</option>
+            </select>
+            <div *ngIf="employerLoanConfigurationForm.get('newConfig.settlementType')?.invalid && employerLoanConfigurationForm.get('newConfig.settlementType')?.touched" class="text-danger">
+              Settlement type is required.
+            </div>
+          </div>
+
+        </div>
+
+        <div class="row">
+          <div class="col-md-12">
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-check-label" for="flexSwitchCheckChecked6">Enable Partial Settlement</label>
+              </div>
+              <div class="col-md-6">
+                <input formControlName="partialSettlementAllowed" class="form-check-input" type="checkbox" id="flexSwitchCheckChecked6" checked>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="row">
+        <div class="col-md-12">
+          <label>Reason</label>
+          <textarea class="form-control" formControlName="reason" cols="6" rows="4" maxlength="256" placeholder="Reason"></textarea>
+          <div *ngIf="employeeForm?.get('reason')?.invalid && employeeForm?.get('reason')?.touched" class="text-danger">
+            Reason should not exceed 256 characters.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="submit" class="btn btn-outline-success" [disabled]="employerLoanConfigurationForm.invalid">
+        Add
+      </button>
+    </div>
+  </form>
+</ng-template>
+

@@ -1,0 +1,5 @@
+package com.nexmemo.core.enums;
+
+public enum MemoAction {
+    SUBMITTED, FORWARDED, BACKWARDED, RETURNED, REJECTED, APPROVED, CANCELLED, REVISION_REQUESTED
+}
