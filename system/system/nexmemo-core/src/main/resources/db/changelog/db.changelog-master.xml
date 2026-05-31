@@ -1060,4 +1060,234 @@
         <comment>Add branch_id and conversation_type columns to chat_message for multi-branch chat</comment>
     </changeSet>
 
+    <changeSet id="20260531-12" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="memo_category"/></not></preConditions>
+        <createTable tableName="memo_category">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false" unique="true"/></column>
+            <column name="code" type="VARCHAR(255)"><constraints nullable="false" unique="true"/></column>
+            <column name="description" type="TEXT"/>
+            <column name="sla_hours" type="INT"/>
+            <column name="is_active" type="BIT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260531-13" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="category_document_requirement"/></not></preConditions>
+        <createTable tableName="category_document_requirement">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="category_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="document_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="is_required" type="BIT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="category_document_requirement" baseColumnNames="category_id"
+                                 referencedTableName="memo_category" referencedColumnNames="id"
+                                 constraintName="fk_cdr_category"/>
+    </changeSet>
+
+    <changeSet id="20260531-14" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="workflow_stage"/></not></preConditions>
+        <createTable tableName="workflow_stage">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="order_index" type="INT"><constraints nullable="false"/></column>
+            <column name="color" type="VARCHAR(50)"/>
+            <column name="icon" type="VARCHAR(100)"/>
+            <column name="sla_hours" type="INT"/>
+            <column name="require_comment" type="BIT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="require_document" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="require_digital_signature" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="require_acknowledgement" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="enable_escalation" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="escalation_rule_id" type="BIGINT"/>
+            <column name="notify_email" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="notify_sms" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="notify_in_app" type="BIT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260531-15" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="workflow_stage_instance"/></not></preConditions>
+        <createTable tableName="workflow_stage_instance">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="memo_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="stage_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="assignee_id" type="BIGINT"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="DRAFT"><constraints nullable="false"/></column>
+            <column name="entered_at" type="DATETIME"/>
+            <column name="completed_at" type="DATETIME"/>
+            <column name="sla_deadline" type="DATETIME"/>
+            <column name="comment" type="TEXT"/>
+            <column name="action_taken" type="VARCHAR(50)"/>
+            <column name="action_by" type="BIGINT"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260531-16" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="escalation_rule"/></not></preConditions>
+        <createTable tableName="escalation_rule">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="category_id" type="BIGINT"/>
+            <column name="stage_id" type="BIGINT"/>
+            <column name="timeout_hours" type="INT"><constraints nullable="false"/></column>
+            <column name="escalation_action" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="escalate_to_role" type="BIGINT"/>
+            <column name="escalate_to_user" type="BIGINT"/>
+            <column name="is_global" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260531-17" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="notification_config"/></not></preConditions>
+        <createTable tableName="notification_config">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="event_type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="channel" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="template_subject" type="VARCHAR(500)"/>
+            <column name="template_body" type="TEXT"/>
+            <column name="is_active" type="BIT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260531-18" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="notification_log"/></not></preConditions>
+        <createTable tableName="notification_log">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="memo_id" type="BIGINT"/>
+            <column name="recipient_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="event_type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="channel" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="sent_at" type="DATETIME"/>
+            <column name="status" type="VARCHAR(50)"/>
+            <column name="error_message" type="TEXT"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260531-19" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="memo_version"/></not></preConditions>
+        <createTable tableName="memo_version">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="memo_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="version_number" type="INT"><constraints nullable="false"/></column>
+            <column name="content_json" type="TEXT"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_by" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260531-20" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="approval_rule_matrix"/></not></preConditions>
+        <createTable tableName="approval_rule_matrix">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="category_id" type="BIGINT"/>
+            <column name="stage_id" type="BIGINT"/>
+            <column name="role_id" type="BIGINT"/>
+            <column name="user_id" type="BIGINT"/>
+            <column name="priority" type="INT"><constraints nullable="false"/></column>
+            <column name="can_approve" type="BIT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="can_reject" type="BIT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="can_return" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="can_forward" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="can_delegate" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260531-21" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="memo_workflow_config"/></not>
+            <not><columnExists tableName="memo" columnName="category_id"/></not>
+        </preConditions>
+        <createTable tableName="memo_workflow_config">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="category_id" type="BIGINT"/>
+            <column name="sla_hours" type="INT"/>
+            <column name="require_document_verification" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="enable_versioning" type="BIT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addColumn tableName="memo">
+            <column name="category_id" type="BIGINT"/>
+            <column name="sla_deadline" type="DATETIME"/>
+        </addColumn>
+        <addColumn tableName="memo_template">
+            <column name="category_id" type="BIGINT"/>
+            <column name="is_active" type="BIT" defaultValueNumeric="1"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260531-22" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><foreignKeyConstraintExists foreignKeyName="fk_memo_category"/></not>
+        </preConditions>
+        <addForeignKeyConstraint baseTableName="workflow_stage_instance" baseColumnNames="memo_id"
+                                 referencedTableName="memo" referencedColumnNames="id" constraintName="fk_wsi_memo"/>
+        <addForeignKeyConstraint baseTableName="workflow_stage_instance" baseColumnNames="stage_id"
+                                 referencedTableName="workflow_stage" referencedColumnNames="id" constraintName="fk_wsi_stage"/>
+        <addForeignKeyConstraint baseTableName="workflow_stage_instance" baseColumnNames="assignee_id"
+                                 referencedTableName="users" referencedColumnNames="id" constraintName="fk_wsi_assignee"/>
+        <addForeignKeyConstraint baseTableName="workflow_stage" baseColumnNames="escalation_rule_id"
+                                 referencedTableName="escalation_rule" referencedColumnNames="id" constraintName="fk_ws_escalation"/>
+        <addForeignKeyConstraint baseTableName="escalation_rule" baseColumnNames="category_id"
+                                 referencedTableName="memo_category" referencedColumnNames="id" constraintName="fk_er_category"/>
+        <addForeignKeyConstraint baseTableName="escalation_rule" baseColumnNames="stage_id"
+                                 referencedTableName="workflow_stage" referencedColumnNames="id" constraintName="fk_er_stage"/>
+        <addForeignKeyConstraint baseTableName="notification_log" baseColumnNames="memo_id"
+                                 referencedTableName="memo" referencedColumnNames="id" constraintName="fk_nl_memo"/>
+        <addForeignKeyConstraint baseTableName="memo_version" baseColumnNames="memo_id"
+                                 referencedTableName="memo" referencedColumnNames="id" constraintName="fk_mv_memo"/>
+        <addForeignKeyConstraint baseTableName="approval_rule_matrix" baseColumnNames="category_id"
+                                 referencedTableName="memo_category" referencedColumnNames="id" constraintName="fk_arm_category"/>
+        <addForeignKeyConstraint baseTableName="approval_rule_matrix" baseColumnNames="stage_id"
+                                 referencedTableName="workflow_stage" referencedColumnNames="id" constraintName="fk_arm_stage"/>
+        <addForeignKeyConstraint baseTableName="memo_workflow_config" baseColumnNames="category_id"
+                                 referencedTableName="memo_category" referencedColumnNames="id" constraintName="fk_mwc_category"/>
+        <addForeignKeyConstraint baseTableName="memo" baseColumnNames="category_id"
+                                 referencedTableName="memo_category" referencedColumnNames="id" constraintName="fk_memo_category"/>
+        <addForeignKeyConstraint baseTableName="memo_template" baseColumnNames="category_id"
+                                 referencedTableName="memo_category" referencedColumnNames="id" constraintName="fk_mt_category"/>
+    </changeSet>
+
+    <changeSet id="20260531-23" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists indexName="idx_wsi_memo"/></not>
+        </preConditions>
+        <createIndex tableName="workflow_stage_instance" indexName="idx_wsi_memo"><column name="memo_id"/></createIndex>
+        <createIndex tableName="workflow_stage_instance" indexName="idx_wsi_assignee"><column name="assignee_id"/></createIndex>
+        <createIndex tableName="notification_log" indexName="idx_nl_memo"><column name="memo_id"/></createIndex>
+        <createIndex tableName="notification_log" indexName="idx_nl_recipient"><column name="recipient_id"/></createIndex>
+        <createIndex tableName="notification_log" indexName="idx_nl_event"><column name="event_type"/></createIndex>
+        <createIndex tableName="memo_version" indexName="idx_mv_memo"><column name="memo_id"/></createIndex>
+    </changeSet>
+
 </databaseChangeLog>

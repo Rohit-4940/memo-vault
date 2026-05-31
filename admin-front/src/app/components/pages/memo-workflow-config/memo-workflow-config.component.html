@@ -1,0 +1,470 @@
+<div class="page-container animate-fade-in">
+  <div class="page-header">
+    <div>
+      <h1><i class="fas fa-cogs" style="color:var(--nexmemo-primary)"></i> Memo Workflow Configuration</h1>
+      <div class="page-subtitle">Configure workflow, approval hierarchy, permissions, and dynamic forms for each memo type</div>
+    </div>
+  </div>
+
+  <div class="type-selector-card">
+    <div class="type-selector-inner">
+      <div class="type-selector-icon">
+        <i class="fas fa-folder-tree"></i>
+      </div>
+      <div class="type-selector-content">
+        <label class="type-selector-label">Select Memo Type</label>
+        <p class="type-selector-desc">Choose a memo type to configure its workflow, stages, permissions, and form fields.</p>
+      </div>
+      <div class="type-selector-field">
+        <select class="form-control form-control-lg" [(ngModel)]="selectedMemoTypeId" (change)="onMemoTypeChange()">
+          <option value="">— Choose a memo type —</option>
+          @for(mt of memoTypes; track mt.id) {
+            <option [value]="mt.id">{{ mt.name }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </div>
+
+  @if (config !== null) {
+    <div class="config-section">
+      <div class="tab-bar">
+        <button class="tab-btn" [class.active]="selectedTab === 'config'" (click)="switchTab('config')">
+          <i class="fas fa-sliders-h"></i> Workflow Config
+        </button>
+        <button class="tab-btn" [class.active]="selectedTab === 'stages'" (click)="switchTab('stages')">
+          <i class="fas fa-layer-group"></i> Stages & Approvers
+          @if (stages.length) { <span class="tab-count">{{ stages.length }}</span> }
+        </button>
+        <button class="tab-btn" [class.active]="selectedTab === 'permissions'" (click)="switchTab('permissions')">
+          <i class="fas fa-lock"></i> Role Permissions
+          @if (permissions.length) { <span class="tab-count">{{ permissions.length }}</span> }
+        </button>
+        <button class="tab-btn" [class.active]="selectedTab === 'form-fields'" (click)="switchTab('form-fields')">
+          <i class="fas fa-list"></i> Form Fields
+          @if (formFields.length) { <span class="tab-count">{{ formFields.length }}</span> }
+        </button>
+      </div>
+
+      @if (selectedTab === 'config') {
+        <div class="content-card">
+          <div class="content-header">
+            <div class="content-header-icon" style="background:var(--nexmemo-primary-light);color:var(--nexmemo-primary)">
+              <i class="fas fa-sliders-h"></i>
+            </div>
+            <div>
+              <h3>Workflow Configuration</h3>
+              <p>Define how this memo type routes through the approval process.</p>
+            </div>
+          </div>
+          <div class="content-body">
+            <div class="form-grid two-col">
+              <div class="form-group">
+                <label class="form-label">Assignment Type</label>
+                <div class="radio-group">
+                  <label class="radio-card" [class.active]="userBased">
+                    <input type="radio" [(ngModel)]="userBased" [value]="true" />
+                    <div class="radio-card-content">
+                      <i class="fas fa-user-check"></i>
+                      <div><strong>User-Based</strong><span>Specific users assigned at each stage</span></div>
+                    </div>
+                  </label>
+                  <label class="radio-card" [class.active]="!userBased">
+                    <input type="radio" [(ngModel)]="userBased" [value]="false" />
+                    <div class="radio-card-content">
+                      <i class="fas fa-users"></i>
+                      <div><strong>Role-Based</strong><span>Users with that role can act at each stage</span></div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Flow Type</label>
+                <select class="form-control" [(ngModel)]="config.flowType">
+                  <option value="SEQUENTIAL">Sequential — One stage at a time</option>
+                  <option value="PARALLEL">Parallel — All stages at once</option>
+                  <option value="ANY_APPROVER">Any Approver — Single approval completes</option>
+                </select>
+                <span class="form-hint">Determines how stages progress.</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Required Fields</label>
+              <textarea class="form-control" rows="3" [(ngModel)]="config.requiredFields" placeholder='["title","description","amount","department"]'></textarea>
+              <span class="form-hint">JSON array of field keys that must be filled when creating a memo of this type.</span>
+            </div>
+            <div class="form-actions">
+              <label class="toggle-switch">
+                <input type="checkbox" [(ngModel)]="config.isActive" />
+                <span class="toggle-track"></span>
+                <span class="toggle-label">Active</span>
+              </label>
+              <button class="btn btn-primary" (click)="saveConfig()">
+                <i class="fas fa-save"></i> Save Configuration
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      @if (selectedTab === 'stages') {
+        <div class="content-card">
+          <div class="content-header">
+            <div class="content-header-icon" style="background:#eef2ff;color:#4f46e5">
+              <i class="fas fa-layer-group"></i>
+            </div>
+            <div>
+              <h3>Approval Stages</h3>
+              <p>Define the approval path. Order determines the sequence. Each stage can have a user or role assigned.</p>
+            </div>
+          </div>
+          <div class="content-body">
+            <div class="add-stage-panel">
+              <div class="add-stage-row">
+                @if (userBased) {
+                  <div class="add-stage-field">
+                    <label class="form-label-sm">Select User</label>
+                    <select class="form-control" [(ngModel)]="newStageUserId">
+                      <option value="">Choose a user...</option>
+                      @for(u of users; track u.id) { <option [value]="u.id">{{ u.name || u.userName }}</option> }
+                    </select>
+                  </div>
+                } @else {
+                  <div class="add-stage-field">
+                    <label class="form-label-sm">Select Role</label>
+                    <select class="form-control" [(ngModel)]="newStageRoleId">
+                      <option value="">Choose a role...</option>
+                      @for(r of roles; track r.id) { <option [value]="r.id">{{ r.roleName }}</option> }
+                    </select>
+                  </div>
+                }
+                <div class="add-stage-btn">
+                  <button class="btn btn-primary" (click)="addStage()" [disabled]="userBased ? !newStageUserId : !newStageRoleId">
+                    <i class="fas fa-plus"></i> Add Stage
+                  </button>
+                </div>
+              </div>
+            </div>
+            @if (stages.length > 0) {
+              <div class="stage-list">
+                @for(stage of stages; track $index) {
+                  <div class="stage-item">
+                    <div class="stage-order">{{ $index + 1 }}</div>
+                    <div class="stage-connector">
+                      <div class="stage-line"></div>
+                    </div>
+                    <div class="stage-body">
+                      <div class="stage-input">
+                        <input class="form-control" [(ngModel)]="stage.stageName" placeholder="Stage name e.g. Branch Manager Approval" />
+                      </div>
+                      <div class="stage-assignee">
+                        <span class="assignee-badge">
+                          <i class="fas" [class.fa-user]="stage.assigneeType === 'USER'" [class.fa-user-tag]="stage.assigneeType === 'ROLE'"></i>
+                          {{ stage.assigneeName }}
+                        </span>
+                        <span class="type-badge" [class.user]="stage.assigneeType === 'USER'" [class.role]="stage.assigneeType === 'ROLE'">
+                          {{ stage.assigneeType }}
+                        </span>
+                      </div>
+                      <button class="btn-icon btn-remove" (click)="removeStage($index)" title="Remove stage">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+              <div class="form-actions">
+                <button class="btn btn-primary" (click)="saveStages()">
+                  <i class="fas fa-save"></i> Save Stages
+                </button>
+              </div>
+            } @else {
+              <div class="empty-state">
+                <div class="empty-icon">
+                  <i class="fas fa-layer-group"></i>
+                </div>
+                <h4>No Stages Defined</h4>
+                <p>Add approval stages above to build the approval path for this memo type.</p>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (selectedTab === 'permissions') {
+        <div class="content-card">
+          <div class="content-header">
+            <div class="content-header-icon" style="background:#f5f3ff;color:#7c3aed">
+              <i class="fas fa-lock"></i>
+            </div>
+            <div>
+              <h3>Role Permissions</h3>
+              <p>Define which roles can perform which actions on memos of this type.</p>
+            </div>
+          </div>
+          <div class="content-body">
+            <div class="add-permission-bar">
+              <div class="add-permission-field">
+                <label class="form-label-sm">Add Role</label>
+                <select class="form-control" #roleSelect>
+                  <option value="">Choose a role...</option>
+                  @for(r of getUnassignedRoles(); track r.id) { <option [value]="r.id">{{ r.roleName }}</option> }
+                </select>
+              </div>
+              <div class="add-permission-btn">
+                <button class="btn btn-primary" (click)="addPermission(+roleSelect.value)" [disabled]="!roleSelect.value">
+                  <i class="fas fa-plus"></i> Add
+                </button>
+              </div>
+            </div>
+            @if (permissions.length > 0) {
+              <div class="perm-table-wrap">
+                <table class="perm-table">
+                  <thead>
+                    <tr>
+                      <th>Role</th>
+                      <th class="perm-col">Create</th>
+                      <th class="perm-col">Edit</th>
+                      <th class="perm-col">Approve</th>
+                      <th class="perm-col">Reject</th>
+                      <th class="perm-col">View</th>
+                      <th class="action-col"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for(perm of permissions; track $index) {
+                      <tr>
+                        <td><span class="role-name">{{ perm.role?.roleName }}</span></td>
+                        <td class="perm-col">
+                          <label class="perm-toggle" [class.active]="perm.canCreate">
+                            <input type="checkbox" [checked]="perm.canCreate" (change)="togglePermission(perm, 'canCreate')" />
+                            <span class="perm-toggle-indicator">
+                              @if (perm.canCreate) { <i class="fas fa-check"></i> } @else { <i class="fas fa-times"></i> }
+                            </span>
+                          </label>
+                        </td>
+                        <td class="perm-col">
+                          <label class="perm-toggle" [class.active]="perm.canEdit">
+                            <input type="checkbox" [checked]="perm.canEdit" (change)="togglePermission(perm, 'canEdit')" />
+                            <span class="perm-toggle-indicator">
+                              @if (perm.canEdit) { <i class="fas fa-check"></i> } @else { <i class="fas fa-times"></i> }
+                            </span>
+                          </label>
+                        </td>
+                        <td class="perm-col">
+                          <label class="perm-toggle" [class.active]="perm.canApprove">
+                            <input type="checkbox" [checked]="perm.canApprove" (change)="togglePermission(perm, 'canApprove')" />
+                            <span class="perm-toggle-indicator">
+                              @if (perm.canApprove) { <i class="fas fa-check"></i> } @else { <i class="fas fa-times"></i> }
+                            </span>
+                          </label>
+                        </td>
+                        <td class="perm-col">
+                          <label class="perm-toggle" [class.active]="perm.canReject">
+                            <input type="checkbox" [checked]="perm.canReject" (change)="togglePermission(perm, 'canReject')" />
+                            <span class="perm-toggle-indicator">
+                              @if (perm.canReject) { <i class="fas fa-check"></i> } @else { <i class="fas fa-times"></i> }
+                            </span>
+                          </label>
+                        </td>
+                        <td class="perm-col">
+                          <label class="perm-toggle" [class.active]="perm.canView">
+                            <input type="checkbox" [checked]="perm.canView" (change)="togglePermission(perm, 'canView')" />
+                            <span class="perm-toggle-indicator">
+                              @if (perm.canView) { <i class="fas fa-check"></i> } @else { <i class="fas fa-times"></i> }
+                            </span>
+                          </label>
+                        </td>
+                        <td class="action-col">
+                          <button class="btn-icon btn-remove" (click)="removePermission($index)" title="Remove role">
+                            <i class="fas fa-trash-alt"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <div class="form-actions">
+                <button class="btn btn-primary" (click)="savePermissions()">
+                  <i class="fas fa-save"></i> Save Permissions
+                </button>
+              </div>
+            } @else {
+              <div class="empty-state">
+                <div class="empty-icon">
+                  <i class="fas fa-lock"></i>
+                </div>
+                <h4>No Permissions Configured</h4>
+                <p>Add roles above to set permissions for this memo type.</p>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (selectedTab === 'form-fields') {
+        <div class="content-card">
+          <div class="content-header">
+            <div class="content-header-icon" style="background:#ecfeff;color:#06b6d4">
+              <i class="fas fa-list"></i>
+            </div>
+            <div>
+              <h3>Dynamic Form Fields</h3>
+              <p>Build the form that users see when creating a memo of this type.</p>
+            </div>
+          </div>
+          <div class="content-body">
+            <div class="field-toolbar">
+              <span class="field-count"><i class="fas fa-list"></i> {{ formFields.length }} field{{ formFields.length !== 1 ? 's' : '' }}</span>
+              <button class="btn btn-primary btn-sm" (click)="openFieldModal(fieldModal)">
+                <i class="fas fa-plus"></i> Add Field
+              </button>
+            </div>
+            @if (formFields.length > 0) {
+              <div class="fields-list">
+                @for(f of formFields; track $index) {
+                  <div class="field-card">
+                    <div class="field-reorder">
+                      <button class="btn-reorder" (click)="moveField($index, -1)" [disabled]="$index === 0"><i class="fas fa-chevron-up"></i></button>
+                      <span class="field-num">{{ $index + 1 }}</span>
+                      <button class="btn-reorder" (click)="moveField($index, 1)" [disabled]="$index === formFields.length - 1"><i class="fas fa-chevron-down"></i></button>
+                    </div>
+                    <div class="field-info">
+                      <div class="field-title">
+                        <span class="field-label-text">{{ f.fieldLabel }}</span>
+                        @if (f.required) { <span class="field-required-badge">Required</span> }
+                      </div>
+                      <div class="field-meta">
+                        <span class="field-key"><code>{{ f.fieldKey }}</code></span>
+                        <span class="field-type-badge">{{ f.fieldType }}</span>
+                        @if (f.sectionName) { <span class="field-section">{{ f.sectionName }}</span> }
+                      </div>
+                    </div>
+                    <div class="field-actions">
+                      <button class="btn-icon" (click)="editFieldInModal(fieldModal, f)" title="Edit field"><i class="fas fa-edit"></i></button>
+                      <button class="btn-icon btn-remove" (click)="deleteField(f.id)" title="Delete field"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                  </div>
+                }
+              </div>
+              <div class="form-actions">
+                <button class="btn btn-primary" (click)="saveAllFormFields()">
+                  <i class="fas fa-save"></i> Save All Fields
+                </button>
+              </div>
+            } @else {
+              <div class="empty-state">
+                <div class="empty-icon">
+                  <i class="fas fa-list"></i>
+                </div>
+                <h4>No Form Fields Configured</h4>
+                <p>Add fields above to build the dynamic form for this memo type.</p>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Field Form Modal -->
+    <ng-template #fieldModal let-modal>
+      <div class="modal-header">
+        <h5 class="modal-title">{{ editingFieldId ? 'Edit Field' : 'Add New Field' }}</h5>
+        <button type="button" class="btn-close" (click)="modal.dismiss()"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Field Key *</label>
+              <input class="form-control" [(ngModel)]="newField.fieldKey" placeholder="e.g. loan_amount" />
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Field Label *</label>
+              <input class="form-control" [(ngModel)]="newField.fieldLabel" placeholder="e.g. Loan Amount" />
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Field Type</label>
+              <select class="form-control" [(ngModel)]="newField.fieldType">
+                @for(t of fieldTypes; track t) { <option [value]="t">{{ t }}</option> }
+              </select>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Section</label>
+              <input class="form-control" [(ngModel)]="newField.sectionName" placeholder="e.g. Loan Details" />
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Default Value</label>
+              <input class="form-control" [(ngModel)]="newField.defaultValue" placeholder="Default value" />
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Placeholder</label>
+              <input class="form-control" [(ngModel)]="newField.placeholder" placeholder="Placeholder text" />
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Options <span class="form-hint-inline">(JSON array for dropdown / multi / radio / checkbox)</span></label>
+          <input class="form-control" [(ngModel)]="newField.options" placeholder='["Option 1","Option 2"]' />
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Conditional Logic <span class="form-hint-inline">(JSON)</span></label>
+              <input class="form-control" [(ngModel)]="newField.conditionalLogic" placeholder='{"fieldKey":"type","value":"value"}' />
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Help Text</label>
+              <input class="form-control" [(ngModel)]="newField.helpText" placeholder="Help text for users" />
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-6">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="chkRequired" [(ngModel)]="newField.required" />
+              <label class="form-check-label" for="chkRequired">Required</label>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="chkReadOnly" [(ngModel)]="newField.readOnly" />
+              <label class="form-check-label" for="chkReadOnly">Read Only</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
+        <button class="btn btn-primary" (click)="saveFieldClose(modal)">
+          <i class="fas" [class.fa-plus]="!editingFieldId" [class.fa-save]="!!editingFieldId"></i>
+          {{ editingFieldId ? 'Update' : 'Add' }}
+        </button>
+      </div>
+    </ng-template>
+  } @else if (selectedMemoTypeId) {
+    <div class="empty-state" style="margin-top:2rem">
+      <div class="empty-icon">
+        <i class="fas fa-cogs"></i>
+      </div>
+      <h4>Loading configuration...</h4>
+    </div>
+  }
+</div>

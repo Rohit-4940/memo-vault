@@ -118,6 +118,13 @@ public class Memo extends BaseEntity<Long> implements Serializable {
     @JoinColumn(name = "fiscal_year_id")
     private FiscalYear fiscalYear;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private MemoCategory category;
+
+    @Column(name = "sla_deadline")
+    private LocalDateTime slaDeadline;
+
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
 }

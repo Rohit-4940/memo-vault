@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, ViewChild, inject } from '@angular/core';
 import { NgForOf, NgIf, DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -16,11 +16,13 @@ import { ApiConfig } from '../../../@core/utils/api/ApiConfig';
 import { MemoPdfExportService } from '../../../shared-services/memo-pdf-export.service';
 import { MemoDocumentUploadComponent } from '../memo-document-upload/memo-document-upload.component';
 import { PaginationComponent } from '../../../shared-components/pagination/pagination.component';
+import { DynamicFormComponent } from '../../../shared-components/dynamic-form/dynamic-form.component';
+import { MemoFormFieldService } from '../../../shared-services/api-service/memo-form-field.service';
 
 @Component({
   selector: 'app-memo',
   standalone: true,
-  imports: [NgForOf, NgIf, FormsModule, NgbModalModule, DatePipe, DecimalPipe, MemoDocumentUploadComponent, PaginationComponent],
+  imports: [NgForOf, NgIf, FormsModule, NgbModalModule, DatePipe, DecimalPipe, MemoDocumentUploadComponent, PaginationComponent, DynamicFormComponent],
   templateUrl: './memo.component.html',
   styleUrl: './memo.component.scss'
 })
@@ -39,8 +41,12 @@ export class MemoComponent implements OnInit {
     title: '', description: '', memoTypeId: null, departmentId: null,
     branchId: null, priority: 'MEDIUM', amount: 0, templateId: null, ccUserIds: [],
     expenseCategoryId: null, budgetCode: '', paymentMethod: 'BANK_TRANSFER',
-    vendorName: '', vendorAccount: '', isUrgent: false, expectedDate: null, fiscalYearId: null
+    vendorName: '', vendorAccount: '', isUrgent: false, expectedDate: null, fiscalYearId: null,
+    formData: {}
   };
+  @ViewChild('dynamicFormRef') dynamicFormRef: DynamicFormComponent | undefined;
+  memoFormFields: any[] = [];
+  memoFormData: any = {};
   detailMemo: any = null;
   approvalHistory: any[] = [];
   memoRouting: any[] = [];
@@ -82,7 +88,8 @@ export class MemoComponent implements OnInit {
     private userService: UserService,
     private toastr: ToastrService,
     private http: HttpClient,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private formFieldService: MemoFormFieldService
   ) {}
 
   ngOnInit() {
@@ -233,6 +240,21 @@ export class MemoComponent implements OnInit {
       const matchType = !typeId || t.memoTypeId === Number(typeId) || t.memoType?.id === Number(typeId);
       return matchDept && matchType;
     });
+    this.loadFormFieldsForMemoType();
+  }
+
+  loadFormFieldsForMemoType() {
+    this.memoFormFields = [];
+    this.memoFormData = {};
+    if (!this.selectedMemo.memoTypeId) return;
+    this.formFieldService.getFieldsByMemoType(this.selectedMemo.memoTypeId).subscribe({
+      next: (fields) => { this.memoFormFields = fields || []; },
+      error: () => this.memoFormFields = []
+    });
+  }
+
+  onFormDataChange(data: any) {
+    this.memoFormData = data;
   }
 
   toggleCcUser(userId: number) {
@@ -281,10 +303,15 @@ export class MemoComponent implements OnInit {
   }
 
   saveMemo() {
+    if (this.dynamicFormRef && !this.dynamicFormRef.isValid()) {
+      this.toastr.warning('Please fill in all required dynamic form fields');
+      return;
+    }
     const payload = {
       ...this.selectedMemo,
       expenseCategory: this.selectedMemo.expenseCategoryId ? { id: this.selectedMemo.expenseCategoryId } : null,
-      fiscalYear: this.selectedMemo.fiscalYearId ? { id: this.selectedMemo.fiscalYearId } : null
+      fiscalYear: this.selectedMemo.fiscalYearId ? { id: this.selectedMemo.fiscalYearId } : null,
+      formData: this.memoFormData
     };
     this.memoService.createMemo(payload).subscribe({
       next: () => {

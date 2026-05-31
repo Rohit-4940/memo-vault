@@ -7,8 +7,10 @@ import com.nexmemo.core.entity.Memo;
 import com.nexmemo.core.entity.MemoCc;
 import com.nexmemo.core.entity.MemoDocument;
 import com.nexmemo.core.entity.MemoRouting;
+import com.nexmemo.core.entity.WorkflowStageInstance;
 import com.nexmemo.core.enums.MemoStatus;
 import com.nexmemo.web.service.MemoService;
+import com.nexmemo.web.service.WorkflowEngineService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -27,6 +29,7 @@ import java.util.List;
 public class MemoController {
 
     private final MemoService memoService;
+    private final WorkflowEngineService workflowEngineService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Memo>>> getAllMemos() {
@@ -163,5 +166,46 @@ public class MemoController {
     public ResponseEntity<ApiResponse<MemoCc>> acknowledgeMemo(@PathVariable Long id,
                                                                @AuthenticationPrincipal Long userId) {
         return ResponseEntity.ok(ApiResponse.success("Memo acknowledged", memoService.acknowledgeMemo(id, userId)));
+    }
+
+    @GetMapping("/{id}/stages")
+    public ResponseEntity<ApiResponse<List<WorkflowStageInstance>>> getStageInstances(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(workflowEngineService.getStageInstances(id)));
+    }
+
+    @PostMapping("/{id}/approve-stage")
+    public ResponseEntity<ApiResponse<WorkflowStageInstance>> approveStage(
+            @PathVariable Long id, @RequestParam Long stageId,
+            @RequestParam(required = false) String comment,
+            @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                workflowEngineService.approveStage(id, stageId, userId, comment)));
+    }
+
+    @PostMapping("/{id}/reject-stage")
+    public ResponseEntity<ApiResponse<WorkflowStageInstance>> rejectStage(
+            @PathVariable Long id, @RequestParam Long stageId,
+            @RequestParam(required = false) String comment,
+            @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                workflowEngineService.rejectStage(id, stageId, userId, comment)));
+    }
+
+    @PostMapping("/{id}/return-stage")
+    public ResponseEntity<ApiResponse<WorkflowStageInstance>> returnToStage(
+            @PathVariable Long id, @RequestParam Long stageId,
+            @RequestParam(required = false) String comment,
+            @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                workflowEngineService.returnToStage(id, stageId, userId, comment)));
+    }
+
+    @PostMapping("/{id}/delegate-stage")
+    public ResponseEntity<ApiResponse<WorkflowStageInstance>> delegateStage(
+            @PathVariable Long id, @RequestParam Long stageId,
+            @RequestParam Long toUserId,
+            @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                workflowEngineService.delegateStage(id, stageId, userId, toUserId)));
     }
 }

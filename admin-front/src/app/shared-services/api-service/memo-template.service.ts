@@ -26,4 +26,24 @@ export class MemoTemplateService {
   deleteTemplate(id: number): Observable<void> {
     return this.http.delete<void>(`${ApiConfig.URL}/api/v1/memo-templates/${id}`);
   }
+
+  getApprovalLevels(templateId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${ApiConfig.URL}/api/v1/memo-templates/${templateId}/approval-levels`);
+  }
+
+  saveApprovalLevels(templateId: number, levels: any[]): Observable<any[]> {
+    return this.http.put<any[]>(`${ApiConfig.URL}/api/v1/memo-templates/${templateId}/approval-levels`, levels);
+  }
+
+  getDefaultCcUsers(templateId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${ApiConfig.URL}/api/v1/memo-templates/${templateId}/default-cc`);
+  }
+
+  addDefaultCcUser(templateId: number, userId: number): Observable<any> {
+    return this.http.post<any>(`${ApiConfig.URL}/api/v1/memo-templates/${templateId}/default-cc/${userId}`, {});
+  }
+
+  removeDefaultCcUser(templateId: number, ccId: number): Observable<void> {
+    return this.http.delete<void>(`${ApiConfig.URL}/api/v1/memo-templates/${templateId}/default-cc/${ccId}`);
+  }
 }

@@ -56,12 +56,15 @@ public class InitialPatch implements ApplicationRunner {
         // Build paths without leading slashes
         String locationPath = baseServerFolder + "/" + GENERAL_PATCH_FOLDER + "/location.sql";
         String patchPath = baseServerFolder + "/" + GENERAL_PATCH_FOLDER + "/patch.sql";
+        String workflowPatchPath = baseServerFolder + "/" + GENERAL_PATCH_FOLDER + "/patch-workflow-entities.sql";
 
         log.debug("Looking for location.sql at: {}", locationPath);
         log.debug("Looking for patch.sql at: {}", patchPath);
+        log.debug("Looking for patch-workflow-entities.sql at: {}", workflowPatchPath);
 
         runSqlFile(locationPath);
         runSqlFile(patchPath);
+        runSqlFile(workflowPatchPath);
     }
 
     private void runSqlFile(String classpathPath) {
@@ -104,13 +107,12 @@ public class InitialPatch implements ApplicationRunner {
     }
 
     private boolean tryAlternativePaths(String originalPath) {
+        String justFileName = originalPath.substring(originalPath.lastIndexOf("/") + 1);
         String[] possiblePaths = {
                 originalPath,
                 "/" + originalPath,
-                "patch_ms_sql/general_patch/location.sql",
-                "/patch_ms_sql/general_patch/location.sql",
-                "patch_ms_sql/general_patch/patch.sql",
-                "/patch_ms_sql/general_patch/patch.sql",
+                "patch_ms_sql/general_patch/" + justFileName,
+                "/patch_ms_sql/general_patch/" + justFileName,
                 "classpath:" + originalPath,
                 "src/main/resources/" + originalPath
         };
@@ -163,6 +165,7 @@ public class InitialPatch implements ApplicationRunner {
         // Search for SQL files in the project
         findFile(projectRoot, "location.sql");
         findFile(projectRoot, "patch.sql");
+        findFile(projectRoot, "patch-workflow-entities.sql");
 
         // Also search using classpath scanner
         try {

@@ -7,6 +7,7 @@ import { ApiConfig } from '../../../@core/utils/api/ApiConfig';
 import { MemoTemplateService } from '../../../shared-services/api-service/memo-template.service';
 import { MemoTypeService } from '../../../shared-services/api-service/memo-type.service';
 import { DepartmentService } from '../../../shared-services/api-service/department.service';
+import { UserService } from '../../../shared-services/api-service/user.service';
 import { ToastrService } from 'ngx-toastr';
 import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
 import { CKEditorModule, ChangeEvent } from '@ckeditor/ckeditor5-angular';
@@ -34,9 +35,18 @@ export class MemoTemplateComponent implements OnInit {
   memoTypes: any[] = [];
   departments: any[] = [];
   expenseCategories: any[] = [];
+  users: any[] = [];
   selectedTemplate: any = { name: '', description: '', content: '', memoTypeId: null, departmentId: null, expenseCategoryId: null, status: 'ACTIVE', defaultAmount: null, maxAmount: null, defaultPriority: 'MEDIUM', defaultPaymentMethod: '', requiredApprovalLevels: 1, requiredFields: '' };
   isEditing = false;
   isAdmin = false;
+
+  approvalLevels: any[] = [];
+  defaultCcUsers: any[] = [];
+  selectedTab = 'details';
+  newApproverType = 'USER';
+  newApproverId: number | null = null;
+  newCcUserId: number | null = null;
+
   private modalService = inject(NgbModal);
   private http = inject(HttpClient);
 
@@ -44,6 +54,7 @@ export class MemoTemplateComponent implements OnInit {
     private templateService: MemoTemplateService,
     private memoTypeService: MemoTypeService,
     private departmentService: DepartmentService,
+    private userService: UserService,
     private toastr: ToastrService
   ) {}
 
@@ -54,6 +65,7 @@ export class MemoTemplateComponent implements OnInit {
     this.memoTypeService.getAllMemoTypes().subscribe({ next: (d) => this.memoTypes = d });
     this.departmentService.getAllDepartments().subscribe({ next: (d) => this.departments = d });
     this.http.get<any[]>(`${ApiConfig.URL}/api/v1/expense-categories`).subscribe({ next: (d) => this.expenseCategories = d });
+    this.userService.getAllUsers().subscribe({ next: (d) => this.users = d });
   }
 
   loadTemplates() {
@@ -66,11 +78,15 @@ export class MemoTemplateComponent implements OnInit {
   openCreateModal(content: any) {
     this.isEditing = false;
     this.selectedTemplate = { name: '', description: '', content: '', memoTypeId: null, departmentId: null, expenseCategoryId: null, status: 'ACTIVE', defaultAmount: null, maxAmount: null, defaultPriority: 'MEDIUM', defaultPaymentMethod: '', requiredApprovalLevels: 1, requiredFields: '' };
+    this.approvalLevels = [];
+    this.defaultCcUsers = [];
+    this.selectedTab = 'details';
     this.modalService.open(content, { size: 'lg', centered: true, windowClass: 'template-modal' });
   }
 
   openEditModal(content: any, template: any) {
     this.isEditing = true;
+    this.selectedTab = 'details';
     this.selectedTemplate = {
       ...template,
       memoType: template.memoType || null,
@@ -80,7 +96,89 @@ export class MemoTemplateComponent implements OnInit {
       departmentId: template.department?.id || null,
       expenseCategoryId: template.expenseCategory?.id || null
     };
+    this.loadApprovalLevels(template.id);
+    this.loadDefaultCcUsers(template.id);
     this.modalService.open(content, { size: 'lg', centered: true, windowClass: 'template-modal' });
+  }
+
+  loadApprovalLevels(templateId: number) {
+    this.templateService.getApprovalLevels(templateId).subscribe({
+      next: (d) => this.approvalLevels = d || [],
+      error: () => this.approvalLevels = []
+    });
+  }
+
+  loadDefaultCcUsers(templateId: number) {
+    this.templateService.getDefaultCcUsers(templateId).subscribe({
+      next: (d) => this.defaultCcUsers = d || [],
+      error: () => this.defaultCcUsers = []
+    });
+  }
+
+  addApprovalLevel() {
+    if (!this.newApproverId) return;
+    const user = this.users.find(u => u.id === this.newApproverId);
+    this.approvalLevels.push({
+      approverType: this.newApproverType,
+      approverId: this.newApproverId,
+      approverName: user ? user.name || user.userName : 'User ' + this.newApproverId
+    });
+    this.newApproverId = null;
+  }
+
+  removeApprovalLevel(index: number) {
+    this.approvalLevels.splice(index, 1);
+  }
+
+  saveApprovalLevels() {
+    if (!this.selectedTemplate.id) return;
+    this.templateService.saveApprovalLevels(this.selectedTemplate.id, this.approvalLevels).subscribe({
+      next: () => {
+        this.toastr.success('Approval levels saved');
+        this.loadApprovalLevels(this.selectedTemplate.id);
+      },
+      error: () => this.toastr.error('Failed to save approval levels')
+    });
+  }
+
+  addDefaultCcUser() {
+    if (!this.newCcUserId || !this.selectedTemplate.id) return;
+    const already = this.defaultCcUsers.some(d => d.user?.id === this.newCcUserId || d.userId === this.newCcUserId);
+    if (already) { this.toastr.info('User already added as default CC'); return; }
+    this.templateService.addDefaultCcUser(this.selectedTemplate.id, this.newCcUserId).subscribe({
+      next: (res) => {
+        this.toastr.success('Default CC user added');
+        this.loadDefaultCcUsers(this.selectedTemplate.id);
+        this.newCcUserId = null;
+      },
+      error: () => this.toastr.error('Failed to add default CC user')
+    });
+  }
+
+  removeDefaultCcUser(ccId: number) {
+    if (!this.selectedTemplate.id) return;
+    this.templateService.removeDefaultCcUser(this.selectedTemplate.id, ccId).subscribe({
+      next: () => {
+        this.toastr.success('Default CC user removed');
+        this.loadDefaultCcUsers(this.selectedTemplate.id);
+      },
+      error: () => this.toastr.error('Failed to remove default CC user')
+    });
+  }
+
+  getUserDisplay(user: any): string {
+    if (!user) return 'Unknown';
+    return user.name || user.userName || 'User';
+  }
+
+  getApproverName(level: any): string {
+    if (level.approverName) return level.approverName;
+    const user = this.users.find(u => u.id === level.approverId);
+    return user ? (user.name || user.userName) : 'User ' + level.approverId;
+  }
+
+  switchTab(tab: string) {
+    this.selectedTab = tab;
   }
 
   saveTemplate() {

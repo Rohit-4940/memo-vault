@@ -67,6 +67,13 @@ public class MemoTemplate extends BaseEntity<Long> implements Serializable {
     @Enumerated(EnumType.STRING)
     private Status status = Status.ACTIVE;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private MemoCategory category;
+
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+
     @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("levelOrder ASC")
     private List<TemplateApprovalLevel> approvalLevels = new ArrayList<>();

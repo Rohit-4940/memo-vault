@@ -7,11 +7,13 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = "com.nexmemo")
 @EnableJpaRepositories(basePackages = "com.nexmemo")
 @EntityScan(basePackages = "com.nexmemo")
 @EnableAsync
+@EnableScheduling
 public class NexMemoApplication extends SpringBootServletInitializer {
 
     public static void main(String[] args) {

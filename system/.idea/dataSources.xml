@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="new_memo_db@localhost" uuid="fcd2bec0-1d5f-4fb0-824e-5a3b2a7e12d3">
+    <data-source source="LOCAL" name="new_memo_db@localhost" uuid="996420f9-ca75-475b-94a5-bfe95db57cb0">
       <driver-ref>sqlserver.ms</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>com.microsoft.sqlserver.jdbc.SQLServerDriver</jdbc-driver>

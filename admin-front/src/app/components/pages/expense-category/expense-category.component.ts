@@ -55,26 +55,42 @@ import { ToastrService } from 'ngx-toastr';
 <ng-template #content let-modal>
   <div class="modal-header"><h5 class="modal-title">Create Expense Category</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
   <div class="modal-body">
-    <div class="form-group">
-      <label>Category Name *</label>
-      <input class="form-control" [(ngModel)]="form.categoryName" placeholder="e.g., Travel Fund" />
-    </div>
-    <div class="form-group">
-      <label>Category Code *</label>
-      <input class="form-control" [(ngModel)]="form.categoryCode" placeholder="e.g., TRAVEL" />
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label>Category Name *</label>
+          <input class="form-control" [(ngModel)]="form.categoryName" placeholder="e.g., Travel Fund" />
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label>Category Code *</label>
+          <input class="form-control" [(ngModel)]="form.categoryCode" placeholder="e.g., TRAVEL" />
+        </div>
+      </div>
     </div>
     <div class="form-group">
       <label>Description</label>
       <textarea class="form-control" [(ngModel)]="form.description" rows="2"></textarea>
     </div>
-    <div class="form-group">
-      <label>Parent Category</label>
-      <select class="form-control" [(ngModel)]="form.parentCategoryId">
-        <option [value]="null">— None (Top Level) —</option>
-        @for (cat of categories; track cat.id) {
-          <option [value]="cat.id">{{ cat.categoryName }}</option>
-        }
-      </select>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label>Parent Category</label>
+          <select class="form-control" [(ngModel)]="form.parentCategoryId">
+            <option [value]="null">— None (Top Level) —</option>
+            @for (cat of categories; track cat.id) {
+              <option [value]="cat.id">{{ cat.categoryName }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label>Budget Code Pattern</label>
+          <input class="form-control" [(ngModel)]="form.budgetCodePattern" placeholder="e.g., TRV-{year}-{dept}" />
+        </div>
+      </div>
     </div>
     <div class="row">
       <div class="col-md-6">
@@ -90,27 +106,29 @@ import { ToastrService } from 'ngx-toastr';
         </div>
       </div>
     </div>
-    <div class="form-group">
-      <label>Budget Code Pattern</label>
-      <input class="form-control" [(ngModel)]="form.budgetCodePattern" placeholder="e.g., TRV-{year}-{dept}" />
-    </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
-    <button class="btn btn-primary" (click)="createCategory(); modal.close()">Create</button>
+    <button class="btn btn-gradient" (click)="createCategory(); modal.close()">Create</button>
   </div>
 </ng-template>
 
 <ng-template #editContent let-modal>
   <div class="modal-header"><h5 class="modal-title">Edit Expense Category</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
   <div class="modal-body">
-    <div class="form-group">
-      <label>Category Name *</label>
-      <input class="form-control" [(ngModel)]="editForm.categoryName" />
-    </div>
-    <div class="form-group">
-      <label>Category Code *</label>
-      <input class="form-control" [(ngModel)]="editForm.categoryCode" />
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label>Category Name *</label>
+          <input class="form-control" [(ngModel)]="editForm.categoryName" />
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label>Category Code *</label>
+          <input class="form-control" [(ngModel)]="editForm.categoryCode" />
+        </div>
+      </div>
     </div>
     <div class="form-group">
       <label>Description</label>
@@ -137,13 +155,16 @@ import { ToastrService } from 'ngx-toastr';
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
-    <button class="btn btn-primary" (click)="updateCategory(); modal.close()">Save</button>
+    <button class="btn btn-gradient" (click)="updateCategory(); modal.close()">Save</button>
   </div>
 </ng-template>
   `,
   styles: [`
-    .form-group { margin-bottom: 1rem; }
-    .form-group label { display: block; margin-bottom: 0.4rem; font-size: 0.85rem; font-weight: 500; color: var(--nexmemo-text-secondary); }
+    .form-group { margin-bottom: 0.75rem; }
+    .form-group label { display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 500; color: var(--nexmemo-text-secondary); }
+    .modal-body { padding: 1.25rem; }
+    .modal-footer { padding: 0.75rem 1.25rem; }
+    .form-control { font-size: 0.88rem; padding: 0.4rem 0.65rem; }
   `]
 })
 export class ExpenseCategoryComponent implements OnInit {
@@ -170,12 +191,12 @@ export class ExpenseCategoryComponent implements OnInit {
 
   openModal(content: any) {
     this.form = { categoryName: '', categoryCode: '', description: '', parentCategoryId: null, approvalLevels: 1, maxAmount: null, budgetCodePattern: '', requiresApproval: true };
-    this.modalService.open(content, { size: 'md', centered: true });
+    this.modalService.open(content, { size: 'lg', centered: true, scrollable: true });
   }
 
   editModal(content: any, cat: any) {
     this.editForm = { ...cat, parentCategoryId: cat.parentCategory?.id || null };
-    this.modalService.open(content, { size: 'md', centered: true });
+    this.modalService.open(content, { size: 'lg', centered: true, scrollable: true });
   }
 
   createCategory() {

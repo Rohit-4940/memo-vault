@@ -32,6 +32,7 @@ import { ApprovalKanbanComponent } from './components/pages/approval-kanban/appr
 import { VendorComponent } from './components/pages/vendor/vendor.component';
 import { AuditLogComponent } from './components/pages/audit-log/audit-log.component';
 import { BranchChatComponent } from './components/pages/branch-chat/branch-chat.component';
+import { MemoWorkflowConfigComponent } from './components/pages/memo-workflow-config/memo-workflow-config.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -66,6 +67,7 @@ export const routes: Routes = [
       { path: 'vendors', component: VendorComponent, data: { title: 'Vendors' }, canActivate: [menuGuard] },
       { path: 'audit-logs', component: AuditLogComponent, data: { title: 'Audit Logs' }, canActivate: [menuGuard] },
       { path: 'branch-chat', component: BranchChatComponent, data: { title: 'Branch Chat' }, canActivate: [menuGuard] },
+      { path: 'memo-workflow-config', component: MemoWorkflowConfigComponent, data: { title: 'Memo Workflow Config' }, canActivate: [menuGuard] },
       { path: 'system-config', component: SystemConfigComponent, data: { title: 'System Configuration' }, canActivate: [menuGuard] },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ]

@@ -33,12 +33,12 @@
 
   --sidebar-width: 270px;
   --sidebar-collapsed: 0px;
-  --sidebar-bg: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-  --sidebar-text: #94a3b8;
-  --sidebar-text-active: #ffffff;
+  --sidebar-bg: #ffffff;
+  --sidebar-text: #64748b;
+  --sidebar-text-active: #4f46e5;
   --sidebar-active: linear-gradient(135deg, #4f46e5, #7c3aed);
-  --sidebar-hover: rgba(255,255,255,0.06);
-  --sidebar-divider: rgba(255,255,255,0.08);
+  --sidebar-hover: #f1f5f9;
+  --sidebar-divider: #e2e8f0;
 
   --header-height: 68px;
   --header-bg: rgba(255,255,255,0.85);

@@ -1,0 +1,6 @@
+package com.nexmemo.core.enums;
+
+public enum EscalationAction {
+    NOTIFY_SUPERVISOR, REASSIGN_TO_SUPERVISOR, NOTIFY_ALL_APPROVERS,
+    ESCALATE_TO_HIGHER_LEVEL, AUTO_APPROVE, AUTO_REJECT
+}

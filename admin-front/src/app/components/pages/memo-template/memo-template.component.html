@@ -104,55 +104,136 @@
 
 <ng-template #editModal let-modal>
   <div class="modal-header"><h5 class="modal-title">Edit Template: {{ selectedTemplate.name }}</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <ul class="nav nav-tabs px-3 pt-2">
+    <li class="nav-item"><a class="nav-link" [class.active]="selectedTab === 'details'" (click)="switchTab('details')">Details</a></li>
+    <li class="nav-item"><a class="nav-link" [class.active]="selectedTab === 'approval-levels'" (click)="switchTab('approval-levels')">Approval Levels</a></li>
+    <li class="nav-item"><a class="nav-link" [class.active]="selectedTab === 'default-cc'" (click)="switchTab('default-cc')">Default CC</a></li>
+  </ul>
   <div class="modal-body">
-    <div class="form-group mb-3"><label>Template Name *</label><input class="form-control" [(ngModel)]="selectedTemplate.name" required></div>
-    <div class="form-group mb-3"><label>Description</label><textarea class="form-control" rows="2" [(ngModel)]="selectedTemplate.description"></textarea></div>
-    <div class="row">
-      <div class="col-md-6 mb-3"><label>Expense Category</label>
-        <select class="form-control" [(ngModel)]="selectedTemplate.expenseCategoryId">
-          <option value="">Select Category</option>
-          @for(c of expenseCategories; track c.id) { <option [value]="c.id" [selected]="c.id === selectedTemplate.expenseCategoryId">{{ c.categoryName }}</option> }
-        </select>
+    @if (selectedTab === 'details') {
+      <div>
+        <div class="form-group mb-3"><label>Template Name *</label><input class="form-control" [(ngModel)]="selectedTemplate.name" required></div>
+        <div class="form-group mb-3"><label>Description</label><textarea class="form-control" rows="2" [(ngModel)]="selectedTemplate.description"></textarea></div>
+        <div class="row">
+          <div class="col-md-6 mb-3"><label>Expense Category</label>
+            <select class="form-control" [(ngModel)]="selectedTemplate.expenseCategoryId">
+              <option value="">Select Category</option>
+              @for(c of expenseCategories; track c.id) { <option [value]="c.id" [selected]="c.id === selectedTemplate.expenseCategoryId">{{ c.categoryName }}</option> }
+            </select>
+          </div>
+          <div class="col-md-6 mb-3"><label>Memo Type</label>
+            <select class="form-control" [(ngModel)]="selectedTemplate.memoTypeId">
+              <option value="">Select Type</option>
+              @for(t of memoTypes; track t.id) { <option [value]="t.id" [selected]="t.id === selectedTemplate.memoTypeId">{{ t.name }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-3"><label>Department</label>
+            <select class="form-control" [(ngModel)]="selectedTemplate.departmentId">
+              <option value="">Select</option>
+              @for(d of departments; track d.id) { <option [value]="d.id" [selected]="d.id === selectedTemplate.departmentId">{{ d.name }}</option> }
+            </select>
+          </div>
+          <div class="col-md-4 mb-3"><label>Default Priority</label>
+            <select class="form-control" [(ngModel)]="selectedTemplate.defaultPriority">
+              <option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="URGENT">Urgent</option>
+            </select>
+          </div>
+          <div class="col-md-4 mb-3"><label>Approval Levels</label>
+            <input type="number" class="form-control" [(ngModel)]="selectedTemplate.requiredApprovalLevels" min="1" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3"><label>Default Amount</label><input type="number" class="form-control" [(ngModel)]="selectedTemplate.defaultAmount" /></div>
+          <div class="col-md-6 mb-3"><label>Max Amount</label><input type="number" class="form-control" [(ngModel)]="selectedTemplate.maxAmount" /></div>
+        </div>
+        <div class="form-group mb-3"><label>Default Payment Method</label>
+          <select class="form-control" [(ngModel)]="selectedTemplate.defaultPaymentMethod">
+            <option value="">Select</option><option value="BANK_TRANSFER">Bank Transfer</option><option value="CHEQUE">Cheque</option><option value="CASH">Cash</option><option value="RTGS">RTGS</option>
+          </select>
+        </div>
+        <div class="form-group mb-3">
+          <label>Content</label>
+          <ckeditor [editor]="Editor" [config]="editorConfig" [(ngModel)]="selectedTemplate.content" (change)="onContentChange($event)"></ckeditor>
+        </div>
       </div>
-      <div class="col-md-6 mb-3"><label>Memo Type</label>
-        <select class="form-control" [(ngModel)]="selectedTemplate.memoTypeId">
-          <option value="">Select Type</option>
-          @for(t of memoTypes; track t.id) { <option [value]="t.id" [selected]="t.id === selectedTemplate.memoTypeId">{{ t.name }}</option> }
-        </select>
+    }
+    @if (selectedTab === 'approval-levels') {
+      <div>
+        <p class="text-muted mb-3">Configure who approves at each level for this template. Levels are ordered sequentially.</p>
+        <div class="mb-3">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label">User</label>
+              <select class="form-control" [(ngModel)]="newApproverId">
+                <option value="">Select user</option>
+                @for(u of users; track u.id) { <option [value]="u.id">{{ u.name || u.userName }}</option> }
+              </select>
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-primary" (click)="addApprovalLevel()" [disabled]="!newApproverId">Add</button>
+            </div>
+          </div>
+        </div>
+        <table class="table table-sm">
+          <thead><tr><th>Level</th><th>User</th><th></th></tr></thead>
+          <tbody>
+            @for(level of approvalLevels; track $index) {
+              <tr>
+                <td>Level {{ $index + 1 }}</td>
+                <td>{{ getApproverName(level) }}</td>
+                <td><button class="btn btn-sm btn-ghost text-danger" (click)="removeApprovalLevel($index)"><i class="fas fa-times"></i></button></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="3" class="text-muted text-center">No approval levels configured</td></tr>
+            }
+          </tbody>
+        </table>
+        @if (approvalLevels.length > 0) {
+          <div class="text-end mt-2">
+            <button class="btn btn-primary" (click)="saveApprovalLevels()"><i class="fas fa-save"></i> Save Approval Levels</button>
+          </div>
+        }
       </div>
-    </div>
-    <div class="row">
-      <div class="col-md-4 mb-3"><label>Department</label>
-        <select class="form-control" [(ngModel)]="selectedTemplate.departmentId">
-          <option value="">Select</option>
-          @for(d of departments; track d.id) { <option [value]="d.id" [selected]="d.id === selectedTemplate.departmentId">{{ d.name }}</option> }
-        </select>
+    }
+    @if (selectedTab === 'default-cc') {
+      <div>
+        <p class="text-muted mb-3">Users added here will be automatically CC'd when creating a memo from this template.</p>
+        <div class="mb-3">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-6">
+              <label class="form-label">User</label>
+              <select class="form-control" [(ngModel)]="newCcUserId">
+                <option value="">Select user</option>
+                @for(u of users; track u.id) { <option [value]="u.id">{{ u.name || u.userName }}</option> }
+              </select>
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-primary" (click)="addDefaultCcUser()" [disabled]="!newCcUserId">Add</button>
+            </div>
+          </div>
+        </div>
+        <table class="table table-sm">
+          <thead><tr><th>User</th><th></th></tr></thead>
+          <tbody>
+            @for(cc of defaultCcUsers; track cc.id) {
+              <tr>
+                <td>{{ getUserDisplay(cc.user) }}</td>
+                <td><button class="btn btn-sm btn-ghost text-danger" (click)="removeDefaultCcUser(cc.id)"><i class="fas fa-trash"></i></button></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="2" class="text-muted text-center">No default CC users</td></tr>
+            }
+          </tbody>
+        </table>
       </div>
-      <div class="col-md-4 mb-3"><label>Default Priority</label>
-        <select class="form-control" [(ngModel)]="selectedTemplate.defaultPriority">
-          <option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="URGENT">Urgent</option>
-        </select>
-      </div>
-      <div class="col-md-4 mb-3"><label>Approval Levels</label>
-        <input type="number" class="form-control" [(ngModel)]="selectedTemplate.requiredApprovalLevels" min="1" />
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-md-6 mb-3"><label>Default Amount</label><input type="number" class="form-control" [(ngModel)]="selectedTemplate.defaultAmount" /></div>
-      <div class="col-md-6 mb-3"><label>Max Amount</label><input type="number" class="form-control" [(ngModel)]="selectedTemplate.maxAmount" /></div>
-    </div>
-    <div class="form-group mb-3"><label>Default Payment Method</label>
-      <select class="form-control" [(ngModel)]="selectedTemplate.defaultPaymentMethod">
-        <option value="">Select</option><option value="BANK_TRANSFER">Bank Transfer</option><option value="CHEQUE">Cheque</option><option value="CASH">Cash</option><option value="RTGS">RTGS</option>
-      </select>
-    </div>
-    <div class="form-group mb-3">
-      <label>Content</label>
-      <ckeditor [editor]="Editor" [config]="editorConfig" [(ngModel)]="selectedTemplate.content" (change)="onContentChange($event)"></ckeditor>
-    </div>
+    }
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
-    <button class="btn btn-primary" (click)="saveTemplate()">Save Template</button>
+    @if (selectedTab === 'details') {
+      <button class="btn btn-primary" (click)="saveTemplate()">Save Template</button>
+    }
   </div>
 </ng-template>

@@ -48,6 +48,9 @@ public class MemoService {
     private final ApprovalEngineService approvalEngineService;
     private final NotificationService notificationService;
     private final com.nexmemo.web.storage.StorageService storageService;
+    private final WorkflowEngineService workflowEngineService;
+    private final MemoNumberGeneratorService memoNumberGeneratorService;
+    private final MemoCategoryRepository memoCategoryRepository;
 
     @Data
     public static class CreateMemoRequest {
@@ -63,6 +66,7 @@ public class MemoService {
         private BigDecimal amount;
         private Long templateId;
         private List<Long> ccUserIds;
+        private Long categoryId;
     }
 
     @Transactional(readOnly = true)
@@ -150,6 +154,12 @@ public class MemoService {
             log.debug("Template {} content loaded for memo creation", request.getTemplateId());
         }
 
+        MemoCategory category = null;
+        if (request.getCategoryId() != null) {
+            category = memoCategoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new EntityNotFoundException("MemoCategory not found: " + request.getCategoryId()));
+        }
+
         Memo memo = new Memo();
         memo.setTitle(request.getTitle());
         memo.setDescription(request.getDescription());
@@ -160,6 +170,7 @@ public class MemoService {
         memo.setMemoType(memoType);
         memo.setDepartment(department);
         memo.setBranch(branch);
+        memo.setCategory(category);
         memo.setAmount(request.getAmount());
 
         memo = memoRepository.save(memo);
@@ -193,6 +204,10 @@ public class MemoService {
 
         if (!memo.getCreatedBy().equals(userId)) {
             throw new IllegalStateException("Only the creator can submit the memo");
+        }
+
+        if (memo.getCategory() != null) {
+            return workflowEngineService.submitMemo(memo, userId);
         }
 
         int totalLevels = approvalEngineService.determineApprovalLevels(memo);
@@ -234,6 +249,14 @@ public class MemoService {
 
         if (memo.getStatus() != MemoStatus.PENDING_APPROVAL) {
             throw new IllegalStateException("Memo is not pending approval. Current status: " + memo.getStatus());
+        }
+
+        if (memo.getCategory() != null) {
+            WorkflowStageInstance current = workflowEngineService.getCurrentStage(memoId);
+            if (current != null) {
+                workflowEngineService.approveStage(memoId, current.getStage().getId(), approverId, remarks);
+            }
+            return memoRepository.findById(memoId).orElse(memo);
         }
 
         User approver = userRepository.findById(approverId)
@@ -299,6 +322,14 @@ public class MemoService {
             throw new IllegalStateException("Memo is not pending approval. Current status: " + memo.getStatus());
         }
 
+        if (memo.getCategory() != null) {
+            WorkflowStageInstance current = workflowEngineService.getCurrentStage(memoId);
+            if (current != null) {
+                workflowEngineService.rejectStage(memoId, current.getStage().getId(), approverId, remarks);
+            }
+            return memoRepository.findById(memoId).orElse(memo);
+        }
+
         User approver = userRepository.findById(approverId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + approverId));
 
@@ -333,6 +364,14 @@ public class MemoService {
 
         if (memo.getStatus() != MemoStatus.PENDING_APPROVAL) {
             throw new IllegalStateException("Memo is not pending approval. Current status: " + memo.getStatus());
+        }
+
+        if (memo.getCategory() != null) {
+            WorkflowStageInstance current = workflowEngineService.getCurrentStage(memoId);
+            if (current != null) {
+                workflowEngineService.returnToStage(memoId, current.getStage().getId(), approverId, remarks);
+            }
+            return memoRepository.findById(memoId).orElse(memo);
         }
 
         User approver = userRepository.findById(approverId)

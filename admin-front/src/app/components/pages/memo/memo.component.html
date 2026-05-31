@@ -343,6 +343,14 @@
         </div>
       </div>
     </div>
+    @if (memoFormFields.length > 0) {
+      <div class="card mb-3" style="border:1px solid var(--nexmemo-border-light);">
+        <div class="card-header py-2"><strong><i class="fas fa-list"></i> Additional Details</strong></div>
+        <div class="card-body">
+          <app-dynamic-form #dynamicFormRef [fields]="memoFormFields" (formDataChange)="onFormDataChange($event)"></app-dynamic-form>
+        </div>
+      </div>
+    }
     <hr>
     <label class="mb-2"><strong>CC Recipients</strong></label>
     <div class="cc-grid">
