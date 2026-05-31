@@ -1,6 +1,7 @@
 package com.nexmemo.core.entity;
 
 import com.nexmemo.core.enums.LeaveStatus;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -19,6 +20,7 @@ public class LeaveTracker extends BaseEntity<Long> implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"branches"})
     private User user;
 
     @NotNull
@@ -41,6 +43,7 @@ public class LeaveTracker extends BaseEntity<Long> implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approved_by_id")
+    @JsonIgnoreProperties({"branches"})
     private User approvedBy;
 
     @Column(columnDefinition = "TEXT")

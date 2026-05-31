@@ -1,4 +1,152 @@
-.actions { white-space: nowrap; display: flex; gap: 0.35rem; }
-.modal-body { max-height: 65vh; overflow-y: auto; }
-.timeline-icon { font-size: 1.1rem; color: var(--nexmemo-primary, #4361ee); }
-.timeline-content { border-left: 2px solid #e0e0e0; padding-left: 12px; }
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--nexmemo-surface);
+  border: 1px solid var(--nexmemo-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover, &.active {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    border-color: var(--nexmemo-primary);
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .stat-info {
+    min-width: 0;
+    .stat-value { font-size: 1.35rem; font-weight: 700; display: block; line-height: 1.2; color: var(--nexmemo-text); }
+    .stat-label { font-size: 0.72rem; color: var(--nexmemo-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
+}
+
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  background: var(--nexmemo-bg);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  padding: 8px 18px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--nexmemo-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover { color: var(--nexmemo-text); background: var(--nexmemo-surface); }
+  &.active { background: var(--nexmemo-surface); color: var(--nexmemo-primary); font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+
+  .tab-count {
+    font-size: 0.7rem;
+    background: var(--nexmemo-border);
+    color: var(--nexmemo-text-secondary);
+    padding: 1px 7px;
+    border-radius: 10px;
+  }
+  &.active .tab-count { background: var(--nexmemo-primary); color: white; }
+}
+
+.pending-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  color: var(--nexmemo-text);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &:hover { background: rgba(245,158,11,0.15); border-color: var(--nexmemo-warning); }
+}
+
+/* Approval Flow */
+.approval-flow {
+  position: relative;
+  padding: 8px 0;
+}
+
+.flow-node {
+  display: flex;
+  gap: 16px;
+  position: relative;
+  padding: 12px 0;
+
+  .flow-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--nexmemo-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    color: var(--nexmemo-text-secondary);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+
+  &.approved .flow-icon { background: rgba(16,185,129,0.12); color: #10b981; }
+  &.rejected .flow-icon { background: rgba(239,68,68,0.12); color: #ef4444; }
+  &.pending .flow-icon { background: rgba(245,158,11,0.12); color: #f59e0b; }
+
+  .flow-content {
+    flex: 1;
+    min-width: 0;
+    .flow-user { font-weight: 600; font-size: 0.88rem; }
+    .flow-action { font-size: 0.78rem; color: var(--nexmemo-text-secondary); }
+    .flow-remarks { font-size: 0.78rem; color: var(--nexmemo-text-secondary); font-style: italic; margin-top: 2px; }
+    .flow-time { font-size: 0.68rem; color: var(--nexmemo-text-muted); margin-top: 2px; }
+  }
+
+  .flow-line {
+    position: absolute;
+    left: 17px;
+    top: 48px;
+    bottom: -12px;
+    width: 2px;
+    background: var(--nexmemo-border);
+  }
+
+  &.approved .flow-line { background: #10b981; }
+}
+
+.approval-flow .flow-node:last-child .flow-line { display: none; }

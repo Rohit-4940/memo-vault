@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -60,6 +61,18 @@ public class SystemConfigService {
         return existing;
     }
 
+    public SystemConfig updateConfigByKey(String key, SystemConfig config) {
+        SystemConfig existing = systemConfigRepository.findByConfigKey(key)
+                .orElseThrow(() -> new EntityNotFoundException("SystemConfig not found with key: " + key));
+        existing.setConfigValue(config.getConfigValue());
+        existing.setDescription(config.getDescription());
+        existing.setDataType(config.getDataType());
+        if (config.getIsActive() != null) existing.setIsActive(config.getIsActive());
+        existing = systemConfigRepository.save(existing);
+        log.info("SystemConfig updated by key: {}", key);
+        return existing;
+    }
+
     public void deleteConfig(Long id) {
         if (!systemConfigRepository.existsById(id)) {
             throw new EntityNotFoundException("SystemConfig not found with id: " + id);
@@ -80,6 +93,20 @@ public class SystemConfigService {
         return systemConfigRepository.findAll().stream()
                 .filter(c -> c.getConfigKey() != null && c.getConfigKey().toLowerCase().contains("smtp"))
                 .collect(Collectors.toList());
+    }
+
+    public void updateEmailConfig(Map<String, String> emailSettings) {
+        emailSettings.forEach((key, value) -> {
+            String configKey = "SMTP_" + key.toUpperCase();
+            systemConfigRepository.findByConfigKey(configKey).ifPresentOrElse(
+                config -> {
+                    config.setConfigValue(value);
+                    systemConfigRepository.save(config);
+                    log.debug("Email config updated: {}", configKey);
+                },
+                () -> log.warn("Email config key not found: {}", configKey)
+            );
+        });
     }
 
     public void createDefaultConfigs() {

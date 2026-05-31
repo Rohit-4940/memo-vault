@@ -687,4 +687,377 @@
                                  constraintName="fk_ba_branch"/>
     </changeSet>
 
+    <changeSet id="20260530-8" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="memo_cc"/></not>
+        </preConditions>
+        <createTable tableName="memo_cc">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="memo_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="acknowledged" type="BIT" defaultValueNumeric="0"/>
+            <column name="acknowledged_date" type="DATETIME"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="memo_cc" baseColumnNames="memo_id"
+                                 referencedTableName="memo" referencedColumnNames="id"
+                                 constraintName="fk_cc_memo"/>
+        <addForeignKeyConstraint baseTableName="memo_cc" baseColumnNames="user_id"
+                                 referencedTableName="users" referencedColumnNames="id"
+                                 constraintName="fk_cc_user"/>
+    </changeSet>
+
+    <changeSet id="20260530-9" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="expense_category"/></not>
+        </preConditions>
+        <createTable tableName="expense_category">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="category_name" type="VARCHAR(200)"><constraints nullable="false"/></column>
+            <column name="category_code" type="VARCHAR(50)"><constraints nullable="false" unique="true"/></column>
+            <column name="description" type="TEXT"/>
+            <column name="parent_category_id" type="BIGINT"/>
+            <column name="budget_code_pattern" type="VARCHAR(100)"/>
+            <column name="max_amount" type="DECIMAL(19,4)"/>
+            <column name="requires_approval" type="BIT" defaultValueNumeric="1"/>
+            <column name="approval_levels" type="INT" defaultValueNumeric="1"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="ACTIVE"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <createTable tableName="approval_rule">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="rule_name" type="VARCHAR(200)"><constraints nullable="false" unique="true"/></column>
+            <column name="description" type="TEXT"/>
+            <column name="min_amount" type="DECIMAL(19,4)"/>
+            <column name="max_amount" type="DECIMAL(19,4)"/>
+            <column name="expense_category_id" type="BIGINT"/>
+            <column name="department_id" type="BIGINT"/>
+            <column name="branch_id" type="BIGINT"/>
+            <column name="approval_levels_required" type="INT" defaultValueNumeric="1"/>
+            <column name="auto_approve" type="BIT" defaultValueNumeric="0"/>
+            <column name="requires_committee" type="BIT" defaultValueNumeric="0"/>
+            <column name="min_priority" type="VARCHAR(20)"/>
+            <column name="is_active" type="BIT" defaultValueNumeric="1"/>
+            <column name="priority_order" type="INT"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260530-10" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="memo" columnName="expense_category_id"/></not>
+        </preConditions>
+        <addColumn tableName="memo">
+            <column name="expense_category_id" type="BIGINT"/>
+            <column name="budget_code" type="VARCHAR(100)"/>
+            <column name="payment_method" type="VARCHAR(30)"/>
+            <column name="vendor_name" type="VARCHAR(255)"/>
+            <column name="vendor_account" type="VARCHAR(100)"/>
+            <column name="is_urgent" type="BIT" defaultValueNumeric="0"/>
+            <column name="expected_date" type="DATE"/>
+            <column name="fiscal_year_id" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260530-11" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><foreignKeyConstraintExists foreignKeyName="fk_memo_expense_cat"/></not>
+        </preConditions>
+        <addForeignKeyConstraint baseTableName="memo" baseColumnNames="expense_category_id"
+                                 referencedTableName="expense_category" referencedColumnNames="id"
+                                 constraintName="fk_memo_expense_cat"/>
+        <addForeignKeyConstraint baseTableName="memo" baseColumnNames="fiscal_year_id"
+                                 referencedTableName="fiscal_year" referencedColumnNames="id"
+                                 constraintName="fk_memo_fiscal_year"/>
+        <addForeignKeyConstraint baseTableName="expense_category" baseColumnNames="parent_category_id"
+                                 referencedTableName="expense_category" referencedColumnNames="id"
+                                 constraintName="fk_exp_cat_parent"/>
+        <addForeignKeyConstraint baseTableName="approval_rule" baseColumnNames="expense_category_id"
+                                 referencedTableName="expense_category" referencedColumnNames="id"
+                                 constraintName="fk_ar_category"/>
+        <addForeignKeyConstraint baseTableName="approval_rule" baseColumnNames="department_id"
+                                 referencedTableName="department" referencedColumnNames="id"
+                                 constraintName="fk_ar_dept"/>
+        <addForeignKeyConstraint baseTableName="approval_rule" baseColumnNames="branch_id"
+                                 referencedTableName="branch" referencedColumnNames="id"
+                                 constraintName="fk_ar_branch"/>
+    </changeSet>
+
+    <changeSet id="20260530-12" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="memo_template" columnName="expense_category_id"/></not>
+        </preConditions>
+        <addColumn tableName="memo_template">
+            <column name="expense_category_id" type="BIGINT"/>
+            <column name="default_amount" type="DECIMAL(19,4)"/>
+            <column name="max_amount" type="DECIMAL(19,4)"/>
+            <column name="default_priority" type="VARCHAR(20)"/>
+            <column name="default_payment_method" type="VARCHAR(30)"/>
+            <column name="required_approval_levels" type="INT" defaultValueNumeric="1"/>
+            <column name="required_fields" type="TEXT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="memo_template" baseColumnNames="expense_category_id"
+                                 referencedTableName="expense_category" referencedColumnNames="id"
+                                 constraintName="fk_mt_expense_cat"/>
+    </changeSet>
+
+    <changeSet id="20260530-13" author="Rohit Chapagain" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="vendor"/>
+            </not>
+        </preConditions>
+        <createTable tableName="vendor">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="vendor_code" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="contact_person" type="VARCHAR(255)"/>
+            <column name="email" type="VARCHAR(255)"/>
+            <column name="phone" type="VARCHAR(50)"/>
+            <column name="address" type="TEXT"/>
+            <column name="pan_number" type="VARCHAR(50)"/>
+            <column name="bank_account" type="VARCHAR(100)"/>
+            <column name="bank_name" type="VARCHAR(255)"/>
+            <column name="payment_terms" type="VARCHAR(50)"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="TEXT"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="version" type="INT" defaultValueNumeric="0"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <createIndex tableName="vendor" indexName="idx_vendor_code">
+            <column name="vendor_code"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260530-14" author="Rohit Chapagain" runOnChange="true">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="vendor" columnName="modified_by_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="vendor">
+            <column name="modified_by_id" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260530-15" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="vendor"/>
+        </preConditions>
+        <dropTable tableName="vendor"/>
+        <createTable tableName="vendor">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="vendor_code" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="contact_person" type="VARCHAR(255)"/>
+            <column name="email" type="VARCHAR(255)"/>
+            <column name="phone" type="VARCHAR(50)"/>
+            <column name="address" type="TEXT"/>
+            <column name="pan_number" type="VARCHAR(50)"/>
+            <column name="bank_account" type="VARCHAR(100)"/>
+            <column name="bank_name" type="VARCHAR(255)"/>
+            <column name="payment_terms" type="VARCHAR(50)"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="TEXT"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="version" type="INT" defaultValueNumeric="0"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <createIndex tableName="vendor" indexName="idx_vendor_code">
+            <column name="vendor_code"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260530-16" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="template_approval_level"/></not>
+        </preConditions>
+        <createTable tableName="template_approval_level">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="template_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="level_order" type="INT"><constraints nullable="false"/></column>
+            <column name="approver_type" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="approver_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="approver_name" type="VARCHAR(255)"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="template_approval_level" baseColumnNames="template_id"
+                                 referencedTableName="memo_template" referencedColumnNames="id"
+                                 constraintName="fk_tal_template"/>
+    </changeSet>
+
+    <changeSet id="20260530-17" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="reference_sequence"/></not>
+        </preConditions>
+        <createTable tableName="reference_sequence">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="fiscal_year_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="branch_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="sequence_type" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="prefix" type="VARCHAR(20)"/>
+            <column name="last_sequence" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="suffix" type="VARCHAR(20)"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addUniqueConstraint tableName="reference_sequence" constraintName="uq_ref_seq_fy_branch_type"
+                             columnNames="fiscal_year_id,branch_id,sequence_type"/>
+        <addForeignKeyConstraint baseTableName="reference_sequence" baseColumnNames="fiscal_year_id"
+                                 referencedTableName="fiscal_year" referencedColumnNames="id"
+                                 constraintName="fk_rs_fy"/>
+        <addForeignKeyConstraint baseTableName="reference_sequence" baseColumnNames="branch_id"
+                                 referencedTableName="branch" referencedColumnNames="id"
+                                 constraintName="fk_rs_branch"/>
+    </changeSet>
+
+    <changeSet id="20260530-18" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="memo_template" columnName="flow_type"/></not>
+        </preConditions>
+        <addColumn tableName="memo_template">
+            <column name="flow_type" type="VARCHAR(20)"/>
+            <column name="allow_chain_approval" type="BIT" defaultValueNumeric="1"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260530-19" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="users" columnName="signature"/></not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="signature" type="VARCHAR(500)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260530-20" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="reference_sequence"/>
+        </preConditions>
+        <dropTable tableName="reference_sequence"/>
+        <createTable tableName="reference_sequence">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="fiscal_year_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="scope_type" type="VARCHAR(20)" defaultValue="GLOBAL"><constraints nullable="false"/></column>
+            <column name="scope_id" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="sequence_type" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="prefix" type="VARCHAR(20)"/>
+            <column name="last_sequence" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="suffix" type="VARCHAR(20)"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addUniqueConstraint tableName="reference_sequence" constraintName="uq_ref_seq_scope"
+                             columnNames="fiscal_year_id,scope_type,scope_id,sequence_type"/>
+        <addForeignKeyConstraint baseTableName="reference_sequence" baseColumnNames="fiscal_year_id"
+                                 referencedTableName="fiscal_year" referencedColumnNames="id"
+                                 constraintName="fk_rs_fy"/>
+        <createIndex tableName="reference_sequence" indexName="idx_rs_lookup">
+            <column name="fiscal_year_id"/><column name="scope_type"/><column name="scope_id"/><column name="sequence_type"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260531-3" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="memo" columnName="content"/></not>
+        </preConditions>
+        <addColumn tableName="memo">
+            <column name="content" type="TEXT"/>
+        </addColumn>
+        <comment>Add content field for CKEditor rich text on memos</comment>
+    </changeSet>
+
+    <changeSet id="20260531-4" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="notification"/></not>
+        </preConditions>
+        <createTable tableName="notification">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="title" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="message" type="TEXT"/>
+            <column name="type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="reference_id" type="BIGINT"/>
+            <column name="reference_type" type="VARCHAR(50)"/>
+            <column name="is_read" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="notification" indexName="idx_notif_user_read">
+            <column name="user_id"/><column name="is_read"/>
+        </createIndex>
+        <comment>Create notification table for in-app notifications</comment>
+    </changeSet>
+
+    <changeSet id="20260531-5" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="chat_message"/></not>
+        </preConditions>
+        <createTable tableName="chat_message">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="sender_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="receiver_id" type="BIGINT"/>
+            <column name="memo_id" type="BIGINT"/>
+            <column name="message" type="TEXT"><constraints nullable="false"/></column>
+            <column name="is_read" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="chat_message" indexName="idx_chat_users">
+            <column name="sender_id"/><column name="receiver_id"/>
+        </createIndex>
+        <createIndex tableName="chat_message" indexName="idx_chat_memo">
+            <column name="memo_id"/>
+        </createIndex>
+        <comment>Create chat_message table for memo-related messaging</comment>
+    </changeSet>
+
+    <changeSet id="20260531-1" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="chat_message" columnName="branch_id"/></not>
+        </preConditions>
+        <addColumn tableName="chat_message">
+            <column name="branch_id" type="BIGINT"/>
+            <column name="conversation_type" type="VARCHAR(30)"/>
+        </addColumn>
+        <createIndex tableName="chat_message" indexName="idx_chat_branch">
+            <column name="branch_id"/>
+        </createIndex>
+        <createIndex tableName="chat_message" indexName="idx_chat_conversation_type">
+            <column name="conversation_type"/>
+        </createIndex>
+        <comment>Add branch_id and conversation_type columns to chat_message for multi-branch chat</comment>
+    </changeSet>
+
 </databaseChangeLog>

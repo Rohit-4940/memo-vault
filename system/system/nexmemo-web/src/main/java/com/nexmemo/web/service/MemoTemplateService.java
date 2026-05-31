@@ -1,10 +1,12 @@
 package com.nexmemo.web.service;
 
 import com.nexmemo.core.entity.Department;
+import com.nexmemo.core.entity.ExpenseCategory;
 import com.nexmemo.core.entity.MemoTemplate;
 import com.nexmemo.core.entity.MemoType;
 import com.nexmemo.core.enums.Status;
 import com.nexmemo.core.repository.DepartmentRepository;
+import com.nexmemo.core.repository.ExpenseCategoryRepository;
 import com.nexmemo.core.repository.MemoTemplateRepository;
 import com.nexmemo.core.repository.MemoTypeRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -24,6 +26,7 @@ public class MemoTemplateService {
     private final MemoTemplateRepository memoTemplateRepository;
     private final MemoTypeRepository memoTypeRepository;
     private final DepartmentRepository departmentRepository;
+    private final ExpenseCategoryRepository expenseCategoryRepository;
 
     @Transactional(readOnly = true)
     public List<MemoTemplate> getAllTemplates() {
@@ -37,18 +40,7 @@ public class MemoTemplateService {
     }
 
     public MemoTemplate createTemplate(MemoTemplate template) {
-        Long memoTypeId = template.getMemoType() != null ? template.getMemoType().getId() : null;
-        if (memoTypeId != null) {
-            MemoType mt = memoTypeRepository.findById(memoTypeId)
-                    .orElseThrow(() -> new EntityNotFoundException("MemoType not found with id: " + memoTypeId));
-            template.setMemoType(mt);
-        }
-        Long deptId = template.getDepartment() != null ? template.getDepartment().getId() : null;
-        if (deptId != null) {
-            Department dept = departmentRepository.findById(deptId)
-                    .orElseThrow(() -> new EntityNotFoundException("Department not found with id: " + deptId));
-            template.setDepartment(dept);
-        }
+        resolveReferences(template);
         template.setStatus(template.getStatus() != null ? template.getStatus() : Status.ACTIVE);
         MemoTemplate saved = memoTemplateRepository.save(template);
         log.info("MemoTemplate created: {}", saved.getName());
@@ -61,20 +53,44 @@ public class MemoTemplateService {
         existing.setName(template.getName());
         existing.setDescription(template.getDescription());
         existing.setContent(template.getContent());
-        if (template.getMemoType() != null && template.getMemoType().getId() != null) {
-            MemoType memoType = memoTypeRepository.findById(template.getMemoType().getId())
-                    .orElseThrow(() -> new EntityNotFoundException("MemoType not found with id: " + template.getMemoType().getId()));
-            existing.setMemoType(memoType);
-        }
-        if (template.getDepartment() != null && template.getDepartment().getId() != null) {
-            Department department = departmentRepository.findById(template.getDepartment().getId())
-                    .orElseThrow(() -> new EntityNotFoundException("Department not found with id: " + template.getDepartment().getId()));
-            existing.setDepartment(department);
-        }
+        existing.setDefaultAmount(template.getDefaultAmount());
+        existing.setMaxAmount(template.getMaxAmount());
+        existing.setDefaultPriority(template.getDefaultPriority());
+        existing.setDefaultPaymentMethod(template.getDefaultPaymentMethod());
+        existing.setRequiredApprovalLevels(template.getRequiredApprovalLevels());
+        existing.setRequiredFields(template.getRequiredFields());
+        resolveReferencesInt(existing, template);
         if (template.getStatus() != null) existing.setStatus(template.getStatus());
         existing = memoTemplateRepository.save(existing);
         log.info("MemoTemplate updated: {}", existing.getName());
         return existing;
+    }
+
+    private void resolveReferences(MemoTemplate template) {
+        if (template.getMemoType() != null && template.getMemoType().getId() != null) {
+            template.setMemoType(memoTypeRepository.findById(template.getMemoType().getId()).orElse(null));
+        }
+        if (template.getDepartment() != null && template.getDepartment().getId() != null) {
+            template.setDepartment(departmentRepository.findById(template.getDepartment().getId()).orElse(null));
+        }
+        if (template.getExpenseCategory() != null && template.getExpenseCategory().getId() != null) {
+            template.setExpenseCategory(expenseCategoryRepository.findById(template.getExpenseCategory().getId()).orElse(null));
+        }
+    }
+
+    private void resolveReferencesInt(MemoTemplate existing, MemoTemplate template) {
+        if (template.getMemoType() != null && template.getMemoType().getId() != null) {
+            memoTypeRepository.findById(template.getMemoType().getId())
+                    .ifPresent(existing::setMemoType);
+        }
+        if (template.getDepartment() != null && template.getDepartment().getId() != null) {
+            departmentRepository.findById(template.getDepartment().getId())
+                    .ifPresent(existing::setDepartment);
+        }
+        if (template.getExpenseCategory() != null && template.getExpenseCategory().getId() != null) {
+            expenseCategoryRepository.findById(template.getExpenseCategory().getId())
+                    .ifPresent(existing::setExpenseCategory);
+        }
     }
 
     public void deleteTemplate(Long id) {

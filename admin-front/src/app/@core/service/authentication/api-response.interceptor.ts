@@ -1,5 +1,5 @@
 import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
-import { map, throwError } from 'rxjs';
+import { map } from 'rxjs';
 
 export const ApiResponseInterceptor: HttpInterceptorFn = (req, next) => {
   if (req.url.includes('/api/v1/auth/')) {

@@ -1,0 +1,213 @@
+import { Component, OnInit, inject } from '@angular/core';
+import { NgFor, NgIf, NgClass, DecimalPipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { NgbModal, NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
+import { HttpClient } from '@angular/common/http';
+import { ApiConfig } from '../../../@core/utils/api/ApiConfig';
+import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
+import { ToastrService } from 'ngx-toastr';
+
+@Component({
+  selector: 'app-expense-category',
+  standalone: true,
+  imports: [NgFor, NgIf, NgClass, FormsModule, NgbModalModule, DecimalPipe],
+  template: `
+<div class="page-container animate-fade-in">
+  <div class="page-header">
+    <div>
+      <h1><i class="fas fa-tags"></i> Expense Categories</h1>
+      <div class="page-subtitle">Configure banking expense categories for memo templates</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-gradient" (click)="openModal(content)"><i class="fas fa-plus"></i> New Category</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table">
+        <thead>
+          <tr><th>Code</th><th>Name</th><th>Parent</th><th>Approval Levels</th><th>Max Amount</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          @for (cat of categories; track cat.id) {
+            <tr>
+              <td><code>{{ cat.categoryCode }}</code></td>
+              <td class="font-medium">{{ cat.categoryName }}</td>
+              <td class="text-muted">{{ cat.parentCategory?.categoryName || '—' }}</td>
+              <td>{{ cat.approvalLevels || 1 }}</td>
+              <td>{{ cat.maxAmount ? (cat.maxAmount | number) : '—' }}</td>
+              <td><span class="badge" [class.badge-success]="cat.status === 'ACTIVE'" [class.badge-secondary]="cat.status !== 'ACTIVE'">{{ cat.status }}</span></td>
+              <td>
+                <button class="btn btn-sm btn-ghost" (click)="editModal(editContent, cat)"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-ghost text-danger" (click)="deleteCategory(cat.id)"><i class="fas fa-trash"></i></button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7"><div class="empty-state"><i class="fas fa-tags"></i><p>No expense categories defined. Create one to start organizing banking expenses.</p></div></td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<ng-template #content let-modal>
+  <div class="modal-header"><h5 class="modal-title">Create Expense Category</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <div class="modal-body">
+    <div class="form-group">
+      <label>Category Name *</label>
+      <input class="form-control" [(ngModel)]="form.categoryName" placeholder="e.g., Travel Fund" />
+    </div>
+    <div class="form-group">
+      <label>Category Code *</label>
+      <input class="form-control" [(ngModel)]="form.categoryCode" placeholder="e.g., TRAVEL" />
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea class="form-control" [(ngModel)]="form.description" rows="2"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Parent Category</label>
+      <select class="form-control" [(ngModel)]="form.parentCategoryId">
+        <option [value]="null">— None (Top Level) —</option>
+        @for (cat of categories; track cat.id) {
+          <option [value]="cat.id">{{ cat.categoryName }}</option>
+        }
+      </select>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label>Approval Levels Required</label>
+          <input type="number" class="form-control" [(ngModel)]="form.approvalLevels" min="1" />
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label>Max Amount (NPR)</label>
+          <input type="number" class="form-control" [(ngModel)]="form.maxAmount" />
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Budget Code Pattern</label>
+      <input class="form-control" [(ngModel)]="form.budgetCodePattern" placeholder="e.g., TRV-{year}-{dept}" />
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
+    <button class="btn btn-primary" (click)="createCategory(); modal.close()">Create</button>
+  </div>
+</ng-template>
+
+<ng-template #editContent let-modal>
+  <div class="modal-header"><h5 class="modal-title">Edit Expense Category</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <div class="modal-body">
+    <div class="form-group">
+      <label>Category Name *</label>
+      <input class="form-control" [(ngModel)]="editForm.categoryName" />
+    </div>
+    <div class="form-group">
+      <label>Category Code *</label>
+      <input class="form-control" [(ngModel)]="editForm.categoryCode" />
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea class="form-control" [(ngModel)]="editForm.description" rows="2"></textarea>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label>Approval Levels</label>
+          <input type="number" class="form-control" [(ngModel)]="editForm.approvalLevels" min="1" />
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label>Max Amount</label>
+          <input type="number" class="form-control" [(ngModel)]="editForm.maxAmount" />
+        </div>
+      </div>
+    </div>
+    <div class="form-check">
+      <input type="checkbox" class="form-check-input" id="requiresApproval" [(ngModel)]="editForm.requiresApproval" />
+      <label class="form-check-label" for="requiresApproval">Requires Approval</label>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
+    <button class="btn btn-primary" (click)="updateCategory(); modal.close()">Save</button>
+  </div>
+</ng-template>
+  `,
+  styles: [`
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.4rem; font-size: 0.85rem; font-weight: 500; color: var(--nexmemo-text-secondary); }
+  `]
+})
+export class ExpenseCategoryComponent implements OnInit {
+  categories: any[] = [];
+  form: any = { categoryName: '', categoryCode: '', description: '', parentCategoryId: null, approvalLevels: 1, maxAmount: null, budgetCodePattern: '', requiresApproval: true };
+  editForm: any = {};
+  isAdmin = false;
+  private http = inject(HttpClient);
+  private modalService = inject(NgbModal);
+  private toastr = inject(ToastrService);
+
+  ngOnInit() {
+    const storage = LocalStorageUtil.getStorage();
+    this.isAdmin = storage.roleName === 'ADMIN' || storage.roleName === 'SUPER_ADMIN';
+    this.loadCategories();
+  }
+
+  loadCategories() {
+    this.http.get<any[]>(`${ApiConfig.URL}/api/v1/expense-categories`).subscribe({
+      next: (data) => this.categories = data,
+      error: () => this.toastr.error('Failed to load categories')
+    });
+  }
+
+  openModal(content: any) {
+    this.form = { categoryName: '', categoryCode: '', description: '', parentCategoryId: null, approvalLevels: 1, maxAmount: null, budgetCodePattern: '', requiresApproval: true };
+    this.modalService.open(content, { size: 'md', centered: true });
+  }
+
+  editModal(content: any, cat: any) {
+    this.editForm = { ...cat, parentCategoryId: cat.parentCategory?.id || null };
+    this.modalService.open(content, { size: 'md', centered: true });
+  }
+
+  createCategory() {
+    const payload = {
+      categoryName: this.form.categoryName,
+      categoryCode: this.form.categoryCode,
+      description: this.form.description,
+      parentCategory: this.form.parentCategoryId ? { id: this.form.parentCategoryId } : null,
+      approvalLevels: this.form.approvalLevels,
+      maxAmount: this.form.maxAmount,
+      budgetCodePattern: this.form.budgetCodePattern,
+      requiresApproval: this.form.requiresApproval
+    };
+    this.http.post(`${ApiConfig.URL}/api/v1/expense-categories`, payload).subscribe({
+      next: () => { this.toastr.success('Category created'); this.loadCategories(); },
+      error: (err) => this.toastr.error(err.error?.message || 'Failed')
+    });
+  }
+
+  updateCategory() {
+    const payload = { ...this.editForm, parentCategory: this.editForm.parentCategoryId ? { id: this.editForm.parentCategoryId } : null };
+    this.http.put(`${ApiConfig.URL}/api/v1/expense-categories/${this.editForm.id}`, payload).subscribe({
+      next: () => { this.toastr.success('Category updated'); this.loadCategories(); },
+      error: (err) => this.toastr.error(err.error?.message || 'Failed')
+    });
+  }
+
+  deleteCategory(id: number) {
+    if (!confirm('Delete this expense category?')) return;
+    this.http.delete(`${ApiConfig.URL}/api/v1/expense-categories/${id}`).subscribe({
+      next: () => { this.toastr.success('Category deleted'); this.loadCategories(); },
+      error: () => this.toastr.error('Failed to delete')
+    });
+  }
+}

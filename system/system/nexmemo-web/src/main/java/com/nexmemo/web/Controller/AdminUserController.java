@@ -19,7 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/users")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+//@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
 public class AdminUserController {
 
     private final UserProvisioningService provisioningService;

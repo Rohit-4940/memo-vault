@@ -11,12 +11,20 @@ export class MemoService {
     return this.http.get<any[]>(`${ApiConfig.URL}/api/v1/memos`);
   }
 
+  getMemosPaginated(page: number = 0, size: number = 20, sort: string = 'createdDate', dir: string = 'desc'): Observable<any> {
+    return this.http.get<any>(`${ApiConfig.URL}/api/v1/memos/paginated`, {
+      params: { page, size, sort, dir }
+    });
+  }
+
   getMemoById(id: number): Observable<any> {
     return this.http.get<any>(`${ApiConfig.URL}/api/v1/memos/${id}`);
   }
 
-  getMyMemos(): Observable<any[]> {
-    return this.http.get<any[]>(`${ApiConfig.URL}/api/v1/memos/my`);
+  getMyMemos(page: number = 0, size: number = 20): Observable<any> {
+    return this.http.get<any>(`${ApiConfig.URL}/api/v1/memos/my`, {
+      params: { page, size }
+    });
   }
 
   getPendingApprovals(): Observable<any[]> {
@@ -68,10 +76,22 @@ export class MemoService {
   }
 
   getApprovalHistory(id: number): Observable<any[]> {
-    return this.http.get<any[]>(`${ApiConfig.URL}/api/v1/memos/${id}/approval-history`);
+    return this.http.get<any[]>(`${ApiConfig.URL}/api/v1/memos/${id}/history`);
   }
 
   getMemoRouting(id: number): Observable<any[]> {
     return this.http.get<any[]>(`${ApiConfig.URL}/api/v1/memos/${id}/routing`);
+  }
+
+  getMemoCc(id: number): Observable<any[]> {
+    return this.http.get<any[]>(`${ApiConfig.URL}/api/v1/memos/${id}/cc`);
+  }
+
+  getMyCcMemos(): Observable<any[]> {
+    return this.http.get<any[]>(`${ApiConfig.URL}/api/v1/memos/my-cc`);
+  }
+
+  acknowledgeMemo(id: number): Observable<any> {
+    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/acknowledge`, {});
   }
 }

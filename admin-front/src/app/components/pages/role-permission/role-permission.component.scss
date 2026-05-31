@@ -1,14 +1,14 @@
-.menu-count { font-size: 0.75rem; color: var(--nexmemo-text-secondary); background: var(--nexmemo-bg); padding: 0.2rem 0.5rem; border-radius: var(--radius-full); }
+.menu-count { font-size: 0.72rem; color: var(--nexmemo-text-secondary); background: var(--nexmemo-bg); padding: 0.2rem 0.6rem; border-radius: var(--radius-full); font-weight: 500; }
 .actions { white-space: nowrap; display: flex; gap: 0.35rem; }
-.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.5rem; max-height: 320px; overflow-y: auto; padding: 0.25rem 0; }
+.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.5rem; max-height: 320px; overflow-y: auto; padding: 0.25rem 0; }
 .menu-checkbox {
   display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem;
-  border: 1px solid var(--nexmemo-border); border-radius: var(--radius-sm); cursor: pointer;
-  transition: all var(--transition-fast); user-select: none;
+  border: 1.5px solid var(--nexmemo-border); border-radius: var(--radius-sm); cursor: pointer;
+  transition: all 0.2s ease; user-select: none; position: relative;
   i:first-child { width: 16px; color: var(--nexmemo-text-muted); font-size: 0.85rem; }
-  span { flex: 1; font-size: 0.82rem; color: var(--nexmemo-text); }
-  .check-icon { color: var(--nexmemo-success); font-size: 0.75rem; }
-  &:hover { border-color: var(--nexmemo-primary); background: var(--nexmemo-primary-light); }
-  &.selected { border-color: var(--nexmemo-success); background: var(--nexmemo-success-light); i:first-child { color: var(--nexmemo-success); } }
+  span { flex: 1; font-size: 0.82rem; color: var(--nexmemo-text); font-weight: 450; }
+  .check-icon { color: white; font-size: 0.65rem; background: var(--nexmemo-success); width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  &:hover { border-color: var(--nexmemo-primary); background: rgba(79,70,229,0.04); }
+  &.selected { border-color: var(--nexmemo-success); background: rgba(16,185,129,0.06); i:first-child { color: var(--nexmemo-success); } }
 }
 .modal-body { max-height: 65vh; overflow-y: auto; }

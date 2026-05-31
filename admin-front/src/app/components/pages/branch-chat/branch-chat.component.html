@@ -1,0 +1,189 @@
+<div class="page-container chat-page">
+  <div class="page-header">
+    <h1><i class="fas fa-comments"></i> Branch Communication Hub</h1>
+    <div class="header-actions">
+      @if (!adminMode) {
+        <span class="badge badge-info me-2"><i class="fas fa-info-circle"></i> Chat with any branch or report a problem</span>
+      }
+      @if (adminMode) {
+        <span class="badge badge-warning"><i class="fas fa-shield-alt"></i> Admin — Viewing all branch communications</span>
+      }
+    </div>
+  </div>
+
+  <div class="chat-layout">
+    <!-- SIDEBAR -->
+    <div class="chat-sidebar">
+      <div class="sidebar-header">
+        <h6><i class="fas fa-building"></i> All Branches ({{ allBranches.length }})</h6>
+      </div>
+      <div class="sidebar-search">
+        <i class="fas fa-search"></i>
+        <input class="form-control form-control-sm" type="text" placeholder="Search branch..." [(ngModel)]="branchSearch">
+      </div>
+      <div class="conversation-list">
+        @if (allBranches.length === 0) {
+          <div class="text-center text-muted p-3"><small>Loading branches...</small></div>
+        }
+        @for (conv of conversations; track conv.id) {
+          @if (convMatchesSearch(conv)) {
+            <div class="conversation-item"
+              [class.active]="isConvActive(conv)"
+              [class.unread]="getUnreadCount(conv.branchId) > 0"
+              (click)="selectConversation(conv)">
+              <div class="conv-icon"><i class="fas fa-building"></i></div>
+              <div class="conv-info">
+                <div class="conv-name">{{ conv.name }}</div>
+                <div class="conv-code">{{ conv.code }}</div>
+                <div class="conv-preview">{{ hasMessages(conv.branchId) ? 'Click to view' : 'No messages' }}</div>
+              </div>
+              @if (getUnreadCount(conv.branchId) > 0) {
+                <span class="badge badge-danger badge-sm">{{ getUnreadCount(conv.branchId) }}</span>
+              }
+            </div>
+          }
+        }
+        @if (filteredBranches.length === 0 && branchSearch) {
+          <div class="text-center text-muted p-3"><small>No branches match "{{ branchSearch }}"</small></div>
+        }
+      </div>
+    </div>
+
+    <!-- MAIN PANEL -->
+    <div class="chat-main">
+
+      <!-- ADMIN OVERVIEW -->
+      @if (!activeConvId && adminMode && !showProblemForm) {
+        <div class="admin-overview">
+          <div class="overview-header">
+            <h4><i class="fas fa-shield-alt"></i> Admin — Branch Activity Feed</h4>
+            <p class="text-muted">Real-time view of all branch communications across {{ allBranches.length }} branches</p>
+          </div>
+          <div class="branch-activity-grid">
+            @if (allBranchMessages.length === 0) {
+              <div class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2"></i><br>No messages yet across any branch</div>
+            }
+            @for (branch of allBranches; track branch.id) {
+              @if (hasMessages(branch.id)) {
+                <div class="branch-card" (click)="selectConversationByBranchId(branch.id)">
+                  <div class="branch-card-header">
+                    <strong><i class="fas fa-building me-1"></i> {{ branch.name }}</strong>
+                    <span class="badge badge-sm" [class.badge-danger]="hasUnread(branch.id)" [class.badge-secondary]="!hasUnread(branch.id)">
+                      {{ hasUnread(branch.id) ? 'Unread' : 'Read' }}
+                    </span>
+                  </div>
+                  @if (getLatestMessage(branch.id); as lastMsg) {
+                    <div class="branch-card-body">
+                      <div class="last-sender">
+                        <strong>{{ getSenderName(lastMsg.senderId) }}</strong>
+                        <small class="text-muted">{{ lastMsg.createdDate | date:'short' }}</small>
+                      </div>
+                      <div class="last-message">{{ lastMsg.message.length > 120 ? (lastMsg.message | slice:0:120) + '...' : lastMsg.message }}</div>
+                    </div>
+                  }
+                  <div class="branch-card-footer">
+                    <span class="badge badge-sm badge-info">{{ getMessageCount(branch.id) }} messages</span>
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        </div>
+      }
+
+      <!-- USER WELCOME -->
+      @if (!activeConvId && !adminMode && !showProblemForm) {
+        <div class="chat-empty">
+          <i class="fas fa-comments fa-3x mb-3" style="color: var(--nexmemo-primary);"></i>
+          <h5>Branch Communication Hub</h5>
+          <p class="text-muted">Select any branch from the sidebar to start chatting, or report a problem.</p>
+          <div class="quick-actions mt-3">
+            @if (conversations.length > 0) {
+              <button class="btn btn-outline-primary me-2" (click)="selectConversation(conversations[0])">
+                <i class="fas fa-comment"></i> Start Chatting
+              </button>
+            }
+            @if (allBranches.length > 0) {
+              <button class="btn btn-outline-warning" (click)="openProblemForm(allBranches[0].id)">
+                <i class="fas fa-exclamation-triangle"></i> Report a Problem
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- PROBLEM REPORT FORM -->
+      @if (showProblemForm) {
+        <div class="problem-form">
+          <h4><i class="fas fa-exclamation-triangle text-warning"></i> Report a Problem</h4>
+          <p class="text-muted">Your report will be sent to all admins immediately.</p>
+          <div class="mb-3">
+            <label>Branch</label>
+            <select class="form-control" [(ngModel)]="problemBranchId">
+              @for (b of allBranches; track b.id) {
+                <option [value]="b.id">{{ b.name }} ({{ b.branchCode }})</option>
+              }
+            </select>
+          </div>
+          <div class="mb-3">
+            <label>Subject <small class="text-muted">(optional)</small></label>
+            <input class="form-control" [(ngModel)]="problemSubject" placeholder="Brief subject">
+          </div>
+          <div class="mb-3">
+            <label>Describe the Problem <span class="text-danger">*</span></label>
+            <textarea class="form-control" rows="6" [(ngModel)]="problemDescription" placeholder="Describe the issue in detail..."></textarea>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-warning" (click)="submitProblemReport()"><i class="fas fa-paper-plane"></i> Submit Report</button>
+            <button class="btn btn-secondary" (click)="showProblemForm = false">Cancel</button>
+          </div>
+        </div>
+      }
+
+      <!-- ACTIVE CHAT -->
+      @if (activeConvId && activeConv) {
+        <div class="conversation-header">
+          <div>
+            <strong><i class="fas fa-building me-1"></i> {{ activeConv.name }}</strong>
+            <small class="text-muted ms-2">{{ activeConv.code }}</small>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-warning" (click)="openProblemFormForCurrentConv()">
+              <i class="fas fa-exclamation-triangle"></i> Report Problem
+            </button>
+          </div>
+        </div>
+        <div class="chat-messages">
+          @if (loading) {
+            <div class="text-center py-5"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+          }
+          @if (!loading && messages.length === 0) {
+            <div class="text-center text-muted py-5">
+              <i class="fas fa-comment fa-2x mb-2"></i><br>
+              <small>No messages yet. Be the first to chat with this branch!</small>
+            </div>
+          }
+          @for (msg of messages; track msg.id) {
+            <div class="message-row" [class.mine]="isCurrentUser(msg.senderId)">
+              <div class="message-bubble" [class.problem-report]="isProblemReport(msg)">
+                @if (isProblemReport(msg)) {
+                  <div class="problem-badge"><i class="fas fa-exclamation-triangle"></i> PROBLEM REPORT</div>
+                }
+                <div class="message-sender">
+                  {{ getSenderName(msg.senderId) }}
+                  @if (isCurrentUser(msg.senderId)) { <span class="badge badge-sm badge-primary ms-1">You</span> }
+                </div>
+                <div class="message-text" style="white-space: pre-wrap;">{{ msg.message }}</div>
+                <div class="message-time">{{ msg.createdDate | date:'medium' }}</div>
+              </div>
+            </div>
+          }
+        </div>
+        <div class="chat-input">
+          <input class="form-control" [(ngModel)]="newMessage" placeholder="Type a message to this branch..." (keyup.enter)="sendMessage()">
+          <button class="btn btn-primary" (click)="sendMessage()" [disabled]="!canSend"><i class="fas fa-paper-plane"></i> Send</button>
+        </div>
+      }
+    </div>
+  </div>
+</div>

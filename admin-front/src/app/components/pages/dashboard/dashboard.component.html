@@ -1,15 +1,13 @@
-<div class="page-container">
+<div class="page-container animate-fade-in">
   <div class="page-header">
     <div>
-      <h1>
-        <i class="fas fa-chart-pie"></i> Dashboard
-      </h1>
+      <h1><i class="fas fa-chart-pie"></i> Banking Dashboard</h1>
       <div class="page-subtitle">
         Welcome back, <strong>{{ userName }}</strong> &middot; {{ currentDate | date:'EEEE, MMMM d, yyyy' }}
       </div>
     </div>
     <div class="header-actions">
-      <button class="btn btn-gradient">
+      <button class="btn btn-gradient" routerLink="/layout/memo">
         <i class="fas fa-plus"></i> New Memo
       </button>
     </div>
@@ -17,43 +15,35 @@
 
   <div class="stats-grid stagger-children">
     <div class="stat-card gradient-blue">
-      <div class="stat-icon">
-        <i class="fas fa-file-alt"></i>
-      </div>
+      <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
       <div class="stat-body">
-        <div class="stat-value">{{ stats.totalMemos }}</div>
+        <div class="stat-value">{{ summary.totalMemos || 0 }}</div>
         <div class="stat-label">Total Memos</div>
-        <div class="stat-trend up"><i class="fas fa-arrow-up"></i> 12% this month</div>
+        <div class="stat-trend"><i class="fas fa-layers"></i> All time</div>
       </div>
     </div>
     <div class="stat-card gradient-orange">
-      <div class="stat-icon">
-        <i class="fas fa-clock"></i>
-      </div>
+      <div class="stat-icon"><i class="fas fa-clock"></i></div>
       <div class="stat-body">
-        <div class="stat-value">{{ stats.pendingApprovals }}</div>
-        <div class="stat-label">Pending Approvals</div>
-        <div class="stat-trend"><i class="fas fa-minus"></i> No change</div>
+        <div class="stat-value">{{ summary.pendingCount || 0 }}</div>
+        <div class="stat-label">Pending Approval</div>
+        <div class="stat-trend up"><i class="fas fa-coins"></i> रू {{ (summary.totalPendingAmount || 0) | number:'1.0-0' }}</div>
       </div>
     </div>
     <div class="stat-card gradient-green">
-      <div class="stat-icon">
-        <i class="fas fa-check-circle"></i>
-      </div>
+      <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
       <div class="stat-body">
-        <div class="stat-value">{{ stats.approvedToday }}</div>
-        <div class="stat-label">Approved Today</div>
-        <div class="stat-trend up"><i class="fas fa-arrow-up"></i> 5% today</div>
+        <div class="stat-value">{{ summary.approvedCount || 0 }}</div>
+        <div class="stat-label">Approved</div>
+        <div class="stat-trend up"><i class="fas fa-coins"></i> रू {{ (summary.totalApprovedAmount || 0) | number:'1.0-0' }}</div>
       </div>
     </div>
     <div class="stat-card gradient-purple">
-      <div class="stat-icon">
-        <i class="fas fa-coins"></i>
-      </div>
+      <div class="stat-icon"><i class="fas fa-percentage"></i></div>
       <div class="stat-body">
-        <div class="stat-value">रू {{ stats.totalBudget | number }}</div>
-        <div class="stat-label">Total Budget</div>
-        <div class="stat-trend up"><i class="fas fa-arrow-up"></i> 2.3M allocated</div>
+        <div class="stat-value">{{ summary.approvalRate || 0 }}%</div>
+        <div class="stat-label">Approval Rate</div>
+        <div class="stat-trend"><i class="fas fa-chart-line"></i> Overall</div>
       </div>
     </div>
   </div>
@@ -61,72 +51,61 @@
   <div class="dashboard-grid">
     <div class="card animate-fade-in">
       <div class="card-header">
-        <h3><i class="fas fa-history" style="margin-right: 0.4rem; color: var(--nexmemo-primary);"></i>Recent Memos</h3>
-        <a routerLink="/layout/document-list" class="btn btn-sm btn-ghost">View All <i class="fas fa-arrow-right ms-1"></i></a>
+        <h3><i class="fas fa-chart-ring" style="color:var(--nexmemo-primary)"></i>Status Breakdown</h3>
       </div>
-      <div class="card-body p-0">
-        <table class="table">
-          <thead>
-            <tr><th>ID</th><th>Title</th><th>Status</th><th>Date</th></tr>
-          </thead>
-          <tbody>
-            @if (recentActivities.length > 0) {
-              @for(activity of recentActivities; track activity.id) {
-                <tr class="clickable">
-                  <td class="font-mono text-muted">#{{ activity.id }}</td>
-                  <td class="font-medium">{{ activity.title }}</td>
-                  <td><span class="badge" [class.badge-primary]="activity.status === 'DRAFT'" [class.badge-warning]="activity.status === 'PENDING'" [class.badge-success]="activity.status === 'APPROVED'">{{ activity.status }}</span></td>
-                  <td class="text-muted">{{ activity.createdAt | date:'mediumDate' }}</td>
-                </tr>
-              }
-            } @else {
-              <tr><td colspan="4"><div class="empty-state"><i class="fas fa-file-alt"></i><p>No memos yet. Create your first memo to get started.</p></div></td></tr>
-            }
-          </tbody>
-        </table>
+      <div class="card-body chart-container">
+        @if (statusChartData?.datasets?.[0]?.data?.length) {
+          <canvas baseChart [data]="statusChartData" [options]="statusChartOptions" type="doughnut"></canvas>
+        } @else {
+          <div class="empty-state"><i class="fas fa-chart-pie"></i><p>No data yet</p></div>
+        }
       </div>
     </div>
 
-    <div class="dashboard-sidebar">
-      <div class="card animate-fade-in">
-        <div class="card-header">
-          <h3><i class="fas fa-inbox" style="margin-right: 0.4rem; color: var(--nexmemo-warning);"></i>Pending Approvals</h3>
-        </div>
-        <div class="card-body">
-          @if (stats.pendingApprovals > 0) {
-            <div class="approval-list">...</div>
-          } @else {
-            <div class="empty-state">
-              <i class="fas fa-check-circle" style="color: var(--nexmemo-success-light); font-size: 2rem;"></i>
-              <p>All caught up! No pending approvals.</p>
-            </div>
-          }
-        </div>
+    <div class="card animate-fade-in">
+      <div class="card-header">
+        <h3><i class="fas fa-chart-bar" style="color:var(--nexmemo-success)"></i>Monthly Trend</h3>
       </div>
+      <div class="card-body chart-container">
+        @if (trendChartData?.datasets?.[0]?.data?.length) {
+          <canvas baseChart [data]="trendChartData" [options]="trendChartOptions" type="bar"></canvas>
+        } @else {
+          <div class="empty-state"><i class="fas fa-chart-bar"></i><p>No data yet</p></div>
+        }
+      </div>
+    </div>
 
-      <div class="card animate-fade-in">
-        <div class="card-header">
-          <h3><i class="fas fa-bolt" style="margin-right: 0.4rem; color: var(--nexmemo-accent);"></i>Quick Actions</h3>
-        </div>
-        <div class="card-body">
-          <div class="quick-actions">
-            <button class="quick-action-btn">
-              <i class="fas fa-file-alt"></i>
-              <span>New Memo</span>
-            </button>
-            <button class="quick-action-btn">
-              <i class="fas fa-search"></i>
-              <span>Search</span>
-            </button>
-            <button class="quick-action-btn">
-              <i class="fas fa-chart-bar"></i>
-              <span>Reports</span>
-            </button>
-            <button class="quick-action-btn">
-              <i class="fas fa-cog"></i>
-              <span>Settings</span>
-            </button>
-          </div>
+    <div class="card animate-fade-in">
+      <div class="card-header">
+        <h3><i class="fas fa-tags" style="color:var(--nexmemo-accent)"></i>Expense by Category</h3>
+      </div>
+      <div class="card-body chart-container">
+        @if (expenseChartData?.datasets?.[0]?.data?.length) {
+          <canvas baseChart [data]="expenseChartData" [options]="expenseChartOptions" type="pie"></canvas>
+        } @else {
+          <div class="empty-state"><i class="fas fa-tags"></i><p>No expense categories yet</p></div>
+        }
+      </div>
+    </div>
+
+    <div class="card animate-fade-in">
+      <div class="card-header">
+        <h3><i class="fas fa-bolt" style="color:var(--nexmemo-warning)"></i>Quick Actions</h3>
+      </div>
+      <div class="card-body">
+        <div class="quick-actions">
+          <button class="quick-action-btn" routerLink="/layout/memo">
+            <i class="fas fa-file-alt"></i><span>New Memo</span>
+          </button>
+          <button class="quick-action-btn" routerLink="/layout/document-list">
+            <i class="fas fa-search"></i><span>Browse Memos</span>
+          </button>
+          <button class="quick-action-btn" routerLink="/layout/memo-template">
+            <i class="fas fa-layer-group"></i><span>Templates</span>
+          </button>
+          <button class="quick-action-btn" routerLink="/layout/expense-category">
+            <i class="fas fa-tag"></i><span>Categories</span>
+          </button>
         </div>
       </div>
     </div>

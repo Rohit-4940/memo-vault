@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +33,9 @@ public class Memo extends BaseEntity<Long> implements Serializable {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(columnDefinition = "TEXT")
+    private String content;
 
     @NotNull
     @Enumerated(EnumType.STRING)
@@ -84,6 +88,35 @@ public class Memo extends BaseEntity<Long> implements Serializable {
 
     @OneToMany(mappedBy = "memo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<MemoDocument> documents = new ArrayList<>();
+
+    @OneToMany(mappedBy = "memo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<MemoCc> ccRecipients = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "expense_category_id")
+    private ExpenseCategory expenseCategory;
+
+    @Column(name = "budget_code")
+    private String budgetCode;
+
+    @Column(name = "payment_method")
+    private String paymentMethod;
+
+    @Column(name = "vendor_name")
+    private String vendorName;
+
+    @Column(name = "vendor_account")
+    private String vendorAccount;
+
+    @Column(name = "is_urgent")
+    private Boolean isUrgent = false;
+
+    @Column(name = "expected_date")
+    private LocalDate expectedDate;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fiscal_year_id")
+    private FiscalYear fiscalYear;
 
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;

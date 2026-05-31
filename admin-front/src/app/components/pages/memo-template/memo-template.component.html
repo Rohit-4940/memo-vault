@@ -1,32 +1,42 @@
-<div class="page-container">
+<div class="page-container animate-fade-in">
   <div class="page-header">
-    <h1><i class="fas fa-file-alt"></i> Memo Templates</h1>
-    @if (isAdmin) {
-      <button class="btn btn-primary" (click)="openCreateModal(createModal)"><i class="fas fa-plus"></i> Add Template</button>
-    }
+    <div>
+      <h1><i class="fas fa-copy"></i> Memo Templates</h1>
+      <div class="page-subtitle">Create and manage expense memo templates for banking workflows</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-gradient" (click)="openCreateModal(createModal)">
+        <i class="fas fa-plus"></i> Create Template
+      </button>
+    </div>
   </div>
+
   <div class="card">
     <div class="table-responsive">
       <table class="table">
-        <thead><tr><th>ID</th><th>Name</th><th>Memo Type</th><th>Department</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead>
+          <tr><th>Name</th><th>Expense Category</th><th>Dept</th><th>Default Amount</th><th>Approval Lvls</th><th>Priority</th><th>Status</th><th>Actions</th></tr>
+        </thead>
         <tbody>
           @for(t of templates; track t.id) {
             <tr>
-              <td>{{ t.id }}</td>
-              <td>{{ t.name }}</td>
-              <td><span class="badge badge-info">{{ t.memoTypeName || t.memoType?.name }}</span></td>
-              <td>{{ t.departmentName || t.department?.name }}</td>
+              <td><strong>{{ t.name }}</strong><div class="text-muted" style="font-size:0.75rem">{{ t.description | slice:0:60 }}{{ t.description?.length > 60 ? '...' : '' }}</div></td>
+              <td><span class="badge badge-primary-bg">{{ t.expenseCategory?.categoryName || t.memoType?.name || '-' }}</span></td>
+              <td><span class="badge badge-secondary">{{ t.department?.name || '-' }}</span></td>
+              <td>{{ t.defaultAmount ? (t.defaultAmount | number) : '-' }}</td>
+              <td>{{ t.requiredApprovalLevels || 1 }}</td>
+              <td><span class="badge" [class.badge-warning]="t.defaultPriority === 'HIGH'" [class.badge-info]="t.defaultPriority === 'MEDIUM'" [class.badge-secondary]="t.defaultPriority === 'LOW'">{{ t.defaultPriority || 'MEDIUM' }}</span></td>
               <td><span class="badge" [class.badge-success]="t.status === 'ACTIVE'" [class.badge-danger]="t.status !== 'ACTIVE'">{{ t.status }}</span></td>
               <td class="actions">
+                <button class="btn btn-sm btn-ghost" (click)="openEditModal(editModal, t)"><i class="fas fa-edit"></i></button>
                 @if (isAdmin) {
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, t)"><i class="fas fa-edit"></i></button>
-                  <button class="btn btn-sm btn-outline-danger" (click)="deleteTemplate(t.id)"><i class="fas fa-trash"></i></button>
-                } @else {
-                  <span class="text-muted small">View only</span>
+                  <button class="btn btn-sm btn-ghost text-danger" (click)="deleteTemplate(t.id)"><i class="fas fa-trash"></i></button>
                 }
               </td>
             </tr>
-          } @empty { <tr><td colspan="6" class="text-center text-muted py-4">No templates found</td></tr> }
+          } @empty {
+            <tr><td colspan="8" class="text-center text-muted py-4">No templates found</td></tr>
+          }
         </tbody>
       </table>
     </div>
@@ -34,65 +44,115 @@
 </div>
 
 <ng-template #createModal let-modal>
-  <div class="modal-header"><h5 class="modal-title">Add Template</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <div class="modal-header"><h5 class="modal-title">Create Memo Template</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
   <div class="modal-body">
-    <div class="form-group mb-3"><label>Name</label><input class="form-control" [(ngModel)]="selectedTemplate.name" required></div>
+    <div class="form-group mb-3"><label>Template Name *</label><input class="form-control" [(ngModel)]="selectedTemplate.name" required></div>
     <div class="form-group mb-3"><label>Description</label><textarea class="form-control" rows="2" [(ngModel)]="selectedTemplate.description"></textarea></div>
-    <div class="form-group mb-3"><label>Content</label><textarea class="form-control" rows="6" [(ngModel)]="selectedTemplate.content" required></textarea></div>
     <div class="row">
+      <div class="col-md-6 mb-3"><label>Expense Category</label>
+        <select class="form-control" [(ngModel)]="selectedTemplate.expenseCategoryId">
+          <option value="">Select Category</option>
+          @for(c of expenseCategories; track c.id) { <option [value]="c.id">{{ c.categoryName }} ({{ c.categoryCode }})</option> }
+        </select>
+      </div>
       <div class="col-md-6 mb-3"><label>Memo Type</label>
         <select class="form-control" [(ngModel)]="selectedTemplate.memoTypeId">
           <option value="">Select Type</option>
           @for(t of memoTypes; track t.id) { <option [value]="t.id">{{ t.name }}</option> }
         </select>
       </div>
-      <div class="col-md-6 mb-3"><label>Department</label>
+    </div>
+    <div class="row">
+      <div class="col-md-4 mb-3"><label>Department</label>
         <select class="form-control" [(ngModel)]="selectedTemplate.departmentId">
-          <option value="">Select Department</option>
+          <option value="">Select</option>
           @for(d of departments; track d.id) { <option [value]="d.id">{{ d.name }}</option> }
         </select>
       </div>
+      <div class="col-md-4 mb-3"><label>Default Priority</label>
+        <select class="form-control" [(ngModel)]="selectedTemplate.defaultPriority">
+          <option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="URGENT">Urgent</option>
+        </select>
+      </div>
+      <div class="col-md-4 mb-3"><label>Approval Levels</label>
+        <input type="number" class="form-control" [(ngModel)]="selectedTemplate.requiredApprovalLevels" min="1" />
+      </div>
     </div>
-    <div class="form-group mb-3"><label>Status</label>
-      <select class="form-control" [(ngModel)]="selectedTemplate.status">
-        <option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option>
+    <div class="row">
+      <div class="col-md-6 mb-3"><label>Default Amount (NPR)</label>
+        <input type="number" class="form-control" [(ngModel)]="selectedTemplate.defaultAmount" />
+      </div>
+      <div class="col-md-6 mb-3"><label>Max Amount (NPR)</label>
+        <input type="number" class="form-control" [(ngModel)]="selectedTemplate.maxAmount" />
+      </div>
+    </div>
+    <div class="form-group mb-3"><label>Default Payment Method</label>
+      <select class="form-control" [(ngModel)]="selectedTemplate.defaultPaymentMethod">
+        <option value="">Select</option><option value="BANK_TRANSFER">Bank Transfer</option><option value="CHEQUE">Cheque</option><option value="CASH">Cash</option><option value="RTGS">RTGS</option>
       </select>
+    </div>
+    <div class="form-group mb-3">
+      <label>Content <small class="text-muted">(Rich text — paste Word content or type)</small></label>
+      <ckeditor [editor]="Editor" [config]="editorConfig" [(ngModel)]="selectedTemplate.content" (change)="onContentChange($event)"></ckeditor>
     </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
-    <button class="btn btn-primary" (click)="saveTemplate()">Save</button>
+    <button class="btn btn-primary" (click)="saveTemplate()">Create Template</button>
   </div>
 </ng-template>
 
 <ng-template #editModal let-modal>
-  <div class="modal-header"><h5 class="modal-title">Edit Template</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <div class="modal-header"><h5 class="modal-title">Edit Template: {{ selectedTemplate.name }}</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
   <div class="modal-body">
-    <div class="form-group mb-3"><label>Name</label><input class="form-control" [(ngModel)]="selectedTemplate.name" required></div>
+    <div class="form-group mb-3"><label>Template Name *</label><input class="form-control" [(ngModel)]="selectedTemplate.name" required></div>
     <div class="form-group mb-3"><label>Description</label><textarea class="form-control" rows="2" [(ngModel)]="selectedTemplate.description"></textarea></div>
-    <div class="form-group mb-3"><label>Content</label><textarea class="form-control" rows="6" [(ngModel)]="selectedTemplate.content" required></textarea></div>
     <div class="row">
+      <div class="col-md-6 mb-3"><label>Expense Category</label>
+        <select class="form-control" [(ngModel)]="selectedTemplate.expenseCategoryId">
+          <option value="">Select Category</option>
+          @for(c of expenseCategories; track c.id) { <option [value]="c.id" [selected]="c.id === selectedTemplate.expenseCategoryId">{{ c.categoryName }}</option> }
+        </select>
+      </div>
       <div class="col-md-6 mb-3"><label>Memo Type</label>
         <select class="form-control" [(ngModel)]="selectedTemplate.memoTypeId">
           <option value="">Select Type</option>
-          @for(t of memoTypes; track t.id) { <option [value]="t.id">{{ t.name }}</option> }
-        </select>
-      </div>
-      <div class="col-md-6 mb-3"><label>Department</label>
-        <select class="form-control" [(ngModel)]="selectedTemplate.departmentId">
-          <option value="">Select Department</option>
-          @for(d of departments; track d.id) { <option [value]="d.id">{{ d.name }}</option> }
+          @for(t of memoTypes; track t.id) { <option [value]="t.id" [selected]="t.id === selectedTemplate.memoTypeId">{{ t.name }}</option> }
         </select>
       </div>
     </div>
-    <div class="form-group mb-3"><label>Status</label>
-      <select class="form-control" [(ngModel)]="selectedTemplate.status">
-        <option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option>
+    <div class="row">
+      <div class="col-md-4 mb-3"><label>Department</label>
+        <select class="form-control" [(ngModel)]="selectedTemplate.departmentId">
+          <option value="">Select</option>
+          @for(d of departments; track d.id) { <option [value]="d.id" [selected]="d.id === selectedTemplate.departmentId">{{ d.name }}</option> }
+        </select>
+      </div>
+      <div class="col-md-4 mb-3"><label>Default Priority</label>
+        <select class="form-control" [(ngModel)]="selectedTemplate.defaultPriority">
+          <option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="URGENT">Urgent</option>
+        </select>
+      </div>
+      <div class="col-md-4 mb-3"><label>Approval Levels</label>
+        <input type="number" class="form-control" [(ngModel)]="selectedTemplate.requiredApprovalLevels" min="1" />
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3"><label>Default Amount</label><input type="number" class="form-control" [(ngModel)]="selectedTemplate.defaultAmount" /></div>
+      <div class="col-md-6 mb-3"><label>Max Amount</label><input type="number" class="form-control" [(ngModel)]="selectedTemplate.maxAmount" /></div>
+    </div>
+    <div class="form-group mb-3"><label>Default Payment Method</label>
+      <select class="form-control" [(ngModel)]="selectedTemplate.defaultPaymentMethod">
+        <option value="">Select</option><option value="BANK_TRANSFER">Bank Transfer</option><option value="CHEQUE">Cheque</option><option value="CASH">Cash</option><option value="RTGS">RTGS</option>
       </select>
+    </div>
+    <div class="form-group mb-3">
+      <label>Content</label>
+      <ckeditor [editor]="Editor" [config]="editorConfig" [(ngModel)]="selectedTemplate.content" (change)="onContentChange($event)"></ckeditor>
     </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
-    <button class="btn btn-primary" (click)="saveTemplate()">Save</button>
+    <button class="btn btn-primary" (click)="saveTemplate()">Save Template</button>
   </div>
 </ng-template>

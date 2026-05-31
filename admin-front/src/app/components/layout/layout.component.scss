@@ -17,6 +17,10 @@
   padding: 0 1.25rem; position: fixed; top: 0; left: 0; right: 0;
   z-index: var(--z-dropdown); backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  &::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--nexmemo-primary), var(--nexmemo-secondary), var(--nexmemo-accent), transparent);
+  }
 }
 
 .header-left { display: flex; align-items: center; gap: 0.75rem; }
@@ -64,6 +68,16 @@
     position: absolute; top: 6px; right: 6px; width: 8px; height: 8px;
     background: var(--nexmemo-danger); border-radius: 50%; border: 2px solid var(--header-bg);
   }
+  .notification-badge {
+    position: absolute; top: 1px; right: 1px; min-width: 19px; height: 19px;
+    padding: 0 5px; background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff;
+    border-radius: var(--radius-full); font-size: 0.63rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    border: 2.5px solid var(--header-bg); line-height: 1;
+    animation: badgePulse 2s ease-in-out infinite;
+    box-shadow: 0 2px 8px rgba(239,68,68,0.3);
+  }
+  @keyframes badgePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.3); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }
 }
 
 .profile-container {

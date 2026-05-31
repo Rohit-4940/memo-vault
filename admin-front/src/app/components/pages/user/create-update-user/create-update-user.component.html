@@ -185,6 +185,13 @@
           </div>
         }
       </div>
+      <div class="col-md-6 mb-2">
+        <label class="form-label">Signature</label>
+        <input type="file" class="form-control" accept="image/*" (change)="onSignatureSelected($event)">
+        @if (signaturePreview) {
+          <img [src]="signaturePreview" class="mt-2" style="max-height: 60px; border: 1px solid #ddd; border-radius: 4px; padding: 2px;">
+        }
+      </div>
     </div>
     <div class="modal-footer mt-4">
       <button type="button" class="btn btn-sm btn-outline-danger" (click)="activeModal.dismiss()">

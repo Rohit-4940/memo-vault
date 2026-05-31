@@ -3,6 +3,7 @@ import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/
 import {NgbActiveModal} from '@ng-bootstrap/ng-bootstrap';
 import {User} from '../../../../@core/model/user';
 import {UserService} from '../../../../shared-services/api-service/user.service';
+import {FileService} from '../../../../shared-services/api-service/file.service';
 import {NgLabelTemplateDirective, NgOptionTemplateDirective, NgSelectComponent} from '@ng-select/ng-select';
 import {UserType} from '../../../../@core/emun/user-type';
 import {ToastrService} from 'ngx-toastr';
@@ -34,8 +35,11 @@ export class CreateUpdateUserComponent implements OnInit{
 
   activeModal: NgbActiveModal = inject(NgbActiveModal);
   userService: UserService = inject(UserService);
+  fileService: FileService = inject(FileService);
   toasterService: ToastrService = inject(ToastrService);
   spinnerService: SpinnerService = inject(SpinnerService);
+  signatureFile: File | null = null;
+  signaturePreview: string | null = null;
   statusOptions = Object.keys(Status);
 
   userType = UserType.enumObject();
@@ -85,6 +89,7 @@ export class CreateUpdateUserComponent implements OnInit{
       }
 
       if (!this.isEditMode) {
+        this.uploadSignature().then(() => {
         this.userService.createUser(data).subscribe({
           next: res => {
             console.log('User create successfully', res?.data);
@@ -95,6 +100,7 @@ export class CreateUpdateUserComponent implements OnInit{
             this.toasterService.error(err?.error?.message, 'Error');
             this.spinnerService.hide();
           }
+        });
         });
       } else {
         const username = this.userForm?.get('userName')?.value;
@@ -139,6 +145,26 @@ export class CreateUpdateUserComponent implements OnInit{
       },
       complete: () => {
       },
+    });
+  }
+
+  onSignatureSelected(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      this.signatureFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => this.signaturePreview = e.target?.result as string;
+      reader.readAsDataURL(file);
+    }
+  }
+
+  uploadSignature(): Promise<void> {
+    if (!this.signatureFile) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      this.fileService.uploadSignature(this.signatureFile!).subscribe({
+        next: () => { resolve(); },
+        error: (err) => { this.toasterService.error('Signature upload failed'); reject(err); }
+      });
     });
   }
 

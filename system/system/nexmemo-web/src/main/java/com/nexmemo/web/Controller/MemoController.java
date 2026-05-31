@@ -1,14 +1,19 @@
 package com.nexmemo.web.Controller;
 
 import com.nexmemo.core.dto.ApiResponse;
+import com.nexmemo.core.dto.PageResponse;
 import com.nexmemo.core.entity.ApprovalHistory;
 import com.nexmemo.core.entity.Memo;
+import com.nexmemo.core.entity.MemoCc;
 import com.nexmemo.core.entity.MemoDocument;
 import com.nexmemo.core.entity.MemoRouting;
 import com.nexmemo.core.enums.MemoStatus;
 import com.nexmemo.web.service.MemoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,14 +33,29 @@ public class MemoController {
         return ResponseEntity.ok(ApiResponse.success(memoService.getAllMemos()));
     }
 
+    @GetMapping("/paginated")
+    public ResponseEntity<PageResponse<Memo>> getAllMemosPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdDate") String sort,
+            @RequestParam(defaultValue = "desc") String dir) {
+        Sort s = dir.equalsIgnoreCase("asc") ? Sort.by(sort).ascending() : Sort.by(sort).descending();
+        Pageable pageable = PageRequest.of(page, size, s);
+        return ResponseEntity.ok(PageResponse.from(memoService.getAllMemosPaginated(pageable)));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Memo>> getMemo(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(memoService.getMemoById(id)));
     }
 
     @GetMapping("/my")
-    public ResponseEntity<ApiResponse<List<Memo>>> getMyMemos(@AuthenticationPrincipal Long userId) {
-        return ResponseEntity.ok(ApiResponse.success(memoService.getMemosByCreator(userId)));
+    public ResponseEntity<?> getMyMemos(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
+        return ResponseEntity.ok(PageResponse.from(memoService.getMemosByCreatorPaginated(userId, pageable)));
     }
 
     @GetMapping("/pending-approvals")
@@ -127,5 +147,21 @@ public class MemoController {
     @GetMapping("/{id}/documents")
     public ResponseEntity<ApiResponse<List<MemoDocument>>> getDocuments(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(memoService.getDocuments(id)));
+    }
+
+    @GetMapping("/{id}/cc")
+    public ResponseEntity<ApiResponse<List<MemoCc>>> getMemoCc(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(memoService.getMemoCcList(id)));
+    }
+
+    @GetMapping("/my-cc")
+    public ResponseEntity<ApiResponse<List<Memo>>> getMyCcMemos(@AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(memoService.getMyCcMemos(userId)));
+    }
+
+    @PutMapping("/{id}/acknowledge")
+    public ResponseEntity<ApiResponse<MemoCc>> acknowledgeMemo(@PathVariable Long id,
+                                                               @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success("Memo acknowledged", memoService.acknowledgeMemo(id, userId)));
     }
 }

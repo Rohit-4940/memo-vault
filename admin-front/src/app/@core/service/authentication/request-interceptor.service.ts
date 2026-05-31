@@ -89,7 +89,7 @@ export class RequestInterceptor implements HttpInterceptor {
       return throwError(() => new Error('No refresh token'));
     }
     return new HttpClient(this.httpBackend)
-      .post(`${ApiConfig.URL}/api/v1/auth/refresh`, {})
+      .post(`${ApiConfig.URL}/api/v1/auth/refresh`, { refreshToken })
       .pipe(
         tap((response: any) => {
           if (response.accessToken) {

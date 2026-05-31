@@ -1,98 +1,212 @@
 @if (!showDetailView) {
   <div class="page-container">
     <div class="page-header">
-      <h1><i class="fas fa-memo"></i> Memo Management</h1>
+      <h1><i class="fas fa-file-alt"></i> Memo Management</h1>
       <div class="header-actions">
-        <input class="search-input" type="text" placeholder="Search memo No or title..." [(ngModel)]="searchTerm">
-        <select class="form-control me-2" style="width: auto;" [(ngModel)]="statusFilter">
-          <option value="">All Status</option>
-          <option value="DRAFT">Draft</option>
-          <option value="PENDING_APPROVAL">Pending</option>
-          <option value="APPROVED">Approved</option>
-          <option value="REJECTED">Rejected</option>
-          <option value="RETURNED">Returned</option>
-          <option value="CANCELLED">Cancelled</option>
-        </select>
-        <select class="form-control me-2" style="width: auto;" [(ngModel)]="branchFilter">
-          <option value="">All Branches</option>
-          @for(b of branches; track b.id) { <option [value]="b.id">{{ b.name }}</option> }
-        </select>
-        <button class="btn btn-primary" (click)="openCreateModal(createModal)"><i class="fas fa-plus"></i> Create Memo</button>
+        <div class="search-group">
+          <input class="search-input" type="text" placeholder="Search memo No or title..." [(ngModel)]="searchTerm" (keyup.enter)="onSearch()">
+          <button class="btn btn-outline-secondary btn-sm" (click)="onSearch()"><i class="fas fa-search"></i></button>
+        </div>
+        <button class="btn btn-ghost btn-sm" (click)="loadStats(); loadMemos()" title="Refresh"><i class="fas fa-sync"></i></button>
+        @if (canCreateMemo) {
+          <button class="btn btn-primary" (click)="openCreateModal(createModal)"><i class="fas fa-plus"></i> Compose Memo</button>
+        }
       </div>
     </div>
-    <div class="card">
-      <div class="table-responsive">
-        <table class="table">
-          <thead><tr><th>Memo No</th><th>Title</th><th>Status</th><th>Priority</th><th>Branch</th><th>Created Date</th><th>Actions</th></tr></thead>
-          <tbody>
-            @for(m of filteredMemos; track m.id) {
-              <tr style="cursor:pointer;" (click)="viewDetail(m)">
-                <td><code>{{ m.memoNo || 'MEMO-' + m.id }}</code></td>
-                <td>{{ m.title }}</td>
-                <td><span class="badge" [class]="getStatusBadge(m.status)">{{ m.status }}</span></td>
-                <td><span class="badge" [class]="getPriorityBadge(m.priority)">{{ m.priority }}</span></td>
-                <td>{{ m.branchName || m.branch?.name || '-' }}</td>
-                <td>{{ m.createdAt | date:'mediumDate' }}</td>
-                <td class="actions" (click)="$event.stopPropagation()">
-                  <button class="btn btn-sm btn-outline-primary" (click)="viewDetail(m)"><i class="fas fa-eye"></i></button>
-                </td>
-              </tr>
-            } @empty { <tr><td colspan="7" class="text-center text-muted py-4">No memos found</td></tr> }
-          </tbody>
-        </table>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card" [class.active]="activeTab === 'all'" (click)="switchTab('all')">
+        <div class="stat-icon" style="background: rgba(99,102,241,0.1); color: #6366f1;"><i class="fas fa-file-alt"></i></div>
+        <div class="stat-info"><span class="stat-value">{{ stats['all'] }}</span><span class="stat-label">Total Memos</span></div>
       </div>
+      <div class="stat-card" [class.active]="activeTab === 'pending'" (click)="switchTab('pending')">
+        <div class="stat-icon" style="background: rgba(245,158,11,0.1); color: #f59e0b;"><i class="fas fa-clock"></i></div>
+        <div class="stat-info"><span class="stat-value">{{ stats['pending'] }}</span><span class="stat-label">Pending{{ pendingApprovals.length > 0 ? ' (' + pendingApprovals.length + ' for you)' : '' }}</span></div>
+      </div>
+      <div class="stat-card" [class.active]="activeTab === 'approved'" (click)="switchTab('approved')">
+        <div class="stat-icon" style="background: rgba(16,185,129,0.1); color: #10b981;"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-info"><span class="stat-value">{{ stats['approved'] }}</span><span class="stat-label">Approved</span></div>
+      </div>
+      <div class="stat-card" [class.active]="activeTab === 'draft'" (click)="switchTab('draft')">
+        <div class="stat-icon" style="background: rgba(107,114,128,0.1); color: #6b7280;"><i class="fas fa-pen"></i></div>
+        <div class="stat-info"><span class="stat-value">{{ stats['draft'] }}</span><span class="stat-label">Drafts</span></div>
+      </div>
+      <div class="stat-card" [class.active]="activeTab === 'rejected'" (click)="switchTab('rejected')">
+        <div class="stat-icon" style="background: rgba(239,68,68,0.1); color: #ef4444;"><i class="fas fa-times-circle"></i></div>
+        <div class="stat-info"><span class="stat-value">{{ stats['rejected'] }}</span><span class="stat-label">Rejected</span></div>
+      </div>
+      @if (ccMemos.length > 0) {
+        <div class="stat-card" style="border-color: var(--nexmemo-accent);" (click)="loadMemos()">
+          <div class="stat-icon" style="background: rgba(139,92,246,0.1); color: #8b5cf6;"><i class="fas fa-at"></i></div>
+          <div class="stat-info"><span class="stat-value">{{ ccMemos.length }}</span><span class="stat-label">CC'd to me</span></div>
+        </div>
+      }
+    </div>
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      @for (t of [{key:'all',label:'All'},{key:'pending',label:'Pending'},{key:'approved',label:'Approved'},{key:'draft',label:'Draft'},{key:'rejected',label:'Rejected'}]; track t.key) {
+        <button class="tab-btn" [class.active]="activeTab === t.key" (click)="switchTab(t.key)">
+          {{ t.label }}
+          @if (stats[t.key] > 0) { <span class="tab-count">{{ stats[t.key] }}</span> }
+        </button>
+      }
+    </div>
+
+    <!-- Team Pending Section -->
+    @if (activeTab === 'all' && pendingApprovals.length > 0) {
+      <div class="card mb-3" style="border-left: 3px solid var(--nexmemo-warning);">
+        <div class="card-body py-3">
+          <h6 class="mb-2"><i class="fas fa-exclamation-triangle text-warning"></i> Pending Your Approval</h6>
+          <div class="d-flex flex-wrap gap-2">
+            @for (p of pendingApprovals.slice(0, 5); track p.id) {
+              <span class="pending-chip" (click)="viewDetail(p)">
+                <i class="fas fa-file-alt"></i> {{ p.memoNo }} - {{ p.title }}
+              </span>
+            }
+            @if (pendingApprovals.length > 5) {
+              <span class="pending-chip" (click)="switchTab('pending')">+{{ pendingApprovals.length - 5 }} more</span>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Memo List -->
+    <div class="card">
+      @if (loadingMemos) {
+        <div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table">
+            <thead><tr><th>Memo No</th><th>Title</th><th>Status</th><th>Priority</th><th>Flow</th><th>Amount</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody>
+              @for(m of memos; track m.id) {
+                <tr style="cursor:pointer;" (click)="viewDetail(m)">
+                  <td><code>{{ m.memoNo || 'MEMO-' + m.id }}</code></td>
+                  <td><strong>{{ m.title }}</strong>
+                    @if (m.isUrgent) { <span class="badge badge-danger badge-sm ms-1"><i class="fas fa-bolt"></i></span> }
+                  </td>
+                  <td><span class="badge" [class]="getStatusBadge(m.status)">{{ m.status }}</span></td>
+                  <td><span class="badge" [class]="getPriorityBadge(m.priority)">{{ m.priority }}</span></td>
+                  <td>@if (m.flowType) { <span class="badge badge-sm" [class.badge-info]="m.flowType==='ROLE_FLOW'" [class.badge-primary]="m.flowType==='USER_FLOW'">{{ m.flowType }}</span> }</td>
+                  <td>{{ m.amount ? (m.amount | number) : '-' }}</td>
+                  <td class="text-nowrap"><small>{{ m.createdDate | date:'mediumDate' }}</small></td>
+                  <td class="actions" (click)="$event.stopPropagation()">
+                    <button class="btn btn-sm btn-outline-primary" (click)="viewDetail(m)"><i class="fas fa-eye"></i></button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="8" class="text-center text-muted py-4">No memos found</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-pagination [currentPage]="currentPage" [pageSize]="pageSize" [totalElements]="totalElements" [totalPages]="totalPages" (pageChange)="onPageChange($event)"></app-pagination>
+      }
     </div>
   </div>
 }
 
+<!-- ============ DETAIL VIEW ============ -->
 @if (showDetailView && detailMemo) {
   <div class="page-container">
     <div class="page-header">
-      <h1><i class="fas fa-memo"></i> Memo Detail</h1>
+      <h1><i class="fas fa-file-alt"></i> Memo Detail</h1>
       <button class="btn btn-secondary" (click)="backToList()"><i class="fas fa-arrow-left"></i> Back to List</button>
     </div>
 
-    <div class="card mb-4">
+    <!-- Top Info Card -->
+    <div class="card glass-card mb-4">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">{{ detailMemo.memoNo || 'MEMO-' + detailMemo.id }} - {{ detailMemo.title }}</h5>
+        <h5 class="mb-0">{{ detailMemo.memoNo }} - {{ detailMemo.title }}</h5>
         <div>
           <span class="badge me-2" [class]="getStatusBadge(detailMemo.status)">{{ detailMemo.status }}</span>
           <span class="badge" [class]="getPriorityBadge(detailMemo.priority)">{{ detailMemo.priority }}</span>
+          @if (detailMemo.isUrgent) { <span class="badge badge-danger ms-1"><i class="fas fa-bolt"></i> URGENT</span> }
         </div>
       </div>
       <div class="card-body">
         <div class="row mb-3">
-          <div class="col-md-3"><strong>Memo Type:</strong> {{ detailMemo.memoTypeName || detailMemo.memoType?.name || '-' }}</div>
-          <div class="col-md-3"><strong>Department:</strong> {{ detailMemo.departmentName || detailMemo.department?.name || '-' }}</div>
-          <div class="col-md-3"><strong>Branch:</strong> {{ detailMemo.branchName || detailMemo.branch?.name || '-' }}</div>
+          <div class="col-md-3"><strong>Memo Type:</strong> {{ detailMemo.memoType?.name || '-' }}</div>
+          <div class="col-md-3"><strong>Department:</strong> {{ detailMemo.department?.name || '-' }}</div>
+          <div class="col-md-3"><strong>Branch:</strong> {{ detailMemo.branch?.name || '-' }}</div>
           <div class="col-md-3"><strong>Amount:</strong> {{ detailMemo.amount ? (detailMemo.amount | number) : '-' }}</div>
         </div>
         <div class="row mb-3">
-          <div class="col-md-3"><strong>Created By:</strong> {{ detailMemo.createdByName || detailMemo.createdByUser?.name || '-' }}</div>
-          <div class="col-md-3"><strong>Created Date:</strong> {{ detailMemo.createdAt | date:'medium' }}</div>
-          <div class="col-md-3"><strong>Updated Date:</strong> {{ detailMemo.updatedAt | date:'medium' }}</div>
+          <div class="col-md-3"><strong>Created By:</strong> {{ detailMemo.createdByUser?.name || '-' }}</div>
+          <div class="col-md-3"><strong>Created:</strong> {{ detailMemo.createdDate | date:'medium' }}</div>
+          <div class="col-md-3"><strong>Current Approver:</strong> {{ detailMemo.currentApprover?.name || '-' }}</div>
+          <div class="col-md-3"><strong>Approval:</strong> Level {{ detailMemo.approvalLevel }}/{{ detailMemo.totalApprovalLevels }}</div>
         </div>
-        <div class="mb-3">
-          <strong>Description:</strong>
-          <p class="mt-2 mb-0 text-muted" style="white-space: pre-wrap;">{{ detailMemo.description }}</p>
-        </div>
+        @if (detailMemo.description) {
+          <div class="mb-3">
+            <strong>Description:</strong>
+            <p class="mt-2 mb-0 text-muted" style="white-space: pre-wrap;">{{ detailMemo.description }}</p>
+          </div>
+        }
       </div>
     </div>
 
+    <!-- Content (Rich Text) -->
+    @if (detailMemo.content) {
+      <div class="card glass-card mb-4">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-align-left"></i> Memo Content</h5></div>
+        <div class="card-body" [innerHTML]="detailMemo.content"></div>
+      </div>
+    }
+
+    <!-- Approval Hierarchy -->
     @if (approvalHistory.length > 0) {
-      <div class="card mb-4">
-        <div class="card-header"><h5 class="mb-0"><i class="fas fa-history"></i> Approval Timeline</h5></div>
+      <div class="card glass-card mb-4">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-sitemap"></i> Approval Hierarchy</h5></div>
+        <div class="card-body">
+          <div class="approval-flow">
+            @for(h of approvalHistory; track h.id; let i = $index; let last = $last) {
+              <div class="flow-node" [class.approved]="h.action.toString().includes('APPROVED')" [class.rejected]="h.action === 'REJECTED'" [class.pending]="h.action === 'PENDING_APPROVAL'">
+                <div class="flow-icon">
+                  @if (h.action.toString().includes('APPROVED')) { <i class="fas fa-check-circle"></i> }
+                  @else if (h.action === 'REJECTED') { <i class="fas fa-times-circle"></i> }
+                  @else if (h.action === 'PENDING_APPROVAL') { <i class="fas fa-paper-plane"></i> }
+                  @else { <i class="fas fa-circle"></i> }
+                </div>
+                <div class="flow-content">
+                  <div class="flow-user">{{ h.approver?.name || 'System' }}</div>
+                  <div class="flow-action">{{ h.action }} <small class="text-muted">(Level {{ h.approvalLevel }})</small></div>
+                  @if (h.remarks) { <div class="flow-remarks">"{{ h.remarks }}"</div> }
+                  <div class="flow-time">{{ h.actionDate | date:'medium' }}</div>
+                </div>
+                @if (!last) { <div class="flow-line"></div> }
+              </div>
+            }
+            @if (detailMemo.status === 'PENDING_APPROVAL' && detailMemo.currentApprover) {
+              <div class="flow-node pending">
+                <div class="flow-icon"><i class="fas fa-hourglass-half"></i></div>
+                <div class="flow-content">
+                  <div class="flow-user">{{ detailMemo.currentApprover.name }}</div>
+                  <div class="flow-action">Waiting for approval</div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Timeline -->
+    @if (approvalHistory.length > 0) {
+      <div class="card glass-card mb-4">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-history"></i> Timeline</h5></div>
         <div class="card-body">
           <div class="timeline">
             @for(h of approvalHistory; track h.id) {
               <div class="timeline-item d-flex mb-3">
-                <div class="timeline-icon me-3 text-center" style="width: 32px;">
-                  <i class="fas" [class]="getStatusIcon(h.action || h.status)"></i>
-                </div>
+                <div class="timeline-icon me-3 text-center" style="width: 32px;"><i class="fas" [class]="getStatusIcon(h.action || h.status)"></i></div>
                 <div class="timeline-content flex-grow-1">
                   <div class="d-flex justify-content-between">
-                    <strong>{{ h.action || h.status }} by {{ h.performedByName || h.user?.name || '-' }}</strong>
-                    <small class="text-muted">{{ h.createdAt | date:'medium' }}</small>
+                    <strong>{{ h.action }} by {{ h.approver?.name || '-' }}</strong>
+                    <small class="text-muted">{{ h.actionDate | date:'medium' }}</small>
                   </div>
                   @if (h.remarks) { <p class="mb-0 text-muted small">{{ h.remarks }}</p> }
                 </div>
@@ -103,16 +217,14 @@
       </div>
     }
 
+    <!-- Routing -->
     @if (memoRouting.length > 0) {
-      <div class="card mb-4">
-        <div class="card-header"><h5 class="mb-0"><i class="fas fa-route"></i> Branch Routing Path</h5></div>
+      <div class="card glass-card mb-4">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-route"></i> Routing Path</h5></div>
         <div class="card-body">
           <div class="d-flex flex-wrap align-items-center">
             @for(r of memoRouting; track r.id; let last = $last) {
-              <div class="text-center mx-2">
-                <div class="badge badge-info mb-1">{{ r.branchName || r.branch?.name || 'Branch ' + r.stepOrder }}</div>
-                <div><small class="text-muted">{{ r.status || 'Pending' }}</small></div>
-              </div>
+              <div class="text-center mx-2"><div class="badge badge-info mb-1">{{ r.toBranch?.name || 'Branch' }}</div><div><small class="text-muted">{{ r.status }}</small></div></div>
               @if (!last) { <i class="fas fa-arrow-right mx-2 text-muted"></i> }
             }
           </div>
@@ -120,69 +232,70 @@
       </div>
     }
 
-    <div class="card mb-4">
-      <div class="card-header"><h5 class="mb-0"><i class="fas fa-paperclip"></i> Documents</h5></div>
-      <div class="card-body">
-        @if (detailMemo.documents && detailMemo.documents.length > 0) {
-          <ul class="list-unstyled mb-0">
-            @for(doc of detailMemo.documents; track doc.id) {
-              <li><i class="fas fa-file me-2"></i>{{ doc.fileName || doc.name }} <span class="text-muted small">({{ doc.fileSize || '' }})</span></li>
+    <!-- CC -->
+    @if (ccRecipients.length > 0) {
+      <div class="card glass-card mb-4">
+        <div class="card-header"><h5 class="mb-0"><i class="fas fa-at"></i> CC Recipients</h5></div>
+        <div class="card-body">
+          <div class="d-flex flex-wrap gap-2">
+            @for(cc of ccRecipients; track cc.id) {
+              <div class="cc-chip" [class.acknowledged]="cc.acknowledged"><i class="fas fa-user me-1"></i> {{ cc.user?.name || 'User #' + cc.user?.id }}
+                @if (cc.acknowledged) { <i class="fas fa-check-circle text-success ms-1"></i> }
+                @else { <i class="fas fa-clock text-warning ms-1"></i> }
+              </div>
             }
-          </ul>
-        } @else {
-          <p class="text-muted mb-0">No documents attached</p>
-        }
+          </div>
+        </div>
       </div>
+    }
+
+    <!-- Documents -->
+    <div class="card glass-card mb-4">
+      <div class="card-header"><h5 class="mb-0"><i class="fas fa-paperclip"></i> Documents</h5></div>
+      <div class="card-body"><app-memo-document-upload [memoId]="detailMemo.id"></app-memo-document-upload></div>
     </div>
 
-    <div class="card mb-4">
-      <div class="card-body d-flex gap-2 flex-wrap">
-        @if (canEdit) {
-          <button class="btn btn-outline-primary" (click)="openEditModal(editModal, detailMemo)"><i class="fas fa-edit"></i> Edit</button>
-        }
-        @if (canSubmit) {
-          <button class="btn btn-primary" (click)="submitMemo()"><i class="fas fa-paper-plane"></i> Submit</button>
-        }
-        @if (canApprove) {
-          <button class="btn btn-success" (click)="approveMemo()"><i class="fas fa-check"></i> Approve</button>
-        }
-        @if (canReturn) {
-          <button class="btn btn-warning" (click)="returnMemo()"><i class="fas fa-undo"></i> Return</button>
-        }
-        @if (canReject) {
-          <button class="btn btn-danger" (click)="rejectMemo()"><i class="fas fa-times"></i> Reject</button>
-        }
+    <!-- Actions -->
+    <div class="card glass-card mb-4">
+      <div class="card-body d-flex gap-2 flex-wrap align-items-center">
+        @if (canEdit) { <button class="btn btn-outline-primary" (click)="openEditModal(editModal, detailMemo)"><i class="fas fa-edit"></i> Edit</button> }
+        @if (canSubmit) { <button class="btn btn-primary" (click)="submitMemo()"><i class="fas fa-paper-plane"></i> Submit</button> }
+        @if (canApprove) { <button class="btn btn-success" (click)="approveMemo()"><i class="fas fa-check"></i> Approve</button> }
+        @if (canReturn) { <button class="btn btn-warning" (click)="returnMemo()"><i class="fas fa-undo"></i> Return</button> }
+        @if (canReject) { <button class="btn btn-danger" (click)="rejectMemo()"><i class="fas fa-times"></i> Reject</button> }
         @if (canForward) {
           <div class="d-flex align-items-center gap-2 ms-3">
-            <select class="form-control" style="width: auto;" [(ngModel)]="forwardUserId">
-              <option value="">Forward to...</option>
-              @for(u of users; track u.id) { <option [value]="u.id">{{ u.name }}</option> }
-            </select>
+            <select class="form-control" style="width: auto;" [(ngModel)]="forwardUserId"><option value="">Forward to...</option>@for(u of users; track u.id) { <option [value]="u.id">{{ u.name }}</option> }</select>
             <input class="form-control" style="width: auto;" placeholder="Remarks" [(ngModel)]="remarks">
             <button class="btn btn-info" (click)="forwardMemo()"><i class="fas fa-forward"></i> Forward</button>
           </div>
         }
-        @if (canCancel) {
-          <button class="btn btn-secondary" (click)="cancelMemo()"><i class="fas fa-ban"></i> Cancel</button>
-        }
+        <button class="btn btn-outline-primary" (click)="exportPdf()"><i class="fas fa-download"></i> PDF</button>
+        @if (canCancel) { <button class="btn btn-secondary" (click)="cancelMemo()"><i class="fas fa-ban"></i> Cancel</button> }
+        @if (isCurrentUserCcUnacknowledged) { <button class="btn btn-outline-success ms-auto" (click)="acknowledgeMemo()"><i class="fas fa-check-double"></i> Acknowledge</button> }
       </div>
     </div>
   </div>
 }
 
+<!-- ============ CREATE MODAL ============ -->
 <ng-template #createModal let-modal>
-  <div class="modal-header"><h5 class="modal-title">Create Memo</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
+  <div class="modal-header"><h5 class="modal-title"><i class="fas fa-pen-fancy"></i> Compose Memo</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
   <div class="modal-body">
-    <div class="form-group mb-3"><label>Title</label><input class="form-control" [(ngModel)]="selectedMemo.title" required></div>
-    <div class="form-group mb-3"><label>Description</label><textarea class="form-control" rows="5" [(ngModel)]="selectedMemo.description" required></textarea></div>
+    <div class="form-group mb-3">
+      <label>Title <span class="text-danger">*</span></label>
+      <input class="form-control" [(ngModel)]="selectedMemo.title" placeholder="Enter memo title" required>
+    </div>
     <div class="row">
-      <div class="col-md-6 mb-3"><label>Memo Type</label>
+      <div class="col-md-6 mb-3">
+        <label>Memo Type</label>
         <select class="form-control" [(ngModel)]="selectedMemo.memoTypeId" (change)="onDepartmentOrTypeChange()">
           <option value="">Select Type</option>
           @for(t of memoTypes; track t.id) { <option [value]="t.id">{{ t.name }}</option> }
         </select>
       </div>
-      <div class="col-md-6 mb-3"><label>Department</label>
+      <div class="col-md-6 mb-3">
+        <label>Department</label>
         <select class="form-control" [(ngModel)]="selectedMemo.departmentId" (change)="onDepartmentOrTypeChange()">
           <option value="">Select Department</option>
           @for(d of departments; track d.id) { <option [value]="d.id">{{ d.name }}</option> }
@@ -190,76 +303,81 @@
       </div>
     </div>
     <div class="row">
-      <div class="col-md-6 mb-3"><label>Branch</label>
-        <select class="form-control" [(ngModel)]="selectedMemo.branchId">
-          <option value="">Select Branch</option>
-          @for(b of branches; track b.id) { <option [value]="b.id">{{ b.name }}</option> }
-        </select>
+      <div class="col-md-4 mb-3"><label>Branch</label>
+        <select class="form-control" [(ngModel)]="selectedMemo.branchId"><option value="">Select Branch</option>@for(b of branches; track b.id) { <option [value]="b.id">{{ b.name }}</option> }</select>
       </div>
-      <div class="col-md-3 mb-3"><label>Priority</label>
-        <select class="form-control" [(ngModel)]="selectedMemo.priority">
-          <option value="LOW">Low</option><option value="MEDIUM">Medium</option>
-          <option value="HIGH">High</option><option value="URGENT">Urgent</option>
-        </select>
+      <div class="col-md-4 mb-3"><label>Priority</label>
+        <select class="form-control" [(ngModel)]="selectedMemo.priority"><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="URGENT">Urgent</option></select>
       </div>
-      <div class="col-md-3 mb-3"><label>Amount</label><input class="form-control" type="number" min="0" [(ngModel)]="selectedMemo.amount"></div>
+      <div class="col-md-4 mb-3"><label>Amount (NPR)</label><input class="form-control" type="number" min="0" [(ngModel)]="selectedMemo.amount"></div>
     </div>
+    <div class="form-group mb-3"><label>Description</label><textarea class="form-control" rows="4" [(ngModel)]="selectedMemo.description" placeholder="Brief description"></textarea></div>
     <div class="form-group mb-3"><label>Template <small class="text-muted">(filtered by department/type)</small></label>
       <select class="form-control" [(ngModel)]="selectedMemo.templateId" (change)="onTemplateChange()">
         <option value="">Select Template</option>
         @for(t of filteredTemplates; track t.id) { <option [value]="t.id">{{ t.name }}</option> }
       </select>
     </div>
+    <div class="card mb-3" style="border:1px solid var(--nexmemo-border-light);">
+      <div class="card-header py-2"><strong><i class="fas fa-receipt"></i> Expense Details</strong></div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-4 mb-3"><label>Expense Category</label>
+            <select class="form-control" [(ngModel)]="selectedMemo.expenseCategoryId"><option value="">Select Category</option>@for(c of expenseCategories; track c.id) { <option [value]="c.id">{{ c.categoryName }}</option> }</select>
+          </div>
+          <div class="col-md-4 mb-3"><label>Budget Code</label><input class="form-control" [(ngModel)]="selectedMemo.budgetCode" placeholder="e.g., TRAV-2026-001"></div>
+          <div class="col-md-4 mb-3"><label>Payment Method</label>
+            <select class="form-control" [(ngModel)]="selectedMemo.paymentMethod"><option value="BANK_TRANSFER">Bank Transfer</option><option value="CHEQUE">Cheque</option><option value="CASH">Cash</option><option value="CARD">Card</option><option value="ONLINE">Online Payment</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-3"><label>Vendor Name</label><input class="form-control" [(ngModel)]="selectedMemo.vendorName"></div>
+          <div class="col-md-4 mb-3"><label>Vendor Account</label><input class="form-control" [(ngModel)]="selectedMemo.vendorAccount"></div>
+          <div class="col-md-4 mb-3"><label>Expected Date</label><input class="form-control" type="date" [(ngModel)]="selectedMemo.expectedDate"></div>
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-3"><label>Fiscal Year</label>
+            <select class="form-control" [(ngModel)]="selectedMemo.fiscalYearId"><option value="">Select FY</option>@for(fy of fiscalYears; track fy.id) { <option [value]="fy.id">{{ fy.name || fy.fiscalYearName }}</option> }</select>
+          </div>
+          <div class="col-md-4 mb-3"><label>Urgent</label><div class="form-check mt-2"><input type="checkbox" class="form-check-input" id="isUrgent" [(ngModel)]="selectedMemo.isUrgent"><label class="form-check-label" for="isUrgent">Mark as Urgent</label></div></div>
+        </div>
+      </div>
+    </div>
+    <hr>
+    <label class="mb-2"><strong>CC Recipients</strong></label>
+    <div class="cc-grid">
+      @for(u of users; track u.id) {
+        @if (u.id !== currentUserId) {
+          <div class="cc-checkbox" (click)="toggleCcUser(u.id)" [class.selected]="isCcSelected(u.id)"><i class="fas fa-user"></i><span>{{ u.name }} ({{ u.username }})</span><i class="fas fa-check check-icon" [class.visible]="isCcSelected(u.id)"></i></div>
+        }
+      }
+    </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
-    <button class="btn btn-primary" (click)="saveMemo()">Create</button>
+    <button class="btn btn-primary" (click)="saveMemo()"><i class="fas fa-save"></i> Save as Draft</button>
   </div>
 </ng-template>
 
+<!-- ============ EDIT MODAL ============ -->
 <ng-template #editModal let-modal>
   <div class="modal-header"><h5 class="modal-title">Edit Memo</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
   <div class="modal-body">
-    <div class="form-group mb-3"><label>Title</label><input class="form-control" [(ngModel)]="selectedMemo.title" required></div>
-    <div class="form-group mb-3"><label>Description</label><textarea class="form-control" rows="5" [(ngModel)]="selectedMemo.description" required></textarea></div>
+    <div class="form-group mb-3"><label>Title <span class="text-danger">*</span></label><input class="form-control" [(ngModel)]="selectedMemo.title"></div>
+    <div class="form-group mb-3"><label>Description</label><textarea class="form-control" rows="4" [(ngModel)]="selectedMemo.description"></textarea></div>
     <div class="row">
       <div class="col-md-6 mb-3"><label>Memo Type</label>
-        <select class="form-control" [(ngModel)]="selectedMemo.memoTypeId" (change)="onDepartmentOrTypeChange()">
-          <option value="">Select Type</option>
-          @for(t of memoTypes; track t.id) { <option [value]="t.id">{{ t.name }}</option> }
-        </select>
+        <select class="form-control" [(ngModel)]="selectedMemo.memoTypeId"><option value="">Select Type</option>@for(t of memoTypes; track t.id) { <option [value]="t.id">{{ t.name }}</option> }</select>
       </div>
       <div class="col-md-6 mb-3"><label>Department</label>
-        <select class="form-control" [(ngModel)]="selectedMemo.departmentId" (change)="onDepartmentOrTypeChange()">
-          <option value="">Select Department</option>
-          @for(d of departments; track d.id) { <option [value]="d.id">{{ d.name }}</option> }
-        </select>
+        <select class="form-control" [(ngModel)]="selectedMemo.departmentId"><option value="">Select Department</option>@for(d of departments; track d.id) { <option [value]="d.id">{{ d.name }}</option> }</select>
       </div>
     </div>
     <div class="row">
-      <div class="col-md-6 mb-3"><label>Branch</label>
-        <select class="form-control" [(ngModel)]="selectedMemo.branchId">
-          <option value="">Select Branch</option>
-          @for(b of branches; track b.id) { <option [value]="b.id">{{ b.name }}</option> }
-        </select>
-      </div>
-      <div class="col-md-3 mb-3"><label>Priority</label>
-        <select class="form-control" [(ngModel)]="selectedMemo.priority">
-          <option value="LOW">Low</option><option value="MEDIUM">Medium</option>
-          <option value="HIGH">High</option><option value="URGENT">Urgent</option>
-        </select>
-      </div>
-      <div class="col-md-3 mb-3"><label>Amount</label><input class="form-control" type="number" min="0" [(ngModel)]="selectedMemo.amount"></div>
-    </div>
-    <div class="form-group mb-3"><label>Template <small class="text-muted">(filtered by department/type)</small></label>
-      <select class="form-control" [(ngModel)]="selectedMemo.templateId" (change)="onTemplateChange()">
-        <option value="">Select Template</option>
-        @for(t of filteredTemplates; track t.id) { <option [value]="t.id">{{ t.name }}</option> }
-      </select>
+      <div class="col-md-4 mb-3"><label>Branch</label><select class="form-control" [(ngModel)]="selectedMemo.branchId"><option value="">Select Branch</option>@for(b of branches; track b.id) { <option [value]="b.id">{{ b.name }}</option> }</select></div>
+      <div class="col-md-4 mb-3"><label>Priority</label><select class="form-control" [(ngModel)]="selectedMemo.priority"><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="URGENT">Urgent</option></select></div>
+      <div class="col-md-4 mb-3"><label>Amount (NPR)</label><input class="form-control" type="number" min="0" [(ngModel)]="selectedMemo.amount"></div>
     </div>
   </div>
-  <div class="modal-footer">
-    <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
-    <button class="btn btn-primary" (click)="saveMemo()">Save</button>
-  </div>
+  <div class="modal-footer"><button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button><button class="btn btn-primary" (click)="saveMemo()">Save</button></div>
 </ng-template>

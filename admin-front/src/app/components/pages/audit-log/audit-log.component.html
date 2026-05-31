@@ -1,0 +1,127 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fas fa-history"></i> Audit Logs</h1>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-sm me-2" (click)="showFilters = !showFilters">
+        <i class="fas fa-filter"></i> Filters
+      </button>
+      <button class="btn btn-outline-secondary btn-sm" (click)="loadLogs()">
+        <i class="fas fa-sync"></i> Refresh
+      </button>
+    </div>
+  </div>
+
+  @if (showFilters) {
+    <div class="card mb-3 filter-card animate-slide-down">
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-2">
+            <label class="form-label small text-muted">Action</label>
+            <select class="form-control form-control-sm" [(ngModel)]="filterAction">
+              <option value="">All Actions</option>
+              @for (a of actionOptions; track a) {
+                <option [value]="a">{{ a }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small text-muted">Status</label>
+            <select class="form-control form-control-sm" [(ngModel)]="filterStatus">
+              <option value="">All Statuses</option>
+              @for (s of statusOptions; track s) {
+                <option [value]="s">{{ s }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small text-muted">Username</label>
+            <input class="form-control form-control-sm" type="text" placeholder="Search username..."
+                   [(ngModel)]="filterUsername" (keyup.enter)="onSearch()">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small text-muted">From</label>
+            <input class="form-control form-control-sm" type="datetime-local" [(ngModel)]="filterDateFrom">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small text-muted">To</label>
+            <input class="form-control form-control-sm" type="datetime-local" [(ngModel)]="filterDateTo">
+          </div>
+          <div class="col-md-2 d-flex gap-1">
+            <button class="btn btn-primary btn-sm flex-fill" (click)="onSearch()">
+              <i class="fas fa-search"></i> Search
+            </button>
+            <button class="btn btn-ghost btn-sm" (click)="clearFilters()" title="Clear">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Action</th>
+            <th>Status</th>
+            <th>User</th>
+            <th>Entity</th>
+            <th>IP Address</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading) {
+            <tr><td colspan="7" class="text-center py-4">
+              <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+            </td></tr>
+          } @else {
+            @for (log of logs; track log.id) {
+              <tr>
+                <td class="text-nowrap"><small>{{ log.createdDate | date:'medium' }}</small></td>
+                <td>
+                  <span class="action-badge">
+                    <i class="fas" [class]="getActionIcon(log.action)"></i>
+                    {{ log.action }}
+                  </span>
+                </td>
+                <td>
+                  <span class="status-dot" [style.background]="getStatusColor(log.status)"></span>
+                  <span class="badge" [class]="getStatusBadge(log.status)">{{ log.status }}</span>
+                </td>
+                <td>
+                  <small>{{ log.performedByUsername || 'System' }}</small>
+                  @if (log.performedById) {
+                    <br><small class="text-muted">#{{ log.performedById }}</small>
+                  }
+                </td>
+                <td>
+                  @if (log.entityType) {
+                    <span class="badge badge-info badge-sm">{{ log.entityType }}</span>
+                    @if (log.entityId) { <code class="ms-1">#{{ log.entityId }}</code> }
+                  } @else { <span class="text-muted">-</span> }
+                </td>
+                <td><small class="font-monospace">{{ log.ipAddress || '-' }}</small></td>
+                <td>
+                  <small class="text-muted">{{ truncate(log.details, 60) }}</small>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="7" class="text-center text-muted py-4">No audit logs found</td></tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pagination
+      [currentPage]="currentPage"
+      [pageSize]="pageSize"
+      [totalElements]="totalElements"
+      [totalPages]="totalPages"
+      (pageChange)="onPageChange($event)">
+    </app-pagination>
+  </div>
+</div>

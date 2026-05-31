@@ -20,7 +20,7 @@ export class SystemConfigService {
   }
 
   seedDefaults(): Observable<any> {
-    return this.http.post<any>(`${ApiConfig.URL}/api/v1/system-configs/seed`, {});
+    return this.http.post<any>(`${ApiConfig.URL}/api/v1/system-configs/seed-defaults`, {});
   }
 
   getEmailConfig(): Observable<any> {

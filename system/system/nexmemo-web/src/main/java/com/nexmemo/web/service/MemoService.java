@@ -7,6 +7,7 @@ import com.nexmemo.core.enums.MemoStatus;
 import com.nexmemo.core.enums.Priority;
 import com.nexmemo.core.repository.*;
 import com.nexmemo.security.repository.BranchRepository;
+import com.nexmemo.core.repository.MemoTemplateRepository;
 import com.nexmemo.security.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -14,12 +15,15 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -39,13 +43,18 @@ public class MemoService {
     private final MemoTypeRepository memoTypeRepository;
     private final BudgetAllocationRepository budgetAllocationRepository;
     private final LeaveTrackerRepository leaveTrackerRepository;
+    private final MemoCcRepository memoCcRepository;
+    private final MemoTemplateRepository memoTemplateRepository;
     private final ApprovalEngineService approvalEngineService;
+    private final NotificationService notificationService;
+    private final com.nexmemo.web.storage.StorageService storageService;
 
     @Data
     public static class CreateMemoRequest {
         @NotBlank
         private String title;
         private String description;
+        private String content;
         private Long memoTypeId;
         private Long departmentId;
         private Long branchId;
@@ -53,11 +62,17 @@ public class MemoService {
         private Priority priority;
         private BigDecimal amount;
         private Long templateId;
+        private List<Long> ccUserIds;
     }
 
     @Transactional(readOnly = true)
     public List<Memo> getAllMemos() {
         return memoRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Memo> getAllMemosPaginated(Pageable pageable) {
+        return memoRepository.findAllActive(pageable);
     }
 
     @Transactional(readOnly = true)
@@ -72,6 +87,11 @@ public class MemoService {
             throw new EntityNotFoundException("User not found with id: " + userId);
         }
         return memoRepository.findByCreatedBy(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Memo> getMemosByCreatorPaginated(Long userId, Pageable pageable) {
+        return memoRepository.findByCreatedBy(userId, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -123,9 +143,17 @@ public class MemoService {
                     .orElseThrow(() -> new EntityNotFoundException("Branch not found with id: " + request.getBranchId()));
         }
 
+        String templateContent = null;
+        if (request.getTemplateId() != null) {
+            templateContent = memoTemplateRepository.findById(request.getTemplateId())
+                    .map(MemoTemplate::getContent).orElse(null);
+            log.debug("Template {} content loaded for memo creation", request.getTemplateId());
+        }
+
         Memo memo = new Memo();
         memo.setTitle(request.getTitle());
         memo.setDescription(request.getDescription());
+        memo.setContent(request.getContent() != null ? request.getContent() : templateContent);
         memo.setMemoNo(generateMemoNo(null));
         memo.setStatus(MemoStatus.DRAFT);
         memo.setPriority(request.getPriority() != null ? request.getPriority() : Priority.MEDIUM);
@@ -135,7 +163,23 @@ public class MemoService {
         memo.setAmount(request.getAmount());
 
         memo = memoRepository.save(memo);
-        log.info("Memo created: {} by user {}", memo.getMemoNo(), creatorId);
+        log.info("Memo created: id={} memoNo={} by userId={}", memo.getId(), memo.getMemoNo(), creatorId);
+        final Memo savedMemo = memo;
+
+        if (request.getCcUserIds() != null) {
+            for (Long ccUserId : request.getCcUserIds()) {
+                userRepository.findById(ccUserId).ifPresent(ccUser -> {
+                    MemoCc cc = new MemoCc();
+                    cc.setMemo(savedMemo);
+                    cc.setUser(ccUser);
+                    cc.setAcknowledged(false);
+                    memoCcRepository.save(cc);
+                    log.debug("CC user {} added to memo {}", ccUserId, savedMemo.getId());
+                });
+            }
+        }
+
+        log.info("Memo created complete: {} by user {}", memo.getMemoNo(), creatorId);
         return memo;
     }
 
@@ -173,6 +217,14 @@ public class MemoService {
         approvalHistoryRepository.save(history);
 
         log.info("Memo {} submitted by user {}, next approver: {}", memo.getMemoNo(), userId, nextApprover.getId());
+
+        notificationService.createNotification(
+                nextApprover.getId(),
+                "Memo Pending Approval",
+                "Memo " + memo.getMemoNo() + " (" + memo.getTitle() + ") requires your approval",
+                "MEMO_APPROVAL", memo.getId(), "MEMO");
+        log.debug("Notification sent to approver userId={} for memo {}", nextApprover.getId(), memo.getId());
+
         return memo;
     }
 
@@ -210,11 +262,29 @@ public class MemoService {
             memo.setApprovedDate(LocalDateTime.now());
             memo.setCurrentApprover(null);
             log.info("Memo {} fully approved", memo.getMemoNo());
+
+            notificationService.createNotification(
+                    memo.getCreatedBy(),
+                    "Memo Approved",
+                    "Your memo " + memo.getMemoNo() + " has been fully approved",
+                    "MEMO_APPROVED", memo.getId(), "MEMO");
         } else {
             User nextApprover = approvalEngineService.getNextApprover(memo, newLevel);
             memo.setCurrentApprover(nextApprover);
             log.info("Memo {} approved at level {}, next approver: {}",
                     memo.getMemoNo(), newLevel, nextApprover.getId());
+
+            notificationService.createNotification(
+                    memo.getCreatedBy(),
+                    "Memo Partially Approved",
+                    "Your memo " + memo.getMemoNo() + " was approved at level " + newLevel + " by " + approver.getName(),
+                    "MEMO_APPROVAL", memo.getId(), "MEMO");
+
+            notificationService.createNotification(
+                    nextApprover.getId(),
+                    "Memo Pending Approval",
+                    "Memo " + memo.getMemoNo() + " (" + memo.getTitle() + ") requires your approval (Level " + (newLevel + 1) + ")",
+                    "MEMO_APPROVAL", memo.getId(), "MEMO");
         }
 
         memo = memoRepository.save(memo);
@@ -246,6 +316,14 @@ public class MemoService {
         approvalHistoryRepository.save(history);
 
         log.info("Memo {} rejected by user {}", memo.getMemoNo(), approverId);
+
+        notificationService.createNotification(
+                memo.getCreatedBy(),
+                "Memo Rejected",
+                "Your memo " + memo.getMemoNo() + " was rejected by " + approver.getName()
+                        + (remarks != null ? ": " + remarks : ""),
+                "MEMO_REJECTED", memo.getId(), "MEMO");
+
         return memo;
     }
 
@@ -426,9 +504,9 @@ public class MemoService {
     }
 
     public void removeDocument(Long documentId) {
-        if (!memoDocumentRepository.existsById(documentId)) {
-            throw new EntityNotFoundException("MemoDocument not found with id: " + documentId);
-        }
+        MemoDocument doc = memoDocumentRepository.findById(documentId)
+                .orElseThrow(() -> new EntityNotFoundException("MemoDocument not found with id: " + documentId));
+        storageService.delete(doc.getFilePath());
         memoDocumentRepository.deleteById(documentId);
         log.info("Document removed: {}", documentId);
     }
@@ -459,6 +537,30 @@ public class MemoService {
             return String.format("NEXM-%04d", sequence);
         }
         return String.format("NEXM-%d-%04d", fiscalYearId, sequence);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MemoCc> getMemoCcList(Long memoId) {
+        if (!memoRepository.existsById(memoId)) {
+            throw new EntityNotFoundException("Memo not found with id: " + memoId);
+        }
+        return memoCcRepository.findByMemoId(memoId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Memo> getMyCcMemos(Long userId) {
+        List<MemoCc> ccList = memoCcRepository.findByUserId(userId);
+        return ccList.stream().map(MemoCc::getMemo).toList();
+    }
+
+    public MemoCc acknowledgeMemo(Long memoId, Long userId) {
+        MemoCc cc = memoCcRepository.findByMemoIdAndUserId(memoId, userId)
+                .orElseThrow(() -> new EntityNotFoundException("CC entry not found for memo " + memoId + " and user " + userId));
+        cc.setAcknowledged(true);
+        cc.setAcknowledgedDate(LocalDateTime.now());
+        cc = memoCcRepository.save(cc);
+        log.info("Memo {} acknowledged by user {}", memoId, userId);
+        return cc;
     }
 
     private User findApproverForLevel(List<ApprovalHistory> historyList, int level) {

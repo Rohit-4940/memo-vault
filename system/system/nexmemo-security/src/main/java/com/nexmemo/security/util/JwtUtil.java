@@ -58,13 +58,15 @@ public class JwtUtil {
                 .compact();
     }
 
-    public String generateRefreshToken(Long userId) {
+    public String generateRefreshToken(Long userId, String username, String role) {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(securityProperties.getJwt().getRefreshTokenExpiryDays() * 86400L);
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .issuer(securityProperties.getJwt().getIssuer())
                 .subject(String.valueOf(userId))
+                .claim("username", username)
+                .claim("role", role)
                 .claim("type", "REFRESH")
                 .claim("token_family", UUID.randomUUID().toString().substring(0, 8))
                 .issuedAt(Date.from(now))
@@ -73,13 +75,15 @@ public class JwtUtil {
                 .compact();
     }
 
-    public String generateRefreshTokenWithFamily(Long userId, String tokenFamily) {
+    public String generateRefreshTokenWithFamily(Long userId, String username, String role, String tokenFamily) {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(securityProperties.getJwt().getRefreshTokenExpiryDays() * 86400L);
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .issuer(securityProperties.getJwt().getIssuer())
                 .subject(String.valueOf(userId))
+                .claim("username", username)
+                .claim("role", role)
                 .claim("type", "REFRESH")
                 .claim("token_family", tokenFamily)
                 .issuedAt(Date.from(now))

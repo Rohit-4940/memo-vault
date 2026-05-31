@@ -130,7 +130,7 @@ public class AuthService {
         String tokenFamily = UUID.randomUUID().toString().substring(0, 8);
         String accessToken = jwtUtil.generateAccessTokenWithFamily(user.getId(), user.getUsername(),
                 user.getRole().getRoleName(), tokenFamily);
-        String refreshToken = jwtUtil.generateRefreshTokenWithFamily(user.getId(), tokenFamily);
+        String refreshToken = jwtUtil.generateRefreshTokenWithFamily(user.getId(), user.getUsername(), user.getRole().getRoleName(), tokenFamily);
 
         RefreshToken rt = new RefreshToken();
         rt.setUser(user);
@@ -157,6 +157,7 @@ public class AuthService {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .role(user.getRole().getRoleName())
+                .roleId(user.getRole().getId())
                 .forcePasswordChange(user.getForcePasswordChange())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
@@ -236,7 +237,7 @@ public class AuthService {
 
         String newAccessToken = jwtUtil.generateAccessTokenWithFamily(user.getId(), user.getUsername(),
                 user.getRole().getRoleName(), tokenFamily);
-        String newRefreshToken = jwtUtil.generateRefreshTokenWithFamily(user.getId(), tokenFamily);
+        String newRefreshToken = jwtUtil.generateRefreshTokenWithFamily(user.getId(), user.getUsername(), user.getRole().getRoleName(), tokenFamily);
 
         RefreshToken newRt = new RefreshToken();
         newRt.setUser(user);
@@ -318,7 +319,7 @@ public class AuthService {
             }
 
             String resetToken = UUID.randomUUID().toString();
-            user.setResetPasswordToken(passwordEncoder.encode(resetToken));
+            user.setResetPasswordToken(sha256(resetToken));
             user.setResetPasswordTokenExpiry(
                     LocalDateTime.now().plusHours(securityProperties.getPassword().getResetTokenExpiryHours()));
             userRepository.save(user);
@@ -340,18 +341,11 @@ public class AuthService {
             throw new IllegalArgumentException("Passwords do not match");
         }
 
-        var users = userRepository.findAll();
-        User targetUser = null;
-
-        for (User u : users) {
-            if (u.getResetPasswordToken() != null && passwordEncoder.matches(token, u.getResetPasswordToken())) {
-                if (u.getResetPasswordTokenExpiry() != null &&
-                        LocalDateTime.now().isBefore(u.getResetPasswordTokenExpiry())) {
-                    targetUser = u;
-                    break;
-                }
-            }
-        }
+        String hashedToken = sha256(token);
+        User targetUser = userRepository.findByResetPasswordToken(hashedToken)
+                .filter(u -> u.getResetPasswordTokenExpiry() != null &&
+                        LocalDateTime.now().isBefore(u.getResetPasswordTokenExpiry()))
+                .orElse(null);
 
         if (targetUser == null) {
             recordAudit("PASSWORD_RESET_FAILED", null, null, ip, httpRequest,

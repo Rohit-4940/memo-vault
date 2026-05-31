@@ -27,17 +27,12 @@ export const TokenInterceptor: HttpInterceptorFn = (req, next) => {
       return next(req);
     }
     const isAccessTokenExpired = decodedToken.exp * 1000 < Date.now();
-    if (isAccessTokenExpired && storage?.at?.refreshToken) {
-      authReq = req.clone({
-        headers: header.set('Authorization', `Bearer ${storage.at.refreshToken}`)
-      });
-    } else {
+    if (!isAccessTokenExpired) {
       authReq = req.clone({
         headers: header.set('Authorization', `Bearer ${storage.at.accessToken}`)
       });
+      return next(authReq);
     }
-  } else {
-    return next(req);
   }
-  return next(authReq);
+  return next(req);
 };

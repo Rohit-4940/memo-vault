@@ -2,6 +2,7 @@ import {Component, OnInit} from '@angular/core';
 import {RouterLink, RouterLinkActive} from '@angular/router';
 import {SidebarService} from './sidebar.service';
 import {MenuService} from '../../../shared-services/api-service/menu.service';
+import {MenuPermissionService} from '../../../shared-services/api-service/menu-permission.service';
 import {LocalStorageUtil} from '../../../@core/utils/local-storage-util';
 import {NgClass, NgForOf, NgIf} from '@angular/common';
 
@@ -18,7 +19,8 @@ export class SidebarComponent implements OnInit {
 
   constructor(
     public sidebarService: SidebarService,
-    private menuService: MenuService
+    private menuService: MenuService,
+    private menuPermission: MenuPermissionService
   ) {
     this.sidebarService.isExpanded$.subscribe(v => this.isExpanded = v);
   }
@@ -32,32 +34,14 @@ export class SidebarComponent implements OnInit {
     const roleId = storage?.roleId;
     if (roleId) {
       this.menuService.getMenusByRole(roleId).subscribe({
-        next: (menus) => this.menuItems = menus,
-        error: () => this.menuItems = this.getDefaultMenus()
+        next: (menus) => {
+          this.menuItems = menus || [];
+          this.menuPermission.setAllowedUrls((menus || []).map((m: any) => m.frontUrl).filter(Boolean));
+        },
+        error: () => this.menuItems = []
       });
     } else {
-      this.menuItems = this.getDefaultMenus();
+      this.menuItems = [];
     }
-  }
-
-  private getDefaultMenus(): any[] {
-    return [
-      { menuName: 'Dashboard', faIcon: 'fas fa-chart-pie', frontUrl: '/layout/dashboard' },
-      { menuName: 'Users', faIcon: 'fas fa-users', frontUrl: '/layout/users' },
-      { menuName: 'Role & Permission', faIcon: 'fas fa-shield-alt', frontUrl: '/layout/role-permission' },
-      { menuName: 'Branch', faIcon: 'fas fa-building', frontUrl: '/layout/branch' },
-      { menuName: 'Department', faIcon: 'fas fa-sitemap', frontUrl: '/layout/department' },
-      { menuName: 'Memo Catalogue', faIcon: 'fas fa-folder-tree', frontUrl: '/layout/memo-catalogue' },
-      { menuName: 'Memo Type', faIcon: 'fas fa-tags', frontUrl: '/layout/memo-type' },
-      { menuName: 'Document List', faIcon: 'fas fa-list-check', frontUrl: '/layout/document-list' },
-      { menuName: 'Budget', faIcon: 'fas fa-coins', frontUrl: '/layout/budget' },
-      { menuName: 'Template', faIcon: 'fas fa-copy', frontUrl: '/layout/template' },
-      { menuName: 'Transfer Document', faIcon: 'fas fa-right-left', frontUrl: '/layout/transfer-document' },
-      { menuName: 'Document Compressor', faIcon: 'fas fa-compress', frontUrl: '/layout/document-compressor' },
-      { menuName: 'Task Manager', faIcon: 'fas fa-list-check', frontUrl: '/layout/task-manager' },
-      { menuName: 'Announcement', faIcon: 'fas fa-bullhorn', frontUrl: '/layout/announcement' },
-      { menuName: 'Request For Budget', faIcon: 'fas fa-hand-holding-dollar', frontUrl: '/layout/request-budget' },
-      { menuName: 'System Configuration', faIcon: 'fas fa-gears', frontUrl: '/layout/system-config' },
-    ];
   }
 }

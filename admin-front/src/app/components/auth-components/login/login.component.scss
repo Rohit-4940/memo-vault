@@ -1,42 +1,32 @@
 .login-page {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  position: relative; overflow: hidden; background: #0b1120;
+  position: relative; overflow: hidden; background: #070b17;
   font-family: var(--font-sans);
 }
 
 .login-bg {
   position: absolute; inset: 0; overflow: hidden;
   .gradient-orb {
-    position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4;
-    animation: orbFloat 25s ease-in-out infinite;
-    &.orb-1 { width: 600px; height: 600px; background: radial-gradient(circle, #4f46e5, transparent); top: -15%; left: -10%; animation-delay: 0s; }
-    &.orb-2 { width: 500px; height: 500px; background: radial-gradient(circle, #7c3aed, transparent); bottom: -20%; right: -10%; animation-delay: -8s; }
-    &.orb-3 { width: 400px; height: 400px; background: radial-gradient(circle, #06b6d4, transparent); top: 40%; left: 50%; animation-delay: -16s; }
+    position: absolute; border-radius: 50%; filter: blur(100px);
+    animation: orbFloat 20s ease-in-out infinite;
+    &.orb-1 { width: 700px; height: 700px; background: radial-gradient(circle, rgba(79,70,229,0.5), transparent 70%); top: -20%; left: -15%; animation-delay: 0s; }
+    &.orb-2 { width: 550px; height: 550px; background: radial-gradient(circle, rgba(124,58,237,0.4), transparent 70%); bottom: -25%; right: -10%; animation-delay: -7s; }
+    &.orb-3 { width: 450px; height: 450px; background: radial-gradient(circle, rgba(6,182,212,0.3), transparent 70%); top: 50%; left: 55%; animation-delay: -14s; }
   }
   .grid-overlay {
     position: absolute; inset: 0;
-    background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
     background-size: 60px 60px;
-  }
-  .particle {
-    position: absolute; border-radius: 50%;
-    background: linear-gradient(135deg, var(--nexmemo-primary-light), var(--nexmemo-accent-light));
-    pointer-events: none; animation: particleFall 12s linear infinite;
   }
 }
 
 @keyframes orbFloat {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(30px, -40px) scale(1.05); }
-  50% { transform: translate(-20px, 20px) scale(0.95); }
-  75% { transform: translate(40px, -20px) scale(1.02); }
-}
-@keyframes particleFall {
-  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateY(-110vh) rotate(360deg); opacity: 0; }
+  25% { transform: translate(40px, -50px) scale(1.08); }
+  50% { transform: translate(-30px, 30px) scale(0.92); }
+  75% { transform: translate(50px, -30px) scale(1.05); }
 }
 
 .login-container {
@@ -83,6 +73,7 @@
   i { font-size: 1rem; flex-shrink: 0; }
   &.alert-error { background: rgba(239,68,68,0.12); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
   &.alert-info { background: rgba(59,130,246,0.12); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
+  &.alert-success { background: rgba(16,185,129,0.12); color: #86efac; border: 1px solid rgba(16,185,129,0.2); }
 }
 
 .login-form {

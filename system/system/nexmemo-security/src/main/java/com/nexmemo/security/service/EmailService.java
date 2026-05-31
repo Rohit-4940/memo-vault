@@ -38,6 +38,16 @@ public class EmailService {
     // ── Email triggers ────────────────────────────────────────────────────────
 
     @Async
+    public void sendAccountCreatedEmail(String to, String name, String username, String password) {
+        Context ctx = new Context();
+        ctx.setVariable("name",     name);
+        ctx.setVariable("username", username);
+        ctx.setVariable("password", password);
+        ctx.setVariable("appUrl",   "http://localhost:4202");
+        send(to, "NexMemo — Your Account Has Been Created", "email/account-created", ctx);
+    }
+
+    @Async
     public void sendWelcomeEmail(String to, String name, String token) {
         Context ctx = new Context();
         ctx.setVariable("name",       name);

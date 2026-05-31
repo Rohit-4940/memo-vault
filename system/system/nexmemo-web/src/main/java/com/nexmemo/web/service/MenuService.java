@@ -25,23 +25,29 @@ public class MenuService {
 
     @Transactional(readOnly = true)
     public List<Menu> getAllMenus() {
-        return menuRepository.findByStatusOrderByOrdersAsc(Status.ACTIVE);
+        List<Menu> menus = menuRepository.findByStatusOrderByOrdersAsc(Status.ACTIVE);
+        menus.forEach(m -> m.getSubNavs().size());
+        return menus;
     }
 
     @Transactional(readOnly = true)
     public Menu getMenuById(Long id) {
-        return menuRepository.findById(id)
+        Menu menu = menuRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Menu not found with id: " + id));
+        if (menu.getSubNavs() != null) menu.getSubNavs().size();
+        return menu;
     }
 
     @Transactional(readOnly = true)
     public List<Menu> getMenusByRoleId(Long roleId) {
         List<Long> menuIds = rightsRepository.findByRoleId(roleId)
                 .stream().map(r -> r.getMenu().getId()).collect(Collectors.toList());
-        return menuRepository.findAllById(menuIds).stream()
+        List<Menu> menus = menuRepository.findAllById(menuIds).stream()
                 .filter(m -> m.getStatus() == Status.ACTIVE)
                 .sorted(Comparator.comparing(Menu::getOrders, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
+        menus.forEach(m -> m.getSubNavs().size());
+        return menus;
     }
 
     public Menu createMenu(Menu menu) {
@@ -68,7 +74,7 @@ public class MenuService {
         if (!menuRepository.existsById(id)) {
             throw new EntityNotFoundException("Menu not found with id: " + id);
         }
-        rightsRepository.findByRoleId(id).forEach(rm -> rightsRepository.deleteById(rm.getId()));
+        rightsRepository.deleteByMenuId(id);
         menuRepository.deleteById(id);
         log.info("Menu deleted: {}", id);
     }

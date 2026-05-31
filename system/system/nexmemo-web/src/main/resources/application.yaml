@@ -109,8 +109,34 @@ jasypt:
 # ════════════════════════════════════════════════════════════════════════════
 nexmemo:
 
+  reference:
+    bank-code: ${BANK_CODE:NMB}
+    padding-length: 4
+    include-branch-code: true
+    include-department-code: false
+    include-fiscal-year: true
+    format: "{bankCode}/{branchCode}/{year}/{sequence}"
+
+  compression:
+    enabled: true
+    threshold-bytes: 10240
+    type: gzip
+
+  storage:
+    type: ${STORAGE_TYPE:local}
+    local:
+      base-path: ${FILE_UPLOAD_PATH:C:/nexmemo/uploads}
+      signature-dir: signatures
+      document-dir: documents
+      temp-dir: temp
+    minio:
+      url: ${MINIO_URL:http://localhost:9000}
+      access-key: ${MINIO_ACCESS_KEY:minioadmin}
+      secret-key: ${MINIO_SECRET_KEY:minioadmin}
+      bucket: ${MINIO_BUCKET:nexmemo-docs}
+      region: us-east-1
+
   upload:
-    directory: ${FILE_UPLOAD_PATH:C:/nexmemo/uploads}
     max-size: 50MB
 
   cors:
@@ -285,8 +311,10 @@ nexmemo:
       from-name: "NexMemo Dev"
       use-tls: false
 
-  upload:
-    directory: C:/nexmemo/uploads
+  storage:
+    type: local
+    local:
+      base-path: C:/nexmemo/uploads
   cors:
     allowed-origins: http://localhost:3000,http://localhost:4200,http://localhost:4202,http://localhost:8080
 
@@ -395,8 +423,15 @@ nexmemo:
       from-name: ${MAIL_FROM_NAME:NexMemo}
       use-tls: true
 
-  upload:
-    directory: ${FILE_UPLOAD_PATH:/var/nexmemo/uploads}
+  storage:
+    type: ${STORAGE_TYPE:local}
+    local:
+      base-path: ${FILE_UPLOAD_PATH:/var/nexmemo/uploads}
+    minio:
+      url: ${MINIO_URL}
+      access-key: ${MINIO_ACCESS_KEY}
+      secret-key: ${MINIO_SECRET_KEY}
+      bucket: ${MINIO_BUCKET:nexmemo-docs}
 
   cors:
     allowed-origins: ${CORS_ORIGINS}  # https://app.nexmemo.com

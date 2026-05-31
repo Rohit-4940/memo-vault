@@ -131,6 +131,9 @@ public class User extends BaseEntity<Long> implements UserDetails {
     @Column(name = "check_if_specifice_user")
     private String checkIfSpecificeUser;
 
+    @Column(name = "signature", length = 500)
+    private String signature;
+
     // ── Transient (not persisted) ─────────────────────────────────────────────
 
     /** Populated at runtime for fine-grained permission checks if needed */

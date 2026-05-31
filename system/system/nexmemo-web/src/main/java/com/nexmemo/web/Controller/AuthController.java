@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -78,9 +79,14 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<LoginStep1Response> refresh(
-            @CookieValue(name = "refresh_token", required = false) String refreshToken,
+            @CookieValue(name = "refresh_token", required = false) String refreshTokenCookie,
+            @RequestBody(required = false) Map<String, String> body,
             HttpServletRequest req,
             HttpServletResponse res) {
+        String refreshToken = refreshTokenCookie;
+        if (refreshToken == null && body != null && body.containsKey("refreshToken")) {
+            refreshToken = body.get("refreshToken");
+        }
         return ResponseEntity.ok(authService.refreshToken(refreshToken, req, res));
     }
 }

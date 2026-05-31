@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/system-configs")
@@ -32,6 +33,24 @@ public class SystemConfigController {
     @GetMapping("/key/{key}")
     public ResponseEntity<ApiResponse<SystemConfig>> getByKey(@PathVariable String key) {
         return ResponseEntity.ok(ApiResponse.success(systemConfigService.getConfigByKey(key)));
+    }
+
+    @PutMapping("/key/{key}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<ApiResponse<SystemConfig>> updateByKey(@PathVariable String key, @RequestBody SystemConfig config) {
+        return ResponseEntity.ok(ApiResponse.success("Config updated", systemConfigService.updateConfigByKey(key, config)));
+    }
+
+    @GetMapping("/email")
+    public ResponseEntity<ApiResponse<List<SystemConfig>>> getEmailConfig() {
+        return ResponseEntity.ok(ApiResponse.success(systemConfigService.getEmailConfig()));
+    }
+
+    @PutMapping("/email")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> updateEmailConfig(@RequestBody Map<String, String> emailSettings) {
+        systemConfigService.updateEmailConfig(emailSettings);
+        return ResponseEntity.ok(ApiResponse.success("Email config updated", null));
     }
 
     @PostMapping

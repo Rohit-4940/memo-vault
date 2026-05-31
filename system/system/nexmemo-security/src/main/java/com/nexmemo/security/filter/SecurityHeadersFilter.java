@@ -26,7 +26,7 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
                 "style-src 'self' 'unsafe-inline'; " +
                 "img-src 'self' data:; " +
                 "font-src 'self'; " +
-                "connect-src 'self'; " +
+                "connect-src 'self' http://localhost:4202 http://localhost:8086; " +
                 "frame-ancestors 'none'");
         response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
         response.setHeader("Permissions-Policy",

@@ -23,9 +23,11 @@
     </div>
 
     <div class="header-right">
-      <button class="header-action-btn">
+      <button class="header-action-btn" routerLink="/layout/approval-kanban" title="Pending Approvals">
         <i class="fas fa-bell"></i>
-        <span class="notification-dot"></span>
+        @if (pendingCount > 0) {
+          <span class="notification-badge">{{ pendingCount }}</span>
+        }
       </button>
       <button class="header-action-btn">
         <i class="fas fa-envelope"></i>
@@ -71,3 +73,5 @@
     </main>
   </div>
 </div>
+
+<app-chat-widget></app-chat-widget>

@@ -24,7 +24,7 @@
               <td>{{ user.name }}</td>
               <td>{{ user.username }}</td>
               <td>{{ user.email }}</td>
-              <td><span class="badge badge-info">{{ user.roleName }}</span></td>
+              <td><span class="badge badge-info">{{ user.roleName || user.role?.roleName }}</span></td>
               <td><span class="badge" [class.badge-success]="user.status === 'ACTIVE'" [class.badge-danger]="user.status !== 'ACTIVE'">{{ user.status }}</span></td>
               <td class="actions">
                 <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, user)"><i class="fas fa-edit"></i></button>
@@ -43,37 +43,125 @@
 <ng-template #createModal let-modal>
   <div class="modal-header"><h5 class="modal-title">Create User</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
   <div class="modal-body">
-    <div class="form-group mb-3"><label>Name</label><input class="form-control" [(ngModel)]="selectedUser.name" required></div>
-    <div class="form-group mb-3"><label>Username</label><input class="form-control" [(ngModel)]="selectedUser.username" required></div>
-    <div class="form-group mb-3"><label>Email</label><input class="form-control" type="email" [(ngModel)]="selectedUser.email" required></div>
-    <div class="form-group mb-3"><label>Role</label>
-      <select class="form-control" [(ngModel)]="selectedUser.roleId">
-        <option value="">Select Role</option>
-        @for(role of roles; track role.id) { <option [value]="role.id">{{ role.roleName }}</option> }
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Name *</label>
+        <input class="form-control" [(ngModel)]="selectedUser.name" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Username *</label>
+        <input class="form-control" [(ngModel)]="selectedUser.username" required>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Password</label>
+        <input class="form-control" type="password" [(ngModel)]="selectedUser.password" placeholder="Auto-generate if empty">
+        <small class="text-muted">Leave empty to auto-generate</small>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Email *</label>
+        <input class="form-control" type="email" [(ngModel)]="selectedUser.email" required>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Contact No</label>
+        <input class="form-control" [(ngModel)]="selectedUser.contactNo" maxlength="10">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Address</label>
+        <input class="form-control" [(ngModel)]="selectedUser.address">
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Role *</label>
+        <select class="form-control" [(ngModel)]="selectedUser.roleId" required>
+          <option value="">Select Role</option>
+          @for(role of roles; track role.id) { <option [value]="role.id">{{ role.roleName }}</option> }
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Department</label>
+        <select class="form-control" [(ngModel)]="selectedUser.departmentId">
+          <option value="">Select Department</option>
+          @for(dept of departments; track dept.id) { <option [value]="dept.id">{{ dept.name }}</option> }
+        </select>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Branches</label>
+      <select class="form-control" [(ngModel)]="selectedUser.branchIds" multiple size="6">
+        @for(b of branches; track b.id) {
+          <option [value]="b.id">{{ b.branchCode }} — {{ b.name }}</option>
+        }
       </select>
+      <small class="text-muted">Ctrl+click to select multiple</small>
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Signature</label>
+        <input type="file" class="form-control" accept="image/*" (change)="onSignatureSelected($event)">
+        @if (signaturePreview) {
+          <img [src]="signaturePreview" class="mt-2" style="max-height: 60px; border: 1px solid #ddd; border-radius: 4px; padding: 2px;">
+        }
+      </div>
+      <div class="col-md-6 mb-3 d-flex align-items-end gap-3" style="padding-bottom: 8px;">
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="sendEmail" [(ngModel)]="selectedUser.sendEmail">
+          <label class="form-check-label" for="sendEmail">Send welcome email</label>
+        </div>
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="forcePwd" [(ngModel)]="selectedUser.forcePasswordChange">
+          <label class="form-check-label" for="forcePwd">Force password change</label>
+        </div>
+      </div>
     </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
-    <button class="btn btn-primary" (click)="saveUser()">Create</button>
+    <button class="btn btn-primary" (click)="saveUser()">{{ isEditing ? 'Save' : 'Create' }}</button>
   </div>
 </ng-template>
 
 <ng-template #editModal let-modal>
   <div class="modal-header"><h5 class="modal-title">Edit User</h5><button type="button" class="btn-close" (click)="modal.dismiss()"></button></div>
   <div class="modal-body">
-    <div class="form-group mb-3"><label>Name</label><input class="form-control" [(ngModel)]="selectedUser.name" required></div>
-    <div class="form-group mb-3"><label>Username</label><input class="form-control" [(ngModel)]="selectedUser.username" required></div>
-    <div class="form-group mb-3"><label>Email</label><input class="form-control" type="email" [(ngModel)]="selectedUser.email" required></div>
-    <div class="form-group mb-3"><label>Role</label>
-      <select class="form-control" [(ngModel)]="selectedUser.roleId">
-        @for(role of roles; track role.id) { <option [value]="role.id">{{ role.roleName }}</option> }
-      </select>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Name *</label>
+        <input class="form-control" [(ngModel)]="selectedUser.name" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Username</label>
+        <input class="form-control" [(ngModel)]="selectedUser.username" readonly>
+      </div>
     </div>
-    <div class="form-group mb-3"><label>Status</label>
-      <select class="form-control" [(ngModel)]="selectedUser.status">
-        <option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="LOCKED">Locked</option>
-      </select>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Email *</label>
+        <input class="form-control" type="email" [(ngModel)]="selectedUser.email" required>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Contact No</label>
+        <input class="form-control" [(ngModel)]="selectedUser.contactNo" maxlength="10">
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Role</label>
+        <select class="form-control" [(ngModel)]="selectedUser.roleId">
+          <option value="">Select Role</option>
+          @for(role of roles; track role.id) { <option [value]="role.id">{{ role.roleName }}</option> }
+        </select>
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Status</label>
+        <select class="form-control" [(ngModel)]="selectedUser.status">
+          <option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="LOCKED">Locked</option>
+        </select>
+      </div>
     </div>
   </div>
   <div class="modal-footer">

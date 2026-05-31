@@ -10,4 +10,6 @@ import java.util.List;
 public interface MemoTemplateRepository extends JpaRepository<MemoTemplate, Long> {
     List<MemoTemplate> findByDepartmentId(Long departmentId);
     List<MemoTemplate> findByMemoTypeId(Long memoTypeId);
+    List<MemoTemplate> findByExpenseCategoryId(Long categoryId);
+    List<MemoTemplate> findByStatus(com.nexmemo.core.enums.Status status);
 }
