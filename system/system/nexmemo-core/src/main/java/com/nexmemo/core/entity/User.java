@@ -65,6 +65,7 @@ public class User extends BaseEntity<Long> implements UserDetails {
 
     // ── Branch assignments ────────────────────────────────────────────────────
 
+    @JsonIgnore
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_branches",

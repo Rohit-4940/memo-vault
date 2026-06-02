@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ public class ChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public ChatMessage sendMessage(Long senderId, Long receiverId, Long memoId, Long branchId, String conversationType, String message) {
         ChatMessage msg = ChatMessage.builder()
@@ -38,6 +40,14 @@ public class ChatService {
 
         if ("BRANCH_CHAT".equals(conversationType)) {
             notifyAdminsOnBranchMessage(senderId, branchId, message);
+            messagingTemplate.convertAndSend("/topic/branch/" + branchId, saved);
+        } else if ("DIRECT_MESSAGE".equals(conversationType) && receiverId != null) {
+            messagingTemplate.convertAndSend("/queue/messages/" + receiverId, saved);
+        }
+
+        messagingTemplate.convertAndSend("/topic/notifications/" + senderId, saved);
+        if (receiverId != null) {
+            messagingTemplate.convertAndSend("/topic/notifications/" + receiverId, saved);
         }
         return saved;
     }

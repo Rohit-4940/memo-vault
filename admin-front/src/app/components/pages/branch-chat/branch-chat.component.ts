@@ -1,10 +1,12 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { NgForOf, NgIf, DatePipe, SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatService } from '../../../shared-services/api-service/chat.service';
 import { BranchService } from '../../../shared-services/api-service/branch.service';
+import { WebSocketService } from '../../../shared-services/websocket.service';
 import { ToastrService } from 'ngx-toastr';
 import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
+import { Subject, takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-branch-chat',
@@ -13,7 +15,7 @@ import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
   templateUrl: './branch-chat.component.html',
   styleUrl: './branch-chat.component.scss'
 })
-export class BranchChatComponent implements OnInit {
+export class BranchChatComponent implements OnInit, OnDestroy {
   allBranches: any[] = [];
   conversations: any[] = [];
   activeConvId: string | null = null;
@@ -35,7 +37,10 @@ export class BranchChatComponent implements OnInit {
 
   private chatService = inject(ChatService);
   private branchService = inject(BranchService);
+  private wsService = inject(WebSocketService);
   private toastr = inject(ToastrService);
+  private destroy$ = new Subject<void>();
+  private subscribedTopic = '';
 
   ngOnInit() {
     const storage = LocalStorageUtil.getStorage();
@@ -44,6 +49,12 @@ export class BranchChatComponent implements OnInit {
     this.adminMode = this.currentRole === 'ADMIN' || this.currentRole === 'SUPER_ADMIN';
     this.loadAllBranches();
     this.loadUsers();
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.unsubscribeFromTopic();
   }
 
   get filteredBranches(): any[] {
@@ -114,7 +125,11 @@ export class BranchChatComponent implements OnInit {
     this.activeConvId = conv?.id || null;
     this.activeConv = conv || null;
     this.showProblemForm = false;
-    if (conv) this.loadMessages(conv);
+    this.unsubscribeFromTopic();
+    if (conv) {
+      this.subscribeToBranch(conv.branchId);
+      this.loadMessages(conv);
+    }
   }
 
   selectConversationByBranchId(branchId: number) {
@@ -157,7 +172,6 @@ export class BranchChatComponent implements OnInit {
     this.chatService.sendMessage(payload).subscribe({
       next: () => {
         this.newMessage = '';
-        this.loadMessages(this.activeConv);
       },
       error: () => this.toastr.error('Failed to send message')
     });
@@ -171,6 +185,7 @@ export class BranchChatComponent implements OnInit {
     this.showProblemForm = true;
     this.activeConvId = null;
     this.activeConv = null;
+    this.unsubscribeFromTopic();
   }
 
   submitProblemReport() {
@@ -178,7 +193,7 @@ export class BranchChatComponent implements OnInit {
       this.toastr.warning('Please describe the problem');
       return;
     }
-    const msg = '⚠ PROBLEM REPORT: ' + (this.problemSubject || 'General Issue')
+    const msg = '\u26A0 PROBLEM REPORT: ' + (this.problemSubject || 'General Issue')
       + '\n---\n' + this.problemDescription
       + '\n--- Reported from Branch #' + this.problemBranchId;
     const payload = {
@@ -234,7 +249,7 @@ export class BranchChatComponent implements OnInit {
   }
 
   isProblemReport(msg: any): boolean {
-    return msg?.message?.startsWith('⚠');
+    return msg?.message?.startsWith('\u26A0');
   }
 
   isConvActive(conv: any): boolean {
@@ -256,5 +271,24 @@ export class BranchChatComponent implements OnInit {
       const el = document.querySelector('.chat-messages');
       if (el) el.scrollTop = el.scrollHeight;
     }, 100);
+  }
+
+  private subscribeToBranch(branchId: number) {
+    const topic = '/topic/branch/' + branchId;
+    this.subscribedTopic = topic;
+    this.wsService.subscribe(topic).pipe(takeUntil(this.destroy$)).subscribe((msg: any) => {
+      const exists = this.messages.some(m => m.id === msg.id);
+      if (!exists) {
+        this.messages = [...this.messages, msg];
+        setTimeout(() => this.scrollBottom(), 100);
+      }
+    });
+  }
+
+  private unsubscribeFromTopic() {
+    if (this.subscribedTopic) {
+      this.wsService.unsubscribe(this.subscribedTopic);
+      this.subscribedTopic = '';
+    }
   }
 }

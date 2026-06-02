@@ -1,126 +1,130 @@
 <div class="login-page">
   <div class="login-bg">
-    <div class="gradient-orb orb-1"></div>
-    <div class="gradient-orb orb-2"></div>
-    <div class="gradient-orb orb-3"></div>
-    <div class="grid-overlay"></div>
+    <div class="bg-grid"></div>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
   </div>
 
   <div class="login-container">
-    <div class="login-card" [class.slide-left]="step === 'otp'">
-      <div class="login-brand">
-        <div class="brand-icon">
-          <i class="fas fa-file-alt"></i>
-        </div>
-        <h1>NexMemo</h1>
-        <p>Enterprise Memo Management</p>
-      </div>
-
-      @if (loginError) {
-        <div class="alert alert-error">
-          <i class="fas fa-exclamation-circle"></i>
-          <span>{{ msg }}</span>
-        </div>
-      }
-      @if (!loginError && msg) {
-        <div class="alert alert-info">
-          <i class="fas fa-info-circle"></i>
-          <span>{{ msg }}</span>
-        </div>
-      }
-
-      @if (step === 'credentials') {
-        <form #lform="ngForm" (ngSubmit)="lform.valid && onLogin(lform)" class="login-form">
-          <div class="form-group">
-            <label>Username</label>
-            <div class="input-wrapper">
-              <i class="fas fa-user input-icon"></i>
-              <input class="form-control" placeholder="Enter your username" type="text"
-                     [(ngModel)]="logInObj.username" #username="ngModel" name="username" required/>
-            </div>
-            @if (username.invalid && username.touched) {
-              <small class="field-error">Username is required</small>
-            }
+    <div class="login-card-wrapper" [class.slide-left]="step === 'otp'">
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="brand-icon">
+            <i class="fas fa-file-alt"></i>
           </div>
+          <h1>NexMemo</h1>
+          <p class="brand-subtitle">Enterprise Memo Management</p>
+        </div>
 
-          <div class="form-group">
-            <label>Password</label>
-            <div class="input-wrapper">
-              <i class="fas fa-lock input-icon"></i>
-              <input class="form-control" placeholder="Enter your password"
-                     [type]="showPassword ? 'text' : 'password'" [(ngModel)]="logInObj.password"
-                     #password="ngModel" name="password" required/>
-              <button type="button" class="toggle-password" (click)="togglePassword()">
-                <i [class]="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+        @if (loginError) {
+          <div class="alert-banner error">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>{{ msg }}</span>
+          </div>
+        }
+        @if (!loginError && msg) {
+          <div class="alert-banner info">
+            <i class="fas fa-info-circle"></i>
+            <span>{{ msg }}</span>
+          </div>
+        }
+
+        @if (step === 'credentials') {
+          <form #lform="ngForm" (ngSubmit)="lform.valid && onLogin(lform)" class="login-form">
+            <div class="form-group">
+              <label>Username</label>
+              <div class="input-group-premium">
+                <i class="fas fa-user input-icon"></i>
+                <input class="form-control" placeholder="Enter your username" type="text"
+                       [(ngModel)]="logInObj.username" #username="ngModel" name="username" required/>
+              </div>
+              @if (username.invalid && username.touched) {
+                <small class="form-error"><i class="fas fa-exclamation-circle"></i> Username is required</small>
+              }
+            </div>
+
+            <div class="form-group">
+              <label>Password</label>
+              <div class="input-group-premium">
+                <i class="fas fa-lock input-icon"></i>
+                <input class="form-control" placeholder="Enter your password"
+                       [type]="showPassword ? 'text' : 'password'" [(ngModel)]="logInObj.password"
+                       #password="ngModel" name="password" required/>
+                <button type="button" class="toggle-password" (click)="togglePassword()" tabindex="-1">
+                  <i [class]="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                </button>
+              </div>
+              @if (password.invalid && password.touched) {
+                <small class="form-error"><i class="fas fa-exclamation-circle"></i> Password is required</small>
+              }
+            </div>
+
+            <button class="btn-login" type="submit" [disabled]="spinner">
+              @if (spinner) {
+                <span class="spinner spinner-white"></span>
+                <span>Signing in...</span>
+              } @else {
+                <span>Sign In</span>
+                <i class="fas fa-arrow-right"></i>
+              }
+            </button>
+
+            <div class="form-footer">
+              <a routerLink="/forgot-password" class="forgot-link">
+                <i class="fas fa-lock"></i> Forgot password?
+              </a>
+            </div>
+          </form>
+        }
+
+        @if (step === 'otp') {
+          <form #otpForm="ngForm" (ngSubmit)="otpForm.valid && onVerifyOtp()" class="login-form">
+            <div class="otp-header">
+              <div class="otp-icon">
+                <i class="fas fa-shield-alt"></i>
+              </div>
+              <h3>Two-Factor Authentication</h3>
+              <p>Enter the 6-digit code sent to your registered email</p>
+            </div>
+
+            <div class="form-group">
+              <div class="input-group-premium">
+                <i class="fas fa-key input-icon"></i>
+                <input class="form-control otp-input" placeholder="000000" type="text" maxlength="6"
+                       [(ngModel)]="otpObj.code" #otpCode="ngModel" name="otpCode" required pattern="[0-9]{4,6}"/>
+              </div>
+            </div>
+
+            <div class="trust-device">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="otpObj.trustDevice" name="trustDevice"/>
+                <span class="checkmark"></span>
+                <span>Trust this device for 30 days</span>
+              </label>
+            </div>
+
+            <button class="btn-login" type="submit" [disabled]="spinner">
+              @if (spinner) {
+                <span class="spinner spinner-white"></span>
+                <span>Verifying...</span>
+              } @else {
+                <i class="fas fa-check-circle"></i>
+                <span>Verify &amp; Sign In</span>
+              }
+            </button>
+
+            <div class="otp-actions">
+              <button type="button" class="btn-ghost" (click)="resendOtp()" [disabled]="spinner">
+                <i class="fas fa-redo"></i> Resend Code
+              </button>
+              <button type="button" class="btn-ghost" (click)="backToCredentials()" [disabled]="spinner">
+                <i class="fas fa-arrow-left"></i> Back
               </button>
             </div>
-            @if (password.invalid && password.touched) {
-              <small class="field-error">Password is required</small>
-            }
-          </div>
-
-          <button class="btn-login" type="submit" [disabled]="spinner">
-            @if (spinner) {
-              <span class="spinner spinner-white"></span>
-              <span>Signing in...</span>
-            } @else {
-              <i class="fas fa-arrow-right"></i>
-              <span>Sign In</span>
-            }
-          </button>
-
-          <div class="form-footer">
-            <a routerLink="/forgot-password">Forgot password?</a>
-          </div>
-        </form>
-      }
-
-      @if (step === 'otp') {
-        <form #otpForm="ngForm" (ngSubmit)="otpForm.valid && onVerifyOtp()" class="login-form">
-          <div class="otp-header">
-            <div class="otp-icon">
-              <i class="fas fa-shield-alt"></i>
-            </div>
-            <h3>Two-Factor Authentication</h3>
-            <p>Enter the 6-digit code sent to your registered email</p>
-          </div>
-
-          <div class="form-group">
-            <div class="input-wrapper">
-              <i class="fas fa-key input-icon"></i>
-              <input class="form-control otp-input" placeholder="000000" type="text" maxlength="6"
-                     [(ngModel)]="otpObj.code" #otpCode="ngModel" name="otpCode" required pattern="[0-9]{4,6}"/>
-            </div>
-          </div>
-
-          <div class="trust-device">
-            <label class="checkbox-label">
-              <input type="checkbox" [(ngModel)]="otpObj.trustDevice" name="trustDevice"/>
-              <span class="checkmark"></span>
-              <span>Trust this device for 30 days</span>
-            </label>
-          </div>
-
-          <button class="btn-login" type="submit" [disabled]="spinner">
-            @if (spinner) {
-              <span class="spinner spinner-white"></span>
-              <span>Verifying...</span>
-            } @else {
-              <i class="fas fa-check-circle"></i>
-              <span>Verify & Sign In</span>
-            }
-          </button>
-
-          <div class="otp-actions">
-            <button type="button" class="btn-ghost" (click)="resendOtp()" [disabled]="spinner">
-              <i class="fas fa-redo"></i> Resend Code
-            </button>
-            <button type="button" class="btn-ghost" (click)="backToCredentials()" [disabled]="spinner">
-              <i class="fas fa-arrow-left"></i> Back
-            </button>
-          </div>
-        </form>
-      }
+          </form>
+        }
+      </div>
     </div>
 
     <div class="login-footer">

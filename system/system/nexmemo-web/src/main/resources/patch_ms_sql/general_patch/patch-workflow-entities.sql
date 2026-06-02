@@ -84,22 +84,37 @@ BEGIN
 END
 GO
 
--- ── 6. Workflow Configs ────────────────────────────────────────────────────────
+-- ── 6. Memo Types (required by workflow config FK) ──────────────────────────────
+IF NOT EXISTS (SELECT 1 FROM memo_type WHERE id = 1)
+BEGIN
+    SET IDENTITY_INSERT memo_type ON
+    INSERT INTO memo_type (id, version, name, description, status, created_date, modified_date)
+    VALUES
+    (1, 0, 'General Memo',    'Standard internal memos',        'ACTIVE', GETDATE(), GETDATE()),
+    (2, 0, 'Financial',        'Budget and financial requests',  'ACTIVE', GETDATE(), GETDATE()),
+    (3, 0, 'HR Memo',          'Human resource related memos',  'ACTIVE', GETDATE(), GETDATE()),
+    (4, 0, 'Procurement',      'Vendor and procurement memos',  'ACTIVE', GETDATE(), GETDATE()),
+    (5, 0, 'Urgent',           'Urgent time-sensitive memos',   'ACTIVE', GETDATE(), GETDATE());
+    SET IDENTITY_INSERT memo_type OFF
+END
+GO
+
+-- ── 7. Workflow Configs ────────────────────────────────────────────────────────
 IF NOT EXISTS (SELECT 1 FROM memo_workflow_config WHERE id = 1)
 BEGIN
     SET IDENTITY_INSERT memo_workflow_config ON
-    INSERT INTO memo_workflow_config (id, version, category_id, sla_hours, require_document_verification, enable_versioning, created_date, modified_date)
+    INSERT INTO memo_workflow_config (id, version, memo_type_id, category_id, assignment_type, flow_type, required_fields, is_active, sla_hours, require_document_verification, enable_versioning, created_date, modified_date)
     VALUES
-    (1, 0, 1, NULL, 0, 1, GETDATE(), GETDATE()),
-    (2, 0, 2, 48,   1, 1, GETDATE(), GETDATE()),
-    (3, 0, 3, 24,   0, 1, GETDATE(), GETDATE()),
-    (4, 0, 4, 72,   1, 1, GETDATE(), GETDATE()),
-    (5, 0, 5, 4,    0, 1, GETDATE(), GETDATE());
+    (1, 0, 1, 1, 'USER_BASED', 'SEQUENTIAL', '["title","description"]', 1, NULL, 0, 1, GETDATE(), GETDATE()),
+    (2, 0, 2, 2, 'USER_BASED', 'SEQUENTIAL', '["title","description","amount"]', 1, 48,   1, 1, GETDATE(), GETDATE()),
+    (3, 0, 3, 3, 'ROLE_BASED', 'SEQUENTIAL', '["title","description"]', 1, 24,   0, 1, GETDATE(), GETDATE()),
+    (4, 0, 4, 4, 'USER_BASED', 'PARALLEL',   '["title","description","amount","vendor"]', 1, 72,   1, 1, GETDATE(), GETDATE()),
+    (5, 0, 5, 5, 'ROLE_BASED', 'ANY_APPROVER', '["title","description"]', 1, 4,    0, 1, GETDATE(), GETDATE());
     SET IDENTITY_INSERT memo_workflow_config OFF
 END
 GO
 
--- ── 7. Approval Rule Matrices ───────────────────────────────────────────────────
+-- ── 8. Approval Rule Matrices ───────────────────────────────────────────────────
 IF NOT EXISTS (SELECT 1 FROM approval_rule_matrix WHERE id = 1)
 BEGIN
     SET IDENTITY_INSERT approval_rule_matrix ON
@@ -114,7 +129,7 @@ BEGIN
 END
 GO
 
--- ── 8. Fiscal Year (required by reference_sequence FK) ──────────────────────────
+-- ── 9. Fiscal Year (required by reference_sequence FK) ──────────────────────────
 IF NOT EXISTS (SELECT 1 FROM fiscal_year WHERE id = 1)
 BEGIN
     SET IDENTITY_INSERT fiscal_year ON
@@ -124,7 +139,7 @@ BEGIN
 END
 GO
 
--- ── 9. Reference Sequence (MANUAL) for memo number generator ───────────────────
+-- ── 10. Reference Sequence (MANUAL) for memo number generator ──────────────────
 IF NOT EXISTS (SELECT 1 FROM reference_sequence WHERE fiscal_year_id = 1 AND scope_type = 'GLOBAL' AND sequence_type = 'MEMO_NO')
 BEGIN
     INSERT INTO reference_sequence (version, fiscal_year_id, scope_type, scope_id, sequence_type, prefix, last_sequence, suffix, created_date, modified_date)

@@ -1,10 +1,12 @@
-import { Component, OnInit, inject, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, HostListener } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatService } from '../../../shared-services/api-service/chat.service';
 import { BranchService } from '../../../shared-services/api-service/branch.service';
+import { WebSocketService } from '../../../shared-services/websocket.service';
 import { ToastrService } from 'ngx-toastr';
 import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
+import { Subject, takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-chat-widget',
@@ -13,7 +15,7 @@ import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
   templateUrl: './chat-widget.component.html',
   styleUrl: './chat-widget.component.scss'
 })
-export class ChatWidgetComponent implements OnInit {
+export class ChatWidgetComponent implements OnInit, OnDestroy {
   isOpen = false;
   allBranches: any[] = [];
   conversations: any[] = [];
@@ -30,7 +32,10 @@ export class ChatWidgetComponent implements OnInit {
 
   private chatService = inject(ChatService);
   private branchService = inject(BranchService);
+  private wsService = inject(WebSocketService);
   private toastr = inject(ToastrService);
+  private destroy$ = new Subject<void>();
+  private subscribedTopic = '';
 
   ngOnInit() {
     const storage = LocalStorageUtil.getStorage();
@@ -38,6 +43,12 @@ export class ChatWidgetComponent implements OnInit {
     this.currentRole = storage.roleName || '';
     this.loadBranches();
     this.loadUsers();
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.unsubscribeFromTopic();
   }
 
   get isAdmin(): boolean {
@@ -98,6 +109,7 @@ export class ChatWidgetComponent implements OnInit {
       this.activeConv = null;
       this.messages = [];
       this.showBranches = true;
+      this.unsubscribeFromTopic();
     }
   }
 
@@ -106,6 +118,8 @@ export class ChatWidgetComponent implements OnInit {
     this.showBranches = false;
     this.loading = true;
     this.messages = [];
+    this.unsubscribeFromTopic();
+    this.subscribeToBranch(branch.branchId);
     this.chatService.getBranchMessages(branch.branchId).subscribe({
       next: (res: any) => {
         this.messages = res?.data || res || [];
@@ -124,6 +138,7 @@ export class ChatWidgetComponent implements OnInit {
     this.activeConv = null;
     this.messages = [];
     this.showBranches = true;
+    this.unsubscribeFromTopic();
   }
 
   sendMessage() {
@@ -136,7 +151,6 @@ export class ChatWidgetComponent implements OnInit {
     this.chatService.sendMessage(payload).subscribe({
       next: () => {
         this.newMessage = '';
-        this.loadMessagesAfterSend();
       },
       error: () => this.toastr.error('Failed to send')
     });
@@ -155,14 +169,13 @@ export class ChatWidgetComponent implements OnInit {
     let branchId = this.activeConv?.branchId;
     if (!branchId && this.allBranches.length > 0) branchId = this.allBranches[0].id;
     if (!branchId) return;
-    const msg = '⚠ PROBLEM REPORT\n---\n' + prompt('Describe your problem:');
-    if (!msg || msg === '⚠ PROBLEM REPORT\n---\n') return;
+    const msg = '\u26A0 PROBLEM REPORT\n---\n' + prompt('Describe your problem:');
+    if (!msg || msg === '\u26A0 PROBLEM REPORT\n---\n') return;
     this.chatService.sendMessage({
       branchId, conversationType: 'BRANCH_CHAT', message: msg
     }).subscribe({
       next: () => {
         this.toastr.success('Problem reported to admins');
-        this.selectBranch(this.activeConv || this.conversations.find(c => c.branchId === branchId));
       }
     });
   }
@@ -177,12 +190,31 @@ export class ChatWidgetComponent implements OnInit {
   }
 
   isProblemReport(msg: any): boolean {
-    return msg?.message?.startsWith('⚠');
+    return msg?.message?.startsWith('\u26A0');
   }
 
   scrollBottom() {
     const el = document.querySelector('.cw-messages');
     if (el) el.scrollTop = el.scrollHeight;
+  }
+
+  private subscribeToBranch(branchId: number) {
+    const topic = '/topic/branch/' + branchId;
+    this.subscribedTopic = topic;
+    this.wsService.subscribe(topic).pipe(takeUntil(this.destroy$)).subscribe((msg: any) => {
+      const exists = this.messages.some(m => m.id === msg.id);
+      if (!exists) {
+        this.messages = [...this.messages, msg];
+        setTimeout(() => this.scrollBottom(), 100);
+      }
+    });
+  }
+
+  private unsubscribeFromTopic() {
+    if (this.subscribedTopic) {
+      this.wsService.unsubscribe(this.subscribedTopic);
+      this.subscribedTopic = '';
+    }
   }
 
   @HostListener('document:keydown.escape')
