@@ -1344,4 +1344,152 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="20260602-01" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="compression_job"/></not>
+        </preConditions>
+        <createTable tableName="compression_job">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="original_name" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="original_size" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="original_type" type="VARCHAR(100)"/>
+            <column name="compressed_name" type="VARCHAR(500)"/>
+            <column name="compressed_size" type="BIGINT"/>
+            <column name="compression_type" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="error_message" type="VARCHAR(2000)"/>
+            <column name="storage_path" type="VARCHAR(1000)"/>
+            <column name="started_date" type="DATETIME"/>
+            <column name="completed_date" type="DATETIME"/>
+            <column name="duration_ms" type="BIGINT"/>
+            <column name="checksum_original" type="VARCHAR(64)"/>
+            <column name="checksum_compressed" type="VARCHAR(64)"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <createIndex tableName="compression_job" indexName="idx_cj_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="compression_job" indexName="idx_cj_created_by">
+            <column name="created_by_id"/>
+        </createIndex>
+        <createIndex tableName="compression_job" indexName="idx_cj_created_date">
+            <column name="created_date"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260602-02" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="document_transfer"/></not>
+        </preConditions>
+        <createTable tableName="document_transfer">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="reference_no" type="VARCHAR(50)"><constraints unique="true" nullable="false"/></column>
+            <column name="sender_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="sender_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="sender_branch_id" type="BIGINT"/>
+            <column name="sender_branch_name" type="VARCHAR(255)"/>
+            <column name="recipient_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="recipient_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="recipient_branch_id" type="BIGINT"/>
+            <column name="recipient_branch_name" type="VARCHAR(255)"/>
+            <column name="subject" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="message" type="TEXT"/>
+            <column name="transfer_status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="priority" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="total_files" type="INT"><constraints nullable="false"/></column>
+            <column name="total_size" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="sent_date" type="DATETIME"/>
+            <column name="received_date" type="DATETIME"/>
+            <column name="archived_date" type="DATETIME"/>
+            <column name="notes" type="TEXT"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/>
+            <column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <createIndex tableName="document_transfer" indexName="idx_dt_ref_no">
+            <column name="reference_no"/>
+        </createIndex>
+        <createIndex tableName="document_transfer" indexName="idx_dt_sender">
+            <column name="sender_id"/>
+        </createIndex>
+        <createIndex tableName="document_transfer" indexName="idx_dt_recipient">
+            <column name="recipient_id"/>
+        </createIndex>
+        <createIndex tableName="document_transfer" indexName="idx_dt_status">
+            <column name="transfer_status"/>
+        </createIndex>
+        <createIndex tableName="document_transfer" indexName="idx_dt_created_date">
+            <column name="created_date"/>
+        </createIndex>
+        <createTable tableName="document_transfer_file">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="transfer_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="original_name" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="stored_path" type="VARCHAR(1000)"><constraints nullable="false"/></column>
+            <column name="file_size" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="mime_type" type="VARCHAR(100)"/>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="document_transfer_file" indexName="idx_dtf_transfer">
+            <column name="transfer_id"/>
+        </createIndex>
+        <addForeignKeyConstraint baseTableName="document_transfer_file" baseColumnNames="transfer_id"
+                                 referencedTableName="document_transfer" referencedColumnNames="id"
+                                 constraintName="fk_dtf_transfer"/>
+    </changeSet>
+
+    <changeSet id="20260604-1" author="Rohit Chapagain">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists indexName="idx_users_name_email_status"/></not>
+        </preConditions>
+        <createIndex tableName="users" indexName="idx_users_name_email_status">
+            <column name="name"/><column name="email"/><column name="status"/>
+        </createIndex>
+        <createIndex tableName="users" indexName="idx_users_role_status">
+            <column name="role_id"/><column name="status"/>
+        </createIndex>
+        <createIndex tableName="branch" indexName="idx_branch_name_status">
+            <column name="name"/><column name="status"/>
+        </createIndex>
+        <createIndex tableName="department" indexName="idx_dept_name_status">
+            <column name="name"/><column name="status"/>
+        </createIndex>
+        <createIndex tableName="memo_type" indexName="idx_memo_type_name_status">
+            <column name="name"/><column name="status"/>
+        </createIndex>
+        <createIndex tableName="fiscal_year" indexName="idx_fy_name_status">
+            <column name="name"/><column name="status"/>
+        </createIndex>
+        <createIndex tableName="memo_template" indexName="idx_mt_name_status">
+            <column name="name"/><column name="status"/>
+        </createIndex>
+        <createIndex tableName="budget_allocation" indexName="idx_ba_fy_dept">
+            <column name="fiscal_year_id"/><column name="department_id"/>
+        </createIndex>
+        <createIndex tableName="leave_tracker" indexName="idx_lt_user_status">
+            <column name="user_id"/><column name="status"/>
+        </createIndex>
+        <createIndex tableName="system_config" indexName="idx_sc_key_status">
+            <column name="config_key"/><column name="is_active"/>
+        </createIndex>
+        <createIndex tableName="audit_log" indexName="idx_al_created_action">
+            <column name="created_date"/><column name="action"/>
+        </createIndex>
+        <createIndex tableName="memo" indexName="idx_memo_created_status">
+            <column name="created_date"/><column name="status"/>
+        </createIndex>
+        <createIndex tableName="menu" indexName="idx_menu_parent_order">
+            <column name="parent_id"/><column name="orders"/>
+        </createIndex>
+        <createIndex tableName="expense_category" indexName="idx_ec_cat_name_status">
+            <column name="category_name"/><column name="status"/>
+        </createIndex>
+        <createIndex tableName="memo_routing" indexName="idx_mr_memo_status">
+            <column name="memo_id"/><column name="status"/>
+        </createIndex>
+    </changeSet>
 </databaseChangeLog>

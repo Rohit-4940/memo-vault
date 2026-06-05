@@ -1,0 +1,114 @@
+.compressor-page {
+  .page-header .header-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--nexmemo-500), var(--nexmemo-700));
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    i { font-size: 1.05rem; color: white; }
+  }
+
+  .stat-card {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.65rem;
+    background: var(--nexmemo-surface);
+    border: 1px solid var(--nexmemo-border);
+    border-radius: var(--radius-md);
+
+    .stat-icon {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      i { font-size: 0.9rem; }
+    }
+    .stat-body { flex: 1; min-width: 0; }
+    .stat-value { font-size: 0.85rem; font-weight: 700; color: var(--nexmemo-text); line-height: 1.2; }
+    .stat-label { font-size: 0.6rem; font-weight: 500; color: var(--nexmemo-text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  }
+
+  .content-card {
+    background: var(--nexmemo-surface);
+    border: 1px solid var(--nexmemo-border);
+    border-radius: var(--radius-lg);
+
+    .card-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--nexmemo-text);
+      background: var(--nexmemo-bg);
+      border-bottom: 1px solid var(--nexmemo-border);
+    }
+
+    .card-body { padding: 0.65rem; }
+  }
+
+  .upload-zone {
+    border: 2px dashed var(--nexmemo-border);
+    border-radius: var(--radius-md);
+    padding: 0.85rem 0.75rem;
+    text-align: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+
+    &:hover, &.dragover { border-color: var(--nexmemo-400); background: var(--nexmemo-50); }
+    .upload-icon { font-size: 1.5rem; color: var(--nexmemo-300); margin-bottom: 0.25rem; }
+  }
+
+  .queue-list {
+    max-height: 140px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 0.2rem;
+
+    .queue-item {
+      display: flex; align-items: center; gap: 0.35rem;
+      padding: 0.25rem 0.4rem;
+      background: var(--nexmemo-bg);
+      border-radius: var(--radius-sm);
+
+      &:hover { background: var(--nexmemo-50); }
+
+      .queue-item-icon {
+        width: 22px; height: 22px;
+        background: var(--nexmemo-100);
+        border-radius: var(--radius-sm);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        i { font-size: 0.6rem; color: var(--nexmemo-600); }
+      }
+      .queue-item-info { flex: 1; min-width: 0; }
+      .queue-item-name { font-size: 0.7rem; font-weight: 500; line-height: 1.2; }
+      .queue-item-size { font-size: 0.58rem; color: var(--nexmemo-text-muted); }
+    }
+  }
+
+  .radio-group.mini { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem; }
+
+  .radio-card.mini {
+    padding: 0.3rem 0.4rem;
+
+    .radio-card-body { gap: 0.2rem; }
+    .radio-card-icon { width: 20px; height: 20px; i { font-size: 0.55rem; } }
+    .radio-card-title { font-size: 0.65rem; }
+    .radio-card-desc { font-size: 0.52rem; }
+  }
+
+  .search-box { position: relative;
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; color: var(--nexmemo-text-muted); pointer-events: none; }
+    input { padding-left: 26px; }
+  }
+
+  .empty-state { text-align: center; padding: 1.5rem 1rem;
+    .empty-icon { font-size: 1.75rem; color: var(--nexmemo-300); margin-bottom: 0.4rem; }
+  }
+
+  .table { font-size: 0.78rem; margin-bottom: 0;
+    th { font-weight: 600; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--nexmemo-text-muted); white-space: nowrap; }
+    td { vertical-align: middle; }
+  }
+
+  .badge-format { background: var(--nexmemo-100); color: var(--nexmemo-700); font-size: 0.62rem; font-weight: 600; padding: 0.2em 0.5em; border-radius: var(--radius-sm); }
+  .badge-pending { background: var(--nexmemo-200); color: var(--nexmemo-700); font-size: 0.62rem; }
+  .badge-progress { background: #dbeafe; color: #1d4ed8; font-size: 0.62rem; }
+  .badge-success { background: #d1fae5; color: #065f46; font-size: 0.62rem; }
+  .badge-danger { background: #fee2e2; color: #991b1b; font-size: 0.62rem; }
+}

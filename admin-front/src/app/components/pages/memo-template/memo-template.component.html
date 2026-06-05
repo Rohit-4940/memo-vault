@@ -12,33 +12,32 @@
   </div>
 
   <div class="card">
-    <div class="table-responsive">
-      <table class="table">
-        <thead>
-          <tr><th>Name</th><th>Expense Category</th><th>Dept</th><th>Default Amount</th><th>Approval Lvls</th><th>Priority</th><th>Status</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-          @for(t of templates; track t.id) {
-            <tr>
-              <td><strong>{{ t.name }}</strong><div class="text-muted" style="font-size:0.75rem">{{ t.description | slice:0:60 }}{{ t.description?.length > 60 ? '...' : '' }}</div></td>
-              <td><span class="badge badge-primary-bg">{{ t.expenseCategory?.categoryName || t.memoType?.name || '-' }}</span></td>
-              <td><span class="badge badge-secondary">{{ t.department?.name || '-' }}</span></td>
-              <td>{{ t.defaultAmount ? (t.defaultAmount | number) : '-' }}</td>
-              <td>{{ t.requiredApprovalLevels || 1 }}</td>
-              <td><span class="badge" [class.badge-warning]="t.defaultPriority === 'HIGH'" [class.badge-info]="t.defaultPriority === 'MEDIUM'" [class.badge-secondary]="t.defaultPriority === 'LOW'">{{ t.defaultPriority || 'MEDIUM' }}</span></td>
-              <td><span class="badge" [class.badge-success]="t.status === 'ACTIVE'" [class.badge-danger]="t.status !== 'ACTIVE'">{{ t.status }}</span></td>
-              <td class="actions">
-                <button class="btn btn-sm btn-ghost" (click)="openEditModal(editModal, t)"><i class="fas fa-edit"></i></button>
-                @if (isAdmin) {
-                  <button class="btn btn-sm btn-ghost text-danger" (click)="deleteTemplate(t.id)"><i class="fas fa-trash"></i></button>
-                }
-              </td>
-            </tr>
-          } @empty {
-            <tr><td colspan="8" class="text-center text-muted py-4">No templates found</td></tr>
+    <div class="card-body p-0">
+      <app-advanced-table
+        [columns]="columns"
+        [data]="data"
+        [totalElements]="totalElements"
+        [loading]="loading"
+        [pageNumber]="pageNumber"
+        [pageSize]="pageSize"
+        [totalPages]="totalPages"
+        [searchable]="true"
+        [showFilters]="true"
+        filterMode="panel"
+        searchPlaceholder="Search templates..."
+        (searchChange)="onSearch($event)"
+        (pageChange)="onPageChange($event)"
+        (sizeChange)="onSizeChange($event)"
+        (sortChange)="onSortChange($event)"
+        (filterChange)="onFilterChange($event)"
+      >
+        <ng-template #actions let-row>
+          <button class="btn btn-sm btn-ghost" (click)="openEditModal(editModal, row); $event.stopPropagation()"><i class="fas fa-edit"></i></button>
+          @if (isAdmin) {
+            <button class="btn btn-sm btn-ghost text-danger" (click)="deleteTemplate(row.id); $event.stopPropagation()"><i class="fas fa-trash"></i></button>
           }
-        </tbody>
-      </table>
+        </ng-template>
+      </app-advanced-table>
     </div>
   </div>
 </div>

@@ -4,12 +4,12 @@
       <i class="fas fa-file-alt"></i>
     </div>
     @if (isExpanded) {
-      <span class="sidebar-brand-text">NexMemo</span>
+      <span class="sidebar-brand-text">{{ 'app.name' | translate }}</span>
     }
   </div>
 
   <div class="sidebar-menu">
-    <div class="sidebar-label">Main Menu</div>
+    <div class="sidebar-label">{{ 'sidebar.mainMenu' | translate }}</div>
 
     @for (item of menuItems; track item.id) {
       <a class="nav-link"
@@ -31,7 +31,7 @@
     <button class="collapse-btn" (click)="sidebarService.toggleSidebar()">
       <i class="fas fa-chevron-left" [class.rotated]="!isExpanded"></i>
       @if (isExpanded) {
-        <span>Collapse</span>
+        <span>{{ 'sidebar.collapse' | translate }}</span>
       }
     </button>
   </div>

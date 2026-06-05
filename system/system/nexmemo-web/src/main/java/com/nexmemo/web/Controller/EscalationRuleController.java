@@ -5,6 +5,7 @@ import com.nexmemo.core.entity.EscalationRule;
 import com.nexmemo.web.service.EscalationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/escalation-rules")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
 public class EscalationRuleController {
 
     private final EscalationService escalationService;

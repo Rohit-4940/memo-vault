@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiConfig } from '../../@core/utils/api/ApiConfig';
 
@@ -48,31 +48,51 @@ export class MemoService {
   }
 
   submitMemo(id: number): Observable<any> {
-    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/submit`, {});
+    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/submit`, null);
+  }
+
+  private toHttpParams(obj: Record<string, any>): HttpParams {
+    let params = new HttpParams();
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== null && value !== undefined && value !== '') {
+        params = params.set(key, String(value));
+      }
+    }
+    return params;
   }
 
   approveMemo(id: number, remarks?: string): Observable<any> {
-    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/approve`, { remarks });
+    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/approve`, null, {
+      params: this.toHttpParams({ remarks })
+    });
   }
 
   rejectMemo(id: number, remarks?: string): Observable<any> {
-    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/reject`, { remarks });
+    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/reject`, null, {
+      params: this.toHttpParams({ remarks })
+    });
   }
 
   returnMemo(id: number, remarks?: string): Observable<any> {
-    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/return`, { remarks });
+    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/return`, null, {
+      params: this.toHttpParams({ remarks })
+    });
   }
 
   forwardMemo(id: number, toUserId: number, remarks?: string): Observable<any> {
-    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/forward`, { toUserId, remarks });
+    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/forward`, null, {
+      params: this.toHttpParams({ toUserId, remarks })
+    });
   }
 
   backwardMemo(id: number, remarks?: string): Observable<any> {
-    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/backward`, { remarks });
+    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/backward`, null, {
+      params: this.toHttpParams({ remarks })
+    });
   }
 
   cancelMemo(id: number): Observable<any> {
-    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/cancel`, {});
+    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/cancel`, null);
   }
 
   getApprovalHistory(id: number): Observable<any[]> {
@@ -92,6 +112,34 @@ export class MemoService {
   }
 
   acknowledgeMemo(id: number): Observable<any> {
-    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/acknowledge`, {});
+    return this.http.put<any>(`${ApiConfig.URL}/api/v1/memos/${id}/acknowledge`, null);
+  }
+
+  getStageInstances(id: number): Observable<any[]> {
+    return this.http.get<any[]>(`${ApiConfig.URL}/api/v1/memos/${id}/stages`);
+  }
+
+  approveStage(id: number, stageId: number, comment?: string): Observable<any> {
+    return this.http.post<any>(`${ApiConfig.URL}/api/v1/memos/${id}/approve-stage`, null, {
+      params: this.toHttpParams({ stageId, comment })
+    });
+  }
+
+  rejectStage(id: number, stageId: number, comment?: string): Observable<any> {
+    return this.http.post<any>(`${ApiConfig.URL}/api/v1/memos/${id}/reject-stage`, null, {
+      params: this.toHttpParams({ stageId, comment })
+    });
+  }
+
+  returnToStage(id: number, stageId: number, comment?: string): Observable<any> {
+    return this.http.post<any>(`${ApiConfig.URL}/api/v1/memos/${id}/return-stage`, null, {
+      params: this.toHttpParams({ stageId, comment })
+    });
+  }
+
+  delegateStage(id: number, stageId: number, toUserId: number): Observable<any> {
+    return this.http.post<any>(`${ApiConfig.URL}/api/v1/memos/${id}/delegate-stage`, null, {
+      params: this.toHttpParams({ stageId, toUserId })
+    });
   }
 }

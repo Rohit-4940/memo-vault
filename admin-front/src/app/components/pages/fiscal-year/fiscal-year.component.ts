@@ -5,16 +5,34 @@ import { NgbModal, NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
 import { FiscalYearService } from '../../../shared-services/api-service/fiscal-year.service';
 import { ToastrService } from 'ngx-toastr';
 import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
+import { AdvancedTableComponent, TableColumn } from '../../../shared-components/advanced-table/advanced-table.component';
 
 @Component({
   selector: 'app-fiscal-year',
   standalone: true,
-  imports: [NgForOf, NgIf, FormsModule, NgbModalModule, DatePipe],
+  imports: [NgForOf, NgIf, FormsModule, NgbModalModule, DatePipe, AdvancedTableComponent],
   templateUrl: './fiscal-year.component.html',
   styleUrl: './fiscal-year.component.scss'
 })
 export class FiscalYearComponent implements OnInit {
-  fiscalYears: any[] = [];
+  columns: TableColumn[] = [
+    { key: 'id', label: 'ID', sortable: true, width: '80px' },
+    { key: 'name', label: 'Name', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'startDate', label: 'Start Date', sortable: true, type: 'date' },
+    { key: 'endDate', label: 'End Date', sortable: true, type: 'date' },
+    { key: 'isActive', label: 'Active', sortable: true, filterable: true, filterType: 'boolean' },
+    { key: 'status', label: 'Status', sortable: true, filterable: true, filterType: 'select', filterOptions: [{label:'Active',value:'ACTIVE'},{label:'Inactive',value:'INACTIVE'}] }
+  ];
+  data: any[] = [];
+  loading = false;
+  pageNumber = 1;
+  pageSize = 20;
+  totalElements = 0;
+  totalPages = 1;
+  sortBy = 'id';
+  sortDir: 'asc' | 'desc' = 'desc';
+  searchQuery = '';
+  filters = new Map<string, string>();
   selectedFiscalYear: any = { name: '', startDate: '', endDate: '', isActive: false };
   isEditing = false;
   isAdmin = false;
@@ -28,15 +46,29 @@ export class FiscalYearComponent implements OnInit {
   ngOnInit() {
     const storage = LocalStorageUtil.getStorage();
     this.isAdmin = storage.roleName === 'ADMIN' || storage.roleName === 'SUPER_ADMIN';
-    this.loadFiscalYears();
+    this.loadData();
   }
 
-  loadFiscalYears() {
-    this.fiscalYearService.getAllFiscalYears().subscribe({
-      next: (data) => this.fiscalYears = data,
-      error: () => this.toastr.error('Failed to load fiscal years')
+  loadData() {
+    this.loading = true;
+    const filterObj: any = {};
+    this.filters.forEach((v, k) => { if (v) filterObj[k] = v; });
+    this.fiscalYearService.getPaginated(this.searchQuery, this.pageNumber, this.pageSize, this.sortBy, this.sortDir, filterObj).subscribe({
+      next: (res) => {
+        this.data = res.content || [];
+        this.totalElements = res.totalElements || 0;
+        this.totalPages = res.totalPages || 1;
+        this.loading = false;
+      },
+      error: () => { this.toastr.error('Failed to load'); this.loading = false; }
     });
   }
+
+  onSearch(value: string) { this.searchQuery = value; this.pageNumber = 1; this.loadData(); }
+  onPageChange(page: number) { this.pageNumber = page; this.loadData(); }
+  onSizeChange(size: number) { this.pageSize = size; this.pageNumber = 1; this.loadData(); }
+  onSortChange(sort: any) { this.sortBy = sort.sortBy; this.sortDir = sort.sortDir; this.loadData(); }
+  onFilterChange(filters: Map<string, string>) { this.filters = filters; this.pageNumber = 1; this.loadData(); }
 
   openCreateModal(content: any) {
     this.isEditing = false;
@@ -65,7 +97,7 @@ export class FiscalYearComponent implements OnInit {
       next: () => {
         this.toastr.success(this.isEditing ? 'Fiscal year updated' : 'Fiscal year created');
         this.modalService.dismissAll();
-        this.loadFiscalYears();
+        this.loadData();
       },
       error: (err) => this.toastr.error(err.error?.message || 'Failed')
     });
@@ -74,7 +106,7 @@ export class FiscalYearComponent implements OnInit {
   setActive(fiscalYear: any) {
     if (confirm(`Set "${fiscalYear.name}" as active fiscal year?`)) {
       this.fiscalYearService.setActiveFiscalYear(fiscalYear.id).subscribe({
-        next: () => { this.toastr.success('Active fiscal year updated'); this.loadFiscalYears(); },
+        next: () => { this.toastr.success('Active fiscal year updated'); this.loadData(); },
         error: () => this.toastr.error('Failed to set active fiscal year')
       });
     }
@@ -83,7 +115,7 @@ export class FiscalYearComponent implements OnInit {
   deleteFiscalYear(id: number) {
     if (confirm('Delete this fiscal year?')) {
       this.fiscalYearService.deleteFiscalYear(id).subscribe({
-        next: () => { this.toastr.success('Fiscal year deleted'); this.loadFiscalYears(); },
+        next: () => { this.toastr.success('Fiscal year deleted'); this.loadData(); },
         error: () => this.toastr.error('Delete failed')
       });
     }

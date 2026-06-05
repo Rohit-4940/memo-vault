@@ -30,4 +30,11 @@ export class FiscalYearService {
   setActiveFiscalYear(id: number): Observable<any> {
     return this.http.put<any>(`${ApiConfig.URL}/api/v1/fiscal-years/${id}/activate`, {});
   }
+
+  getPaginated(search: string, page: number, size: number, sortBy: string, sortDir: string, filters?: any): Observable<any> {
+    let params = `?page=${page - 1}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`;
+    if (search) params += `&search=${encodeURIComponent(search)}`;
+    if (filters) Object.keys(filters).forEach(k => { if (filters[k]) params += `&filters[${k}]=${encodeURIComponent(filters[k])}`; });
+    return this.http.get<any>(`${ApiConfig.URL}/api/v1/fiscal-years/paginated${params}`);
+  }
 }

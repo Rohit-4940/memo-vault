@@ -1,5 +1,5 @@
 :root {
-  /* ── Primary Palette ── */
+  /* ── Primary Palette (Indigo) ── */
   --nexmemo-50: #eef2ff;
   --nexmemo-100: #e0e7ff;
   --nexmemo-200: #c7d2fe;
@@ -42,7 +42,7 @@
   --nexmemo-info-dark: #1e40af;
 
   /* ── Neutral / Surface ── */
-  --nexmemo-bg: #f0f2f5;
+  --nexmemo-bg: #f1f4f9;
   --nexmemo-bg-subtle: #f8f9fb;
   --nexmemo-surface: #ffffff;
   --nexmemo-surface-hover: #f8fafc;
@@ -69,7 +69,7 @@
   --header-height: 64px;
   --header-bg: rgba(255,255,255,0.82);
 
-  /* ── Shadows ── */
+  /* ── Shadows (enhanced) ── */
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
@@ -78,6 +78,20 @@
   --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,0.15);
   --shadow-glow: 0 0 20px rgba(99,102,241,0.15);
   --shadow-glow-lg: 0 0 40px rgba(99,102,241,0.2);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+  --shadow-card-hover: 0 10px 25px -5px rgba(0,0,0,0.08), 0 4px 10px -4px rgba(0,0,0,0.04);
+  --shadow-table-header: 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-dropdown: 0 10px 25px -5px rgba(0,0,0,0.12), 0 4px 10px -4px rgba(0,0,0,0.06);
+
+  /* ── Gradient Tokens ── */
+  --gradient-primary: linear-gradient(135deg, #6366f1, #4f46e5);
+  --gradient-secondary: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  --gradient-success: linear-gradient(135deg, #34d399, #10b981);
+  --gradient-warning: linear-gradient(135deg, #fbbf24, #f59e0b);
+  --gradient-danger: linear-gradient(135deg, #f87171, #ef4444);
+  --gradient-info: linear-gradient(135deg, #60a5fa, #3b82f6);
+  --gradient-accent: linear-gradient(135deg, #22d3ee, #06b6d4);
+  --gradient-card-header: linear-gradient(135deg, var(--nexmemo-50), var(--nexmemo-100));
 
   /* ── Border Radius ── */
   --radius-xs: 4px;

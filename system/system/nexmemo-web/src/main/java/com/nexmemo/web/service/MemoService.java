@@ -113,7 +113,7 @@ public class MemoService {
 
     @Transactional(readOnly = true)
     public List<Memo> searchMemos(String keyword) {
-        return memoRepository.findByTitleContainingIgnoreCaseOrMemoNoContainingIgnoreCase(keyword, keyword);
+        return memoRepository.findByTitleContainingIgnoreCaseOrMemoNoContainingIgnoreCase(keyword);
     }
 
     @Transactional(readOnly = true)

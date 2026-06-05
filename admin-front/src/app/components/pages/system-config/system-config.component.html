@@ -36,29 +36,33 @@
   }
 
   <div class="card">
-    <div class="table-responsive">
-      <table class="table">
-        <thead><tr><th>ID</th><th>Key</th><th>Value</th><th>Description</th><th>Data Type</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>
-          @for(c of configs; track c.id) {
-            <tr>
-              <td>{{ c.id }}</td>
-              <td><code>{{ c.configKey }}</code></td>
-              <td class="text-truncate" style="max-width: 250px;">{{ c.configValue }}</td>
-              <td>{{ c.description }}</td>
-              <td><span class="badge badge-info">{{ c.dataType }}</span></td>
-              <td><span class="badge" [class]="getStatusBadgeClass(c.status)">{{ c.status }}</span></td>
-              <td class="actions">
-                @if (isAdmin) {
-                  <button class="btn btn-sm btn-outline-primary" (click)="openEditModal(editModal, c)"><i class="fas fa-edit"></i></button>
-                } @else {
-                  <span class="text-muted small">View only</span>
-                }
-              </td>
-            </tr>
-          } @empty { <tr><td colspan="7" class="text-center text-muted py-4">No configurations found</td></tr> }
-        </tbody>
-      </table>
+    <div class="card-body p-0">
+      <app-advanced-table
+        [columns]="columns"
+        [data]="data"
+        [totalElements]="totalElements"
+        [loading]="loading"
+        [pageNumber]="pageNumber"
+        [pageSize]="pageSize"
+        [totalPages]="totalPages"
+        [searchable]="true"
+        [showFilters]="true"
+        filterMode="panel"
+        searchPlaceholder="Search system config..."
+        (searchChange)="onSearch($event)"
+        (pageChange)="onPageChange($event)"
+        (sizeChange)="onSizeChange($event)"
+        (sortChange)="onSortChange($event)"
+        (filterChange)="onFilterChange($event)"
+      >
+        <ng-template #actions let-row>
+          @if (isAdmin) {
+            <button class="btn btn-sm btn-outline-primary" (click)="openEditModal(editModal, row); $event.stopPropagation()"><i class="fas fa-edit"></i></button>
+          } @else {
+            <span class="text-muted small">View only</span>
+          }
+        </ng-template>
+      </app-advanced-table>
     </div>
   </div>
 </div>

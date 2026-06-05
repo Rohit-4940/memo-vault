@@ -2,10 +2,17 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiConfig } from '../../@core/utils/api/ApiConfig';
+import { LocalStorageUtil } from '../../@core/utils/local-storage-util';
 
 @Injectable({ providedIn: 'root' })
 export class AuditLogService {
   constructor(private http: HttpClient) {}
+
+  private get isAdmin(): boolean {
+    const storage = LocalStorageUtil.getStorage();
+    const role = storage?.roleName?.toUpperCase() || '';
+    return role === 'SUPER_ADMIN' || role === 'ADMIN';
+  }
 
   getAuditLogs(params: {
     action?: string;
@@ -28,6 +35,8 @@ export class AuditLogService {
     queryParams.size = params.size ?? 20;
     queryParams.sort = params.sort ?? 'createdDate';
     queryParams.dir = params.dir ?? 'desc';
-    return this.http.get<any>(`${ApiConfig.URL}/api/v1/audit-logs`, { params: queryParams });
+
+    const endpoint = this.isAdmin ? '/api/v1/audit-logs' : '/api/v1/audit-logs/my';
+    return this.http.get<any>(`${ApiConfig.URL}${endpoint}`, { params: queryParams });
   }
 }

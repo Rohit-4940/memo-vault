@@ -6,35 +6,34 @@
     }
   </div>
   <div class="card">
-    <div class="table-responsive">
-      <table class="table">
-        <thead><tr><th>ID</th><th>Fiscal Year</th><th>Department</th><th>Branch</th><th>Allocated</th><th>Utilized</th><th>Remaining</th><th>Actions</th></tr></thead>
-        <tbody>
-          @for(b of budgets; track b.id) {
-            <tr>
-              <td>{{ b.id }}</td>
-              <td>{{ b.fiscalYearName || b.fiscalYear?.name }}</td>
-              <td>{{ b.departmentName || b.department?.name }}</td>
-              <td>{{ b.branchName || b.branch?.name || '-' }}</td>
-              <td>{{ b.allocatedAmount | number }}</td>
-              <td>{{ getUtilized(b) | number }}</td>
-              <td>
-                <span [class.text-success]="getRemaining(b) > 0" [class.text-danger]="getRemaining(b) <= 0">
-                  {{ getRemaining(b) | number }}
-                </span>
-              </td>
-              <td class="actions">
-                @if (isAdmin) {
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, b)"><i class="fas fa-edit"></i></button>
-                  <button class="btn btn-sm btn-outline-danger" (click)="deleteBudget(b.id)"><i class="fas fa-trash"></i></button>
-                } @else {
-                  <span class="text-muted small">View only</span>
-                }
-              </td>
-            </tr>
-          } @empty { <tr><td colspan="8" class="text-center text-muted py-4">No budget allocations found</td></tr> }
-        </tbody>
-      </table>
+    <div class="card-body p-0">
+      <app-advanced-table
+        [columns]="columns"
+        [data]="data"
+        [totalElements]="totalElements"
+        [loading]="loading"
+        [pageNumber]="pageNumber"
+        [pageSize]="pageSize"
+        [totalPages]="totalPages"
+        [searchable]="true"
+        [showFilters]="true"
+        filterMode="panel"
+        searchPlaceholder="Search budgets..."
+        (searchChange)="onSearch($event)"
+        (pageChange)="onPageChange($event)"
+        (sizeChange)="onSizeChange($event)"
+        (sortChange)="onSortChange($event)"
+        (filterChange)="onFilterChange($event)"
+      >
+        <ng-template #actions let-row>
+          @if (isAdmin) {
+            <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, row); $event.stopPropagation()"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-danger" (click)="deleteBudget(row.id); $event.stopPropagation()"><i class="fas fa-trash"></i></button>
+          } @else {
+            <span class="text-muted small">View only</span>
+          }
+        </ng-template>
+      </app-advanced-table>
     </div>
   </div>
 </div>

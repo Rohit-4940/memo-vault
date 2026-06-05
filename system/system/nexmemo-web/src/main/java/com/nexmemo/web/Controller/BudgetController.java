@@ -1,8 +1,12 @@
 package com.nexmemo.web.Controller;
 
 import com.nexmemo.core.dto.ApiResponse;
+import com.nexmemo.core.dto.PageResponse;
+import com.nexmemo.core.dto.PaginatedRequest;
 import com.nexmemo.core.entity.BudgetAllocation;
+import com.nexmemo.core.repository.BudgetAllocationRepository;
 import com.nexmemo.web.service.BudgetAllocationService;
+import com.nexmemo.web.service.PaginatedQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +22,14 @@ import java.util.List;
 public class BudgetController {
 
     private final BudgetAllocationService budgetAllocationService;
+    private final PaginatedQueryService paginatedQueryService;
+    private final BudgetAllocationRepository budgetAllocationRepository;
+
+    @GetMapping("/paginated")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PageResponse<BudgetAllocation>> findPaginated(PaginatedRequest request) {
+        return ResponseEntity.ok(paginatedQueryService.query(budgetAllocationRepository, request, List.of("description")));
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<BudgetAllocation>>> getAll() {

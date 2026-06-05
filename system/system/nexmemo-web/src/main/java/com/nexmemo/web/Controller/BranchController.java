@@ -1,8 +1,13 @@
 package com.nexmemo.web.Controller;
 
 import com.nexmemo.core.dto.ApiResponse;
+import com.nexmemo.core.dto.PageResponse;
+import com.nexmemo.core.dto.PaginatedRequest;
+import com.nexmemo.core.entity.Branch;
 import com.nexmemo.security.dto.BranchDto;
+import com.nexmemo.security.repository.BranchRepository;
 import com.nexmemo.web.service.BranchService;
+import com.nexmemo.web.service.PaginatedQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +23,14 @@ import java.util.List;
 public class BranchController {
 
     private final BranchService branchService;
+    private final PaginatedQueryService paginatedQueryService;
+    private final BranchRepository branchRepository;
+
+    @GetMapping("/paginated")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PageResponse<Branch>> findPaginated(PaginatedRequest request) {
+        return ResponseEntity.ok(paginatedQueryService.query(branchRepository, request, List.of("name", "branchCode", "branchEmail")));
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<BranchDto>>> getAllBranches() {

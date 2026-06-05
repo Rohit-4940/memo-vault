@@ -4,38 +4,38 @@
     <button class="btn btn-primary" (click)="openCreateModal(createModal)"><i class="fas fa-plus"></i> Request Leave</button>
   </div>
   <div class="card">
-    <div class="table-responsive">
-      <table class="table">
-        <thead><tr><th>ID</th><th>User</th><th>Leave Type</th><th>Start Date</th><th>End Date</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>
-          @for(l of leaves; track l.id) {
-            <tr [class.table-warning]="isOnLeave(l)">
-              <td>{{ l.id }}</td>
-              <td>{{ l.userName || l.user?.name || '-' }}</td>
-              <td>{{ l.leaveType }}</td>
-              <td>{{ l.startDate | date:'mediumDate' }}</td>
-              <td>{{ l.endDate | date:'mediumDate' }}</td>
-              <td class="text-truncate" style="max-width: 200px;">{{ l.reason }}</td>
-              <td>
-                <span class="badge" [class]="getStatusBadge(l.status)">{{ l.status }}</span>
-                @if (isOnLeave(l)) { <span class="badge badge-info ms-1">On Leave</span> }
-              </td>
-              <td class="actions">
-                @if (isAdmin && l.status === 'PENDING') {
-                  <button class="btn btn-sm btn-outline-success me-1" (click)="approveLeave(l.id)"><i class="fas fa-check"></i></button>
-                  <button class="btn btn-sm btn-outline-danger me-1" (click)="rejectLeave(l.id)"><i class="fas fa-times"></i></button>
-                }
-                @if (!isAdmin && l.status === 'PENDING') {
-                  <button class="btn btn-sm btn-outline-danger" (click)="cancelLeave(l.id)"><i class="fas fa-ban"></i></button>
-                }
-                @if (l.status !== 'PENDING') {
-                  <span class="text-muted small">-</span>
-                }
-              </td>
-            </tr>
-          } @empty { <tr><td colspan="8" class="text-center text-muted py-4">No leave records found</td></tr> }
-        </tbody>
-      </table>
+    <div class="card-body p-0">
+      <app-advanced-table
+        [columns]="columns"
+        [data]="data"
+        [totalElements]="totalElements"
+        [loading]="loading"
+        [pageNumber]="pageNumber"
+        [pageSize]="pageSize"
+        [totalPages]="totalPages"
+        [searchable]="true"
+        [showFilters]="true"
+        filterMode="panel"
+        searchPlaceholder="Search leaves..."
+        (searchChange)="onSearch($event)"
+        (pageChange)="onPageChange($event)"
+        (sizeChange)="onSizeChange($event)"
+        (sortChange)="onSortChange($event)"
+        (filterChange)="onFilterChange($event)"
+      >
+        <ng-template #actions let-row>
+          @if (isAdmin && row.status === 'PENDING') {
+            <button class="btn btn-sm btn-outline-success me-1" (click)="approveLeave(row.id); $event.stopPropagation()"><i class="fas fa-check"></i></button>
+            <button class="btn btn-sm btn-outline-danger me-1" (click)="rejectLeave(row.id); $event.stopPropagation()"><i class="fas fa-times"></i></button>
+          }
+          @if (!isAdmin && row.status === 'PENDING') {
+            <button class="btn btn-sm btn-outline-danger" (click)="cancelLeave(row.id); $event.stopPropagation()"><i class="fas fa-ban"></i></button>
+          }
+          @if (row.status !== 'PENDING') {
+            <span class="text-muted small">-</span>
+          }
+        </ng-template>
+      </app-advanced-table>
     </div>
   </div>
 </div>

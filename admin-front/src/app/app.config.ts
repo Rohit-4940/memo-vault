@@ -12,6 +12,8 @@ import {provideAnimationsAsync} from '@angular/platform-browser/animations/async
 import {NgbModal} from '@ng-bootstrap/ng-bootstrap';
 import {NgSelectModule} from '@ng-select/ng-select';
 import {HTTP_INTERCEPTORS} from '@angular/common/http';
+import {provideTranslateService} from '@ngx-translate/core';
+import {provideTranslateHttpLoader} from '@ngx-translate/http-loader';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -31,6 +33,10 @@ export const appConfig: ApplicationConfig = {
     provideAnimations(),
     provideToastr(),
     provideAnimationsAsync(),
+    provideTranslateService({
+      defaultLanguage: 'en'
+    }),
+    ...provideTranslateHttpLoader(),
     NgbModal,
     NgSelectModule
   ]

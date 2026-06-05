@@ -4,6 +4,7 @@ import com.nexmemo.core.enums.Status;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import java.io.Serializable;
 import java.util.List;
 
@@ -36,6 +37,7 @@ public class Menu extends BaseEntity<Long> implements Serializable {
     @Column(nullable = false)
     private Status status = Status.ACTIVE;
 
+    @BatchSize(size = 20)
     @OneToMany(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private List<Menu> subNavs;

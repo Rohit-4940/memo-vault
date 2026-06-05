@@ -26,4 +26,11 @@ export class BudgetService {
   deleteBudget(id: number): Observable<void> {
     return this.http.delete<void>(`${ApiConfig.URL}/api/v1/budgets/${id}`);
   }
+
+  getPaginated(search: string, page: number, size: number, sortBy: string, sortDir: string, filters?: any): Observable<any> {
+    let params = `?page=${page - 1}&size=${size}&sortBy=${sortBy}&sortDir=${sortDir}`;
+    if (search) params += `&search=${encodeURIComponent(search)}`;
+    if (filters) Object.keys(filters).forEach(k => { if (filters[k]) params += `&filters[${k}]=${encodeURIComponent(filters[k])}`; });
+    return this.http.get<any>(`${ApiConfig.URL}/api/v1/budgets/paginated${params}`);
+  }
 }

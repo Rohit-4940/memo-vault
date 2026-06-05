@@ -1,0 +1,90 @@
+.pagination-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--nexmemo-border);
+  background: linear-gradient(135deg, var(--nexmemo-bg-subtle), var(--nexmemo-surface));
+  gap: 1rem; flex-wrap: wrap;
+}
+
+.pagination-info {
+  font-size: 0.78rem; color: var(--nexmemo-text-secondary);
+  white-space: nowrap; display: flex; align-items: center; gap: 0.45rem;
+  i { font-size: 0.7rem; color: var(--nexmemo-text-muted); }
+  strong { font-weight: 600; color: var(--nexmemo-text); }
+}
+
+.pagination-controls {
+  display: flex; align-items: center; gap: 3px;
+}
+
+.page-btn {
+  min-width: 34px; height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--nexmemo-border);
+  border-radius: var(--radius-sm);
+  background: var(--nexmemo-surface);
+  color: var(--nexmemo-text-secondary);
+  font-size: 0.78rem; font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  padding: 0 0.4rem;
+  &:hover:not(:disabled) {
+    background: var(--nexmemo-bg);
+    color: var(--nexmemo-text);
+    border-color: var(--nexmemo-border-dark);
+    z-index: 1;
+  }
+  &:disabled {
+    opacity: 0.3; cursor: default;
+  }
+  &.active {
+    background: var(--nexmemo-primary);
+    color: white;
+    border-color: var(--nexmemo-primary);
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(79,70,229,0.25);
+    z-index: 1;
+  }
+}
+
+.page-btn-nav {
+  i { font-size: 0.6rem; }
+}
+
+.page-btn-ellipsis {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 34px;
+  border: none; background: transparent;
+  color: var(--nexmemo-text-muted);
+  font-size: 0.8rem; letter-spacing: 1px;
+  cursor: default; user-select: none;
+}
+
+.pagination-size {
+  label {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.78rem; color: var(--nexmemo-text-secondary);
+    white-space: nowrap;
+  }
+  select {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.78rem;
+    border: 1px solid var(--nexmemo-border);
+    border-radius: var(--radius-sm);
+    background: var(--nexmemo-surface);
+    color: var(--nexmemo-text-secondary);
+    cursor: pointer;
+    outline: none;
+    transition: border-color var(--transition-fast);
+    &:focus { border-color: var(--nexmemo-primary); }
+  }
+}
+
+@media (max-width: 768px) {
+  .pagination-bar {
+    flex-direction: column; align-items: stretch; gap: 0.75rem;
+  }
+  .pagination-info { text-align: center; justify-content: center; }
+  .pagination-controls { justify-content: center; flex-wrap: wrap; }
+  .pagination-size { text-align: center; label { justify-content: center; } }
+}

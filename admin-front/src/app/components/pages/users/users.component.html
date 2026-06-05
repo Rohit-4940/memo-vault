@@ -2,7 +2,6 @@
   <div class="page-header">
     <h1><i class="fas fa-users"></i> Users</h1>
     <div class="header-actions">
-      <input class="search-input" type="text" placeholder="Search users..." [(ngModel)]="searchTerm">
       <button class="btn btn-primary" (click)="openCreateModal(createModal)">
         <i class="fas fa-plus"></i> Create User
       </button>
@@ -10,32 +9,31 @@
   </div>
 
   <div class="card">
-    <div class="table-responsive">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>ID</th><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for(user of filteredUsers; track user.id) {
-            <tr>
-              <td>{{ user.id }}</td>
-              <td>{{ user.name }}</td>
-              <td>{{ user.username }}</td>
-              <td>{{ user.email }}</td>
-              <td><span class="badge badge-info">{{ user.roleName || user.role?.roleName }}</span></td>
-              <td><span class="badge" [class.badge-success]="user.status === 'ACTIVE'" [class.badge-danger]="user.status !== 'ACTIVE'">{{ user.status }}</span></td>
-              <td class="actions">
-                <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, user)"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-outline-danger" (click)="deleteUser(user.id)"><i class="fas fa-trash"></i></button>
-              </td>
-            </tr>
-          } @empty {
-            <tr><td colspan="7" class="text-center text-muted py-4">No users found</td></tr>
-          }
-        </tbody>
-      </table>
+    <div class="card-body p-0">
+      <app-advanced-table
+        [columns]="columns"
+        [data]="data"
+        [totalElements]="totalElements"
+        [loading]="loading"
+        [pageNumber]="pageNumber"
+        [pageSize]="pageSize"
+        [totalPages]="totalPages"
+        [searchable]="true"
+        [showFilters]="true"
+        filterMode="panel"
+        searchPlaceholder="Search users..."
+        (searchChange)="onSearch($event)"
+        (pageChange)="onPageChange($event)"
+        (sizeChange)="onSizeChange($event)"
+        (sortChange)="onSortChange($event)"
+        (filterChange)="onFilterChange($event)"
+        (rowClick)="openEditModal(editModal, $event)"
+      >
+        <ng-template #actions let-row>
+          <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, row); $event.stopPropagation()"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" (click)="deleteUser(row.id); $event.stopPropagation()"><i class="fas fa-trash"></i></button>
+        </ng-template>
+      </app-advanced-table>
     </div>
   </div>
 </div>

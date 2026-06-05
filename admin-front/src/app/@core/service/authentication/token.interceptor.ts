@@ -4,7 +4,6 @@ import { jwtDecode } from 'jwt-decode';
 
 export const TokenInterceptor: HttpInterceptorFn = (req, next) => {
   const authBasePath = '/api/v1/auth/';
-  let header = req.headers.set('Content-Type', 'application/json');
 
   if (req.url.includes(authBasePath + 'login') ||
       req.url.includes(authBasePath + 'verify-otp') ||
@@ -13,6 +12,12 @@ export const TokenInterceptor: HttpInterceptorFn = (req, next) => {
       req.url.includes(authBasePath + 'set-password') ||
       req.url.includes(authBasePath + 'refresh')) {
     return next(req);
+  }
+
+  const isFormData = req.body instanceof FormData;
+  let header = req.headers;
+  if (!isFormData) {
+    header = header.set('Content-Type', 'application/json');
   }
 
   const storage = LocalStorageUtil.getStorage();

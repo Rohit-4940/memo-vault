@@ -11,10 +11,11 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -66,6 +67,7 @@ public class User extends BaseEntity<Long> implements UserDetails {
     // ── Branch assignments ────────────────────────────────────────────────────
 
     @JsonIgnore
+    @BatchSize(size = 20)
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_branches",

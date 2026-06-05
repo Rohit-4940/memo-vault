@@ -45,62 +45,39 @@
 
   <div class="row mt-3">
     <div class="col-md-12">
-      <div class="table-responsive shadow p-3 mb-5 bg-body rounded" style="border-top: #ef3238 5px solid;">
+      <div class="shadow p-3 mb-5 bg-body rounded" style="border-top: #ef3238 5px solid;">
         <div class="d-flex justify-content-end mb-2 p-2">
           <button class="btn btn-sm btn-outline-success" (click)="onCreateUserData()">
             Add User <i class="bi bi-person-plus"></i>
           </button>
         </div>
-        <table class="table table-sm table-hover table-striped">
-          <thead>
-          <tr class="custom-header">
-            <th>S.N</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Username</th>
-            <th>User type</th>
-            <th>Role</th>
-            <th>Branch</th>
-            <th>Status</th>
-            <th>Department</th>
-            <th>Address</th>
-            <th>Action</th>
-          </tr>
-          </thead>
-          <tbody>
-            @for (user of userList(); track user.id; let index = $index) {
-              <tr>
-                <td>{{ index + 1 }}</td>
-                <td>{{ user?.name || 'N/A'}}</td>
-                <td>{{ user?.email || 'N/A'}}</td>
-                <td>{{ user?.username || 'N/A'}}</td>
-                <td>{{ user?.userType?.[0] || 'N/A' }}</td>
-                <td>{{ user?.roles?.[0] || 'N/A' }}</td>
-                <td>{{ user?.branch || 'N/A'}}</td>
-                <td>{{ user?.status || 'N/A'}}</td>
-                <td>{{ user?.department || 'N/A'}}</td>
-                <td>{{ user?.address || 'N/A'}}</td>
-                <td>
-            <div class="d-flex flex-nowrap align-items-center">
-              <button class="btn btn-sm btn-outline-info me-2"
-                      (click)="onEditUserData(user?.id, user)">
-                <i class="bi bi-pencil-square" style="color:#28a745"></i>
-              </button>
-              <button class="btn btn-sm btn-outline-danger"
-                      (click)="deleteUserData(user?.username)">
-                <i class="bi bi-trash" style="color:#ec251e"></i>
-              </button>
-            </div>
-          </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-        <app-sb-pagination
-          [pageable]="pageable"
-          (changePage)="onPageChange($event)"
-          (changePageSize)="onPageSizeChange($event)">
-        </app-sb-pagination>
+        <app-advanced-table
+          [columns]="columns"
+          [data]="data"
+          [totalElements]="totalElements"
+          [loading]="loading"
+          [pageNumber]="pageNumber"
+          [pageSize]="pageSize"
+          [totalPages]="totalPages"
+          [searchable]="true"
+          [showFilters]="true"
+          filterMode="panel"
+          searchPlaceholder="Search users..."
+          (searchChange)="onSearch($event)"
+          (pageChange)="onPageChange($event)"
+          (sizeChange)="onSizeChange($event)"
+          (sortChange)="onSortChange($event)"
+          (filterChange)="onFilterChange($event)"
+        >
+          <ng-template #actions let-row>
+            <button class="btn btn-sm btn-outline-info me-2" (click)="onEditUserData(row?.id, row); $event.stopPropagation()">
+              <i class="bi bi-pencil-square" style="color:#28a745"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" (click)="deleteUserData(row?.username); $event.stopPropagation()">
+              <i class="bi bi-trash" style="color:#ec251e"></i>
+            </button>
+          </ng-template>
+        </app-advanced-table>
       </div>
     </div>
   </div>

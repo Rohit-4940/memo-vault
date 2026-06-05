@@ -6,28 +6,35 @@
     }
   </div>
   <div class="card">
-    <div class="table-responsive">
-      <table class="table">
-        <thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>
-          @for(d of departments; track d.id) {
-            <tr>
-              <td>{{ d.id }}</td>
-              <td>{{ d.name }}</td>
-              <td>{{ d.description }}</td>
-              <td><span class="badge" [class.badge-success]="d.status === 'ACTIVE'" [class.badge-danger]="d.status !== 'ACTIVE'">{{ d.status }}</span></td>
-              <td class="actions">
-                @if (isAdmin) {
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, d)"><i class="fas fa-edit"></i></button>
-                  <button class="btn btn-sm btn-outline-danger" (click)="deleteDepartment(d.id)"><i class="fas fa-trash"></i></button>
-                } @else {
-                  <span class="text-muted small">View only</span>
-                }
-              </td>
-            </tr>
-          } @empty { <tr><td colspan="5" class="text-center text-muted py-4">No departments found</td></tr> }
-        </tbody>
-      </table>
+    <div class="card-body p-0">
+      <app-advanced-table
+        [columns]="columns"
+        [data]="data"
+        [totalElements]="totalElements"
+        [loading]="loading"
+        [pageNumber]="pageNumber"
+        [pageSize]="pageSize"
+        [totalPages]="totalPages"
+        [searchable]="true"
+        [showFilters]="true"
+        filterMode="panel"
+        searchPlaceholder="Search departments..."
+        (searchChange)="onSearch($event)"
+        (pageChange)="onPageChange($event)"
+        (sizeChange)="onSizeChange($event)"
+        (sortChange)="onSortChange($event)"
+        (filterChange)="onFilterChange($event)"
+        (rowClick)="openEditModal(editModal, $event)"
+      >
+        <ng-template #actions let-row>
+          @if (isAdmin) {
+            <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, row); $event.stopPropagation()"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-danger" (click)="deleteDepartment(row.id); $event.stopPropagation()"><i class="fas fa-trash"></i></button>
+          } @else {
+            <span class="text-muted small">View only</span>
+          }
+        </ng-template>
+      </app-advanced-table>
     </div>
   </div>
 </div>

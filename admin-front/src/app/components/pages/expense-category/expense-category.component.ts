@@ -6,11 +6,12 @@ import { HttpClient } from '@angular/common/http';
 import { ApiConfig } from '../../../@core/utils/api/ApiConfig';
 import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
 import { ToastrService } from 'ngx-toastr';
+import { AdvancedTableComponent, TableColumn } from '../../../shared-components/advanced-table/advanced-table.component';
 
 @Component({
   selector: 'app-expense-category',
   standalone: true,
-  imports: [NgFor, NgIf, NgClass, FormsModule, NgbModalModule, DecimalPipe],
+  imports: [NgFor, NgIf, NgClass, FormsModule, NgbModalModule, DecimalPipe, AdvancedTableComponent],
   template: `
 <div class="page-container animate-fade-in">
   <div class="page-header">
@@ -25,29 +26,28 @@ import { ToastrService } from 'ngx-toastr';
 
   <div class="card">
     <div class="card-body p-0">
-      <table class="table">
-        <thead>
-          <tr><th>Code</th><th>Name</th><th>Parent</th><th>Approval Levels</th><th>Max Amount</th><th>Status</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-          @for (cat of categories; track cat.id) {
-            <tr>
-              <td><code>{{ cat.categoryCode }}</code></td>
-              <td class="font-medium">{{ cat.categoryName }}</td>
-              <td class="text-muted">{{ cat.parentCategory?.categoryName || '—' }}</td>
-              <td>{{ cat.approvalLevels || 1 }}</td>
-              <td>{{ cat.maxAmount ? (cat.maxAmount | number) : '—' }}</td>
-              <td><span class="badge" [class.badge-success]="cat.status === 'ACTIVE'" [class.badge-secondary]="cat.status !== 'ACTIVE'">{{ cat.status }}</span></td>
-              <td>
-                <button class="btn btn-sm btn-ghost" (click)="editModal(editContent, cat)"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-ghost text-danger" (click)="deleteCategory(cat.id)"><i class="fas fa-trash"></i></button>
-              </td>
-            </tr>
-          } @empty {
-            <tr><td colspan="7"><div class="empty-state"><i class="fas fa-tags"></i><p>No expense categories defined. Create one to start organizing banking expenses.</p></div></td></tr>
-          }
-        </tbody>
-      </table>
+      <app-advanced-table
+        [columns]="columns"
+        [data]="data"
+        [totalElements]="totalElements"
+        [loading]="loading"
+        [pageNumber]="pageNumber"
+        [pageSize]="pageSize"
+        [totalPages]="totalPages"
+        [searchable]="true"
+        [showFilters]="true"
+        searchPlaceholder="Search categories..."
+        (searchChange)="onSearch($event)"
+        (pageChange)="onPageChange($event)"
+        (sizeChange)="onSizeChange($event)"
+        (sortChange)="onSortChange($event)"
+        (filterChange)="onFilterChange($event)"
+      >
+        <ng-template #actions let-row>
+          <button class="btn btn-sm btn-ghost" (click)="editModal(editContent, row); $event.stopPropagation()"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-ghost text-danger" (click)="deleteCategory(row.id); $event.stopPropagation()"><i class="fas fa-trash"></i></button>
+        </ng-template>
+      </app-advanced-table>
     </div>
   </div>
 </div>
@@ -79,7 +79,7 @@ import { ToastrService } from 'ngx-toastr';
           <label>Parent Category</label>
           <select class="form-control" [(ngModel)]="form.parentCategoryId">
             <option [value]="null">— None (Top Level) —</option>
-            @for (cat of categories; track cat.id) {
+            @for (cat of data; track cat.id) {
               <option [value]="cat.id">{{ cat.categoryName }}</option>
             }
           </select>
@@ -168,7 +168,24 @@ import { ToastrService } from 'ngx-toastr';
   `]
 })
 export class ExpenseCategoryComponent implements OnInit {
-  categories: any[] = [];
+  columns: TableColumn[] = [
+    { key: 'categoryCode', label: 'Code', sortable: true, filterable: true, filterType: 'text', width: '100px' },
+    { key: 'categoryName', label: 'Name', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'parentCategory.categoryName', label: 'Parent', sortable: false },
+    { key: 'approvalLevels', label: 'Approval Levels', sortable: true, type: 'number', width: '140px' },
+    { key: 'maxAmount', label: 'Max Amount', sortable: true, type: 'currency' },
+    { key: 'status', label: 'Status', sortable: true, filterable: true, filterType: 'select', filterOptions: [{label:'Active',value:'ACTIVE'},{label:'Inactive',value:'INACTIVE'}] }
+  ];
+  data: any[] = [];
+  loading = false;
+  pageNumber = 1;
+  pageSize = 20;
+  totalElements = 0;
+  totalPages = 1;
+  sortBy = 'id';
+  sortDir: 'asc' | 'desc' = 'desc';
+  searchQuery = '';
+  filters = new Map<string, string>();
   form: any = { categoryName: '', categoryCode: '', description: '', parentCategoryId: null, approvalLevels: 1, maxAmount: null, budgetCodePattern: '', requiresApproval: true };
   editForm: any = {};
   isAdmin = false;
@@ -183,10 +200,47 @@ export class ExpenseCategoryComponent implements OnInit {
   }
 
   loadCategories() {
-    this.http.get<any[]>(`${ApiConfig.URL}/api/v1/expense-categories`).subscribe({
-      next: (data) => this.categories = data,
-      error: () => this.toastr.error('Failed to load categories')
+    this.loading = true;
+    const filterObj: any = {};
+    this.filters.forEach((v, k) => { if (v) filterObj[k] = v; });
+    this.http.get<any>(`${ApiConfig.URL}/api/v1/expense-categories/paginated?page=${this.pageNumber - 1}&size=${this.pageSize}&sortBy=${this.sortBy}&sortDir=${this.sortDir}${this.searchQuery ? '&search=' + encodeURIComponent(this.searchQuery) : ''}${Object.keys(filterObj).length ? '&' + Object.keys(filterObj).map(k => k + '=' + encodeURIComponent(filterObj[k])).join('&') : ''}`).subscribe({
+      next: (res) => {
+        this.data = res.content || [];
+        this.totalElements = res.totalElements || 0;
+        this.totalPages = res.totalPages || 1;
+        this.loading = false;
+      },
+      error: () => { this.toastr.error('Failed to load categories'); this.loading = false; }
     });
+  }
+
+  onSearch(value: string) {
+    this.searchQuery = value;
+    this.pageNumber = 1;
+    this.loadCategories();
+  }
+
+  onPageChange(page: number) {
+    this.pageNumber = page;
+    this.loadCategories();
+  }
+
+  onSizeChange(size: number) {
+    this.pageSize = size;
+    this.pageNumber = 1;
+    this.loadCategories();
+  }
+
+  onSortChange(sort: any) {
+    this.sortBy = sort.sortBy;
+    this.sortDir = sort.sortDir;
+    this.loadCategories();
+  }
+
+  onFilterChange(filters: Map<string, string>) {
+    this.filters = filters;
+    this.pageNumber = 1;
+    this.loadCategories();
   }
 
   openModal(content: any) {

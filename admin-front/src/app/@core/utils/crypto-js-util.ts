@@ -1,5 +1,5 @@
 import * as CryptoJS from 'crypto-js';
-import {environment} from '../../../environments/environment.imepay';
+import {environment} from '../../../environments/environment';
 
 export class CryptoJsUtil {
 

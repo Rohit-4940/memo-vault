@@ -26,7 +26,12 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Stream;
 
 
 @Configuration
@@ -43,6 +48,18 @@ public class SecurityConfig {
     @Value("${nexmemo.security.rate-limit.redis-enabled:false}")
     private boolean redisEnabled;
 
+    /**
+     * PUBLIC_ENDPOINTS are endpoints that require NO authentication.
+     *
+     * Security principle: every endpoint should require authentication unless
+     * there is an explicit reason not to. For production:
+     * - Swagger (/v3/api-docs, /swagger-ui) is REMOVED — API docs leak attack surface.
+     *   Enable them in dev only via a separate profile.
+     * - Actuator health is REMOVED — use a dedicated monitoring endpoint instead
+     *   or restrict to internal network via a separate filter.
+     * - WebSocket (/ws) is kept public for the initial handshake; auth happens
+     *   at the STOMP level.
+     */
     private static final String[] PUBLIC_ENDPOINTS = {
             "/auth/login",
             "/auth/refresh",
@@ -51,9 +68,6 @@ public class SecurityConfig {
             "/auth/reset-password",
             "/auth/verify-otp",
             "/auth/set-password",
-            "/actuator/health",
-            "/v3/api-docs/**",
-            "/swagger-ui/**",
             "/ws/**"
     };
 
@@ -79,7 +93,12 @@ public class SecurityConfig {
                                                    RateLimitFilter rateLimitFilter,
                                                    JwtAuthenticationFilter jwtAuthFilter) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
+                // CSRF: For a stateless API using Bearer JWT tokens, traditional CSRF is not needed
+                // because the Authorization header is not automatically sent by browsers.
+                // However, we still enforce Origin header validation as a defense-in-depth measure.
+                .csrf(csrf -> csrf
+                        .requireCsrfProtectionMatcher(new OriginRefererCsrfMatcher(allowedOrigins()))
+                        .ignoringRequestMatchers(PUBLIC_ENDPOINTS))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -129,6 +148,72 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
+    }
+
+    /**
+     * Returns the list of allowed origins from CORS configuration for use
+     * in the CSRF Origin/Referer validator.
+     */
+    private List<String> allowedOrigins() {
+        return Arrays.asList(corsProperties.getAllowedOrigins().split(","));
+    }
+
+    /**
+     * Request matcher that validates Origin and Referer headers on state-changing
+     * HTTP methods (POST, PUT, DELETE, PATCH). This is a defense-in-depth measure
+     * against CSRF that works alongside SameSite=Strict cookies and Bearer token auth.
+     *
+     * How it works:
+     * 1. If the request has an Origin header, it must match one of the allowed origins
+     * 2. If no Origin header (e.g., legacy clients), it checks the Referer header
+     * 3. If neither header is present, the request is rejected for state-changing methods
+     * 4. GET/HEAD/OPTIONS/TRACE requests are exempt (they don't change state)
+     */
+    private static class OriginRefererCsrfMatcher implements RequestMatcher {
+
+        private static final List<String> SAFE_METHODS = List.of("GET", "HEAD", "OPTIONS", "TRACE");
+        private final List<String> allowedOrigins;
+
+        OriginRefererCsrfMatcher(List<String> allowedOrigins) {
+            this.allowedOrigins = allowedOrigins.stream()
+                    .map(String::trim)
+                    .map(o -> o.endsWith("/") ? o.substring(0, o.length() - 1) : o)
+                    .toList();
+        }
+
+        @Override
+        public boolean matches(HttpServletRequest request) {
+            String method = request.getMethod();
+            if (SAFE_METHODS.contains(method.toUpperCase())) {
+                return false;
+            }
+
+            String origin = request.getHeader("Origin");
+            String referer = request.getHeader("Referer");
+
+            // If Origin is present, it must be allowed
+            if (origin != null && !origin.isBlank()) {
+                boolean matched = allowedOrigins.stream()
+                        .anyMatch(allowed -> origin.equals(allowed) || origin.startsWith(allowed + "/"));
+                if (!matched) {
+                    return true; // block — CSRF match
+                }
+                return false; // allowed
+            }
+
+            // If no Origin, check Referer
+            if (referer != null && !referer.isBlank()) {
+                boolean matched = allowedOrigins.stream()
+                        .anyMatch(allowed -> referer.startsWith(allowed));
+                if (!matched) {
+                    return true; // block — CSRF match
+                }
+                return false; // allowed
+            }
+
+            // No Origin and no Referer — block state-changing requests
+            return true;
+        }
     }
 
 }

@@ -6,6 +6,7 @@ import com.nexmemo.core.repository.ApprovalRuleMatrixRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/approval-rule-matrices")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
 public class ApprovalRuleMatrixController {
 
     private final ApprovalRuleMatrixRepository approvalRuleMatrixRepository;

@@ -1,6 +1,7 @@
 package com.nexmemo.security.repository;
 import com.nexmemo.core.entity.OtpVerification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import java.util.Optional;
@@ -9,7 +10,7 @@ import java.util.Optional;
  * @author : Rohit Chapagain
  * @created : 2026-05-09, Saturday
  **/
-public interface OtpRepository extends JpaRepository<OtpVerification, Long> {
+public interface OtpRepository extends JpaRepository<OtpVerification, Long>, JpaSpecificationExecutor<OtpVerification> {
     @Query("SELECT o FROM OtpVerification o WHERE o.user.id = :userId AND o.otpType = :type AND o.isUsed = false ORDER BY o.createdDate DESC LIMIT 1")
     Optional<OtpVerification> findLatestActiveOtp(Long userId, String type);
     @Modifying

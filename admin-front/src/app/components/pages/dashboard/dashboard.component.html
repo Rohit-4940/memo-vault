@@ -1,9 +1,11 @@
 <div class="page-container animate-fade-in">
+  <!-- ═══ Header ═══ -->
   <div class="page-header">
     <div>
-      <h1><i class="fas fa-chart-pie"></i> Banking Dashboard</h1>
+      <h1><i class="fas fa-chart-pie"></i> Executive Command Center</h1>
       <div class="page-subtitle">
         Welcome back, <strong>{{ userName }}</strong> &middot; {{ currentDate | date:'EEEE, MMMM d, yyyy' }}
+        &middot; <span class="badge bg-primary-subtle text-primary"><i class="fas fa-sync-alt"></i> Auto-refresh 30s</span>
       </div>
     </div>
     <div class="header-actions">
@@ -13,100 +15,278 @@
     </div>
   </div>
 
-  <div class="stats-grid stagger-children">
-    <div class="stat-card gradient-blue">
-      <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
-      <div class="stat-body">
-        <div class="stat-value">{{ summary.totalMemos || 0 }}</div>
-        <div class="stat-label">Total Memos</div>
-        <div class="stat-trend"><i class="fas fa-layers"></i> All time</div>
+  <!-- ═══ KPI Row (6 cards) ═══ -->
+  <div class="kpi-grid">
+    <div class="kpi-card gradient-blue">
+      <div class="kpi-icon"><i class="fas fa-file-alt"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ summary.totalMemos || 0 }}</div>
+        <div class="kpi-label">Total Memos</div>
+        <div class="kpi-footer"><i class="fas fa-layers"></i> All time</div>
       </div>
     </div>
-    <div class="stat-card gradient-orange">
-      <div class="stat-icon"><i class="fas fa-clock"></i></div>
-      <div class="stat-body">
-        <div class="stat-value">{{ summary.pendingCount || 0 }}</div>
-        <div class="stat-label">Pending Approval</div>
-        <div class="stat-trend up"><i class="fas fa-coins"></i> रू {{ (summary.totalPendingAmount || 0) | number:'1.0-0' }}</div>
+    <div class="kpi-card gradient-orange">
+      <div class="kpi-icon"><i class="fas fa-clock"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ summary.pendingCount || 0 }}</div>
+        <div class="kpi-label">Pending Approval</div>
+        <div class="kpi-footer up"><i class="fas fa-coins"></i> रू {{ (summary.totalPendingAmount || 0) | number:'1.0-0' }}</div>
       </div>
     </div>
-    <div class="stat-card gradient-green">
-      <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-      <div class="stat-body">
-        <div class="stat-value">{{ summary.approvedCount || 0 }}</div>
-        <div class="stat-label">Approved</div>
-        <div class="stat-trend up"><i class="fas fa-coins"></i> रू {{ (summary.totalApprovedAmount || 0) | number:'1.0-0' }}</div>
+    <div class="kpi-card gradient-green">
+      <div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ summary.approvedCount || 0 }}</div>
+        <div class="kpi-label">Approved</div>
+        <div class="kpi-footer up"><i class="fas fa-coins"></i> रू {{ (summary.totalApprovedAmount || 0) | number:'1.0-0' }}</div>
       </div>
     </div>
-    <div class="stat-card gradient-purple">
-      <div class="stat-icon"><i class="fas fa-percentage"></i></div>
-      <div class="stat-body">
-        <div class="stat-value">{{ summary.approvalRate || 0 }}%</div>
-        <div class="stat-label">Approval Rate</div>
-        <div class="stat-trend"><i class="fas fa-chart-line"></i> Overall</div>
+    <div class="kpi-card gradient-purple">
+      <div class="kpi-icon"><i class="fas fa-percentage"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ slaCompliance.overallCompliancePct || 0 }}%</div>
+        <div class="kpi-label">SLA Compliance</div>
+        <div class="kpi-footer"><i class="fas fa-shield-alt"></i> {{ slaCompliance.details?.length || 0 }} priority levels</div>
+      </div>
+    </div>
+    <div class="kpi-card gradient-cyan">
+      <div class="kpi-icon"><i class="fas fa-hourglass-half"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ avgApprovalTimeText() }}</div>
+        <div class="kpi-label">Avg Approval Time</div>
+        <div class="kpi-footer"><i class="fas fa-building"></i> Across all depts</div>
+      </div>
+    </div>
+    <div class="kpi-card gradient-rose" [class.pulse]="slaAtRisk.length > 0">
+      <div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-value">{{ slaAtRisk.length }}</div>
+        <div class="kpi-label">At-Risk / Overdue</div>
+        <div class="kpi-footer" [class.text-warning]="slaAtRisk.length > 0">
+          <i class="fas fa-bell"></i> Requires attention
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="dashboard-grid">
-    <div class="card animate-fade-in">
-      <div class="card-header">
-        <h3><i class="fas fa-chart-ring" style="color:var(--nexmemo-primary)"></i>Status Breakdown</h3>
+  <!-- ═══ Row 2: SLA Gauge + Activity Feed ═══ -->
+  <div class="cc-grid-2">
+    <!-- SLA Gauge Card -->
+    <div class="cc-card">
+      <div class="cc-card-header">
+        <h3><i class="fas fa-tachometer-alt" style="color:var(--nexmemo-primary)"></i> SLA Performance</h3>
+        <span class="badge bg-primary-subtle text-primary">{{ slaCompliance.overallCompliancePct || 0 }}% overall</span>
       </div>
-      <div class="card-body chart-container">
-        @if (statusChartData?.datasets?.[0]?.data?.length) {
-          <canvas baseChart [data]="statusChartData" [options]="statusChartOptions" type="doughnut"></canvas>
-        } @else {
-          <div class="empty-state"><i class="fas fa-chart-pie"></i><p>No data yet</p></div>
-        }
-      </div>
-    </div>
-
-    <div class="card animate-fade-in">
-      <div class="card-header">
-        <h3><i class="fas fa-chart-bar" style="color:var(--nexmemo-success)"></i>Monthly Trend</h3>
-      </div>
-      <div class="card-body chart-container">
-        @if (trendChartData?.datasets?.[0]?.data?.length) {
-          <canvas baseChart [data]="trendChartData" [options]="trendChartOptions" type="bar"></canvas>
-        } @else {
-          <div class="empty-state"><i class="fas fa-chart-bar"></i><p>No data yet</p></div>
-        }
-      </div>
-    </div>
-
-    <div class="card animate-fade-in">
-      <div class="card-header">
-        <h3><i class="fas fa-tags" style="color:var(--nexmemo-accent)"></i>Expense by Category</h3>
-      </div>
-      <div class="card-body chart-container">
-        @if (expenseChartData?.datasets?.[0]?.data?.length) {
-          <canvas baseChart [data]="expenseChartData" [options]="expenseChartOptions" type="pie"></canvas>
-        } @else {
-          <div class="empty-state"><i class="fas fa-tags"></i><p>No expense categories yet</p></div>
-        }
-      </div>
-    </div>
-
-    <div class="card animate-fade-in">
-      <div class="card-header">
-        <h3><i class="fas fa-bolt" style="color:var(--nexmemo-warning)"></i>Quick Actions</h3>
-      </div>
-      <div class="card-body">
-        <div class="quick-actions">
-          <button class="quick-action-btn" routerLink="/layout/memo">
-            <i class="fas fa-file-alt"></i><span>New Memo</span>
-          </button>
-          <button class="quick-action-btn" routerLink="/layout/document-list">
-            <i class="fas fa-search"></i><span>Browse Memos</span>
-          </button>
-          <button class="quick-action-btn" routerLink="/layout/memo-template">
-            <i class="fas fa-layer-group"></i><span>Templates</span>
-          </button>
-          <button class="quick-action-btn" routerLink="/layout/expense-category">
-            <i class="fas fa-tag"></i><span>Categories</span>
-          </button>
+      <div class="cc-card-body">
+        <div class="sla-gauge-layout">
+          <div class="sla-gauge-container">
+            @if (slaGaugeData) {
+              <canvas baseChart [data]="slaGaugeData" [options]="slaGaugeOptions" type="doughnut"></canvas>
+            }
+            <div class="sla-gauge-center">
+              <div class="sla-gauge-value" [style.color]="slaColor(slaCompliance.overallCompliancePct || 100)">
+                {{ slaCompliance.overallCompliancePct || 0 }}%
+              </div>
+              <div class="sla-gauge-label">Compliant</div>
+            </div>
+          </div>
+          <div class="sla-breakdown">
+            @for (item of slaCompliance.details || []; track $index) {
+              <div class="sla-row">
+                <div class="sla-row-left">
+                  <span class="sla-priority-dot" [style.background]="priorityColor(item.priority)"></span>
+                  <span>{{ item.priority }}</span>
+                </div>
+                <div class="sla-row-bar">
+                  <div class="sla-bar-track">
+                    <div class="sla-bar-fill" [style.width.%]="item.compliancePct" [style.background]="slaColor(item.compliancePct)"></div>
+                  </div>
+                </div>
+                <div class="sla-row-right">
+                  <span>{{ item.withinSla }}/{{ item.total }}</span>
+                  <span class="sla-pct">{{ item.compliancePct }}%</span>
+                </div>
+              </div>
+            }
+            @if (!slaCompliance.details?.length) {
+              <div class="empty-state small"><i class="fas fa-chart-line"></i><p>No SLA data yet</p></div>
+            }
+          </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Activity Feed Card -->
+    <div class="cc-card">
+      <div class="cc-card-header">
+        <h3><i class="fas fa-bolt" style="color:var(--nexmemo-accent)"></i> Live Activity Feed</h3>
+        <span class="badge bg-accent-subtle text-accent">{{ activityFeed.length }} recent</span>
+      </div>
+      <div class="cc-card-body p-0">
+        <div class="activity-feed">
+          @for (item of activityFeed; track item.id) {
+            <div class="activity-item">
+              <div class="activity-icon"><i class="fas {{ statusIcon(item.action) }}"></i></div>
+              <div class="activity-content">
+                <div class="activity-text">
+                  <strong>{{ item.approverName }}</strong>
+                  <span class="badge activity-badge" [class]="actionBadgeClass(item.action)">{{ item.action }}</span>
+                  <span class="activity-memo">{{ item.memoNo }}</span>
+                </div>
+                <div class="activity-meta">
+                  <span>{{ item.memoTitle }}</span>
+                  &middot;
+                  <span class="activity-time">{{ timeAgo(item.timestamp) }}</span>
+                </div>
+              </div>
+            </div>
+          }
+          @if (!activityFeed.length) {
+            <div class="empty-state small"><i class="fas fa-inbox"></i><p>No recent activity</p></div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Row 3: Bottleneck Heatmap + Approver Leaderboard + SLA At-Risk ═══ -->
+  <div class="cc-grid-3">
+    <!-- Bottleneck Heatmap -->
+    <div class="cc-card cc-span-2">
+      <div class="cc-card-header">
+        <h3><i class="fas fa-fire" style="color:var(--nexmemo-danger)"></i> Approval Bottleneck Heatmap</h3>
+        <span class="text-muted small">Avg hours by Department &times; Memo Type</span>
+      </div>
+      <div class="cc-card-body p-0">
+        <div class="heatmap-wrapper">
+          @if (bottleneckHeatmap.length) {
+            <table class="heatmap-table">
+              <thead>
+                <tr>
+                  <th>Department</th>
+                  <th>Memo Type</th>
+                  <th class="text-center">Memos</th>
+                  <th class="text-center">Avg Hours</th>
+                  <th class="text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (cell of bottleneckHeatmap; track $index) {
+                  <tr>
+                    <td><span class="heatmap-dept">{{ cell.department }}</span></td>
+                    <td>{{ cell.memoType }}</td>
+                    <td class="text-center">{{ cell.count }}</td>
+                    <td class="text-center">
+                      <span class="heatmap-hours" [style.background]="heatBg(cell.avgHours)" [style.color]="heatColor(cell.avgHours)">
+                        {{ cell.avgHours }}h
+                      </span>
+                    </td>
+                    <td class="text-center">
+                      <span class="heatmap-dot" [style.background]="heatColor(cell.avgHours)"></span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <div class="empty-state small"><i class="fas fa-fire"></i><p>No approval data yet</p></div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Approver Leaderboard + At-Risk stacked -->
+    <div class="cc-card-list">
+      <!-- Approver Leaderboard -->
+      <div class="cc-card">
+        <div class="cc-card-header">
+          <h3><i class="fas fa-trophy" style="color:var(--nexmemo-warning)"></i> Top Approvers</h3>
+        </div>
+        <div class="cc-card-body p-0">
+          @for (appr of approverLeaderboard | slice:0:5; track $index) {
+            <div class="leader-row">
+              <div class="leader-rank">{{ $index + 1 }}</div>
+              <div class="leader-info">
+                <div class="leader-name">{{ appr.approverName }}</div>
+                <div class="leader-meta">{{ appr.totalApproved }} approved &middot; ~{{ appr.avgApprovalHours }}h avg</div>
+              </div>
+              <div class="leader-pending">
+                @if (appr.pendingCount > 0) {
+                  <span class="badge bg-warning text-dark">{{ appr.pendingCount }} pending</span>
+                }
+              </div>
+            </div>
+          }
+          @if (!approverLeaderboard.length) {
+            <div class="empty-state small"><i class="fas fa-trophy"></i><p>No approver data</p></div>
+          }
+        </div>
+      </div>
+
+      <!-- SLA At-Risk -->
+      <div class="cc-card">
+        <div class="cc-card-header">
+          <h3><i class="fas fa-exclamation-circle" style="color:var(--nexmemo-danger)"></i> At-Risk Memos</h3>
+          @if (slaAtRisk.length) {
+            <span class="badge bg-danger">{{ overdueCount() }} overdue</span>
+          }
+        </div>
+        <div class="cc-card-body p-0">
+          @for (memo of slaAtRisk | slice:0:5; track memo.memoId) {
+            <div class="risk-row" [class.is-overdue]="memo.isOverdue">
+              <div class="risk-indicator" [class.bg-danger]="memo.isOverdue" [class.bg-warning]="!memo.isOverdue"></div>
+              <div class="risk-info">
+                <div class="risk-title">
+                  <a routerLink="/layout/memo" [queryParams]="{id: memo.memoId}">{{ memo.memoNo }}</a>
+                  <span class="priority-badge" [class]="priorityBadge(memo.priority)">{{ memo.priority }}</span>
+                </div>
+                <div class="risk-meta">
+                  {{ memo.department }} &middot;
+                  @if (memo.isOverdue) {
+                    <span class="text-danger">Overdue by {{ humanizeMinutes(memo.overdueMinutes) }}</span>
+                  } @else {
+                    <span>{{ humanizeMinutes(memo.remainingMinutes) }} remaining</span>
+                  }
+                </div>
+              </div>
+              <div class="risk-amount">रू {{ (memo.amount || 0) | number:'1.0-0' }}</div>
+            </div>
+          }
+          @if (!slaAtRisk.length) {
+            <div class="empty-state small"><i class="fas fa-check-circle text-success"></i><p>All memos on track! 🎯</p></div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Row 4: Department Comparison + Trend Forecast ═══ -->
+  <div class="cc-grid-2">
+    <div class="cc-card">
+      <div class="cc-card-header">
+        <h3><i class="fas fa-building" style="color:var(--nexmemo-success)"></i> Department Comparison</h3>
+        <span class="text-muted small">Memo volume by department</span>
+      </div>
+      <div class="cc-card-body chart-body">
+        @if (deptChartData?.labels?.length) {
+          <canvas baseChart [data]="deptChartData" [options]="deptChartOptions" type="bar"></canvas>
+        } @else {
+          <div class="empty-state"><i class="fas fa-chart-bar"></i><p>No department data yet</p></div>
+        }
+      </div>
+    </div>
+
+    <div class="cc-card">
+      <div class="cc-card-header">
+        <h3><i class="fas fa-chart-line" style="color:var(--nexmemo-primary)"></i> Volume Trend &amp; Forecast</h3>
+        <span class="text-muted small">3-month moving average projection</span>
+      </div>
+      <div class="cc-card-body chart-body">
+        @if (forecastChartData?.labels?.length) {
+          <canvas baseChart [data]="forecastChartData" [options]="forecastChartOptions" type="line"></canvas>
+        } @else {
+          <div class="empty-state"><i class="fas fa-chart-line"></i><p>No trend data yet</p></div>
+        }
       </div>
     </div>
   </div>

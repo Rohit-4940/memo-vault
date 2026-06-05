@@ -1,8 +1,12 @@
 package com.nexmemo.web.Controller;
 
 import com.nexmemo.core.dto.ApiResponse;
+import com.nexmemo.core.dto.PageResponse;
+import com.nexmemo.core.dto.PaginatedRequest;
 import com.nexmemo.core.entity.ExpenseCategory;
+import com.nexmemo.core.repository.ExpenseCategoryRepository;
 import com.nexmemo.web.service.ExpenseCategoryService;
+import com.nexmemo.web.service.PaginatedQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,6 +23,14 @@ import java.util.List;
 public class ExpenseCategoryController {
 
     private final ExpenseCategoryService expenseCategoryService;
+    private final PaginatedQueryService paginatedQueryService;
+    private final ExpenseCategoryRepository expenseCategoryRepository;
+
+    @GetMapping("/paginated")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PageResponse<ExpenseCategory>> findPaginated(PaginatedRequest request) {
+        return ResponseEntity.ok(paginatedQueryService.query(expenseCategoryRepository, request, List.of("categoryName", "categoryCode", "description")));
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<ExpenseCategory>>> getAllCategories() {

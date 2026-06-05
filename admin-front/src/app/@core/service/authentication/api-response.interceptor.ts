@@ -2,7 +2,7 @@ import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { map } from 'rxjs';
 
 export const ApiResponseInterceptor: HttpInterceptorFn = (req, next) => {
-  if (req.url.includes('/api/v1/auth/')) {
+  if (req.url.includes('/api/v1/auth/') || req.url.includes('/assets/')) {
     return next(req);
   }
 

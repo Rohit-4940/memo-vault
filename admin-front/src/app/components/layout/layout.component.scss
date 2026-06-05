@@ -225,8 +225,8 @@
 }
 
 .main-content {
-  flex: 1; overflow-y: auto;
-  min-height: calc(100vh - var(--header-height));
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  height: calc(100vh - var(--header-height));
   transition: margin-left var(--transition-normal);
   margin-left: 0;
 
@@ -236,4 +236,93 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.notification-container {
+  position: relative;
+}
+
+.notification-dropdown {
+  min-width: 320px; max-height: 400px; overflow: hidden;
+  right: -8px;
+
+  .dropdown-header {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.75rem 1rem; font-weight: 600; font-size: 0.85rem;
+    background: var(--nexmemo-bg);
+
+    i { color: var(--nexmemo-text-muted); }
+  }
+
+  .notification-empty {
+    padding: 2rem 1rem; text-align: center;
+
+    i { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+    p { font-size: 0.82rem; color: var(--nexmemo-text-muted); margin: 0; }
+  }
+
+  .notification-list {
+    max-height: 280px; overflow-y: auto;
+  }
+
+  .notification-item {
+    display: flex; align-items: flex-start; gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    cursor: pointer; transition: background var(--transition-fast);
+    text-decoration: none; color: var(--nexmemo-text);
+
+    &:hover { background: var(--nexmemo-50); }
+
+    .notification-icon {
+      width: 32px; height: 32px; border-radius: var(--radius-sm);
+      background: var(--nexmemo-100); display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
+      i { font-size: 0.8rem; color: var(--nexmemo-600); }
+    }
+
+    .notification-content { flex: 1; min-width: 0; }
+
+    .notification-subject {
+      font-size: 0.82rem; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .notification-meta {
+      display: flex; align-items: center; gap: 0.75rem; margin-top: 0.15rem;
+    }
+
+    .notification-status {
+      font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+      color: var(--nexmemo-text-muted);
+    }
+
+    .notification-date {
+      font-size: 0.68rem; color: var(--nexmemo-text-muted);
+    }
+  }
+
+  .view-all-link {
+    font-size: 0.82rem; color: var(--nexmemo-primary) !important;
+    padding: 0.6rem;
+    &:hover { background: var(--nexmemo-50); }
+  }
+}
+
+.lang-toggle-btn {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  width: auto;
+  padding: 0 0.6rem;
+  min-width: 36px;
+  color: var(--nexmemo-600) !important;
+
+  &:hover {
+    color: var(--nexmemo-primary) !important;
+    background: var(--nexmemo-50);
+  }
+
+  .lang-label {
+    text-transform: uppercase;
+  }
 }

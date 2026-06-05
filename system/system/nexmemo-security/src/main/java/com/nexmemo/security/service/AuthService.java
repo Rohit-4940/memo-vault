@@ -82,13 +82,22 @@ public class AuthService {
                         .plusMinutes(securityProperties.getBruteForce().getLockoutDurationMinutes()));
                 emailService.sendAccountLockedNotification(user.getEmail(), user.getName(),
                         securityProperties.getBruteForce().getLockoutDurationMinutes());
-                recordAudit("ACCOUNT_LOCKED", "USER", user.getId(), ip, httpRequest,
+                recordAudit("ACCOUNT_LOCKED", "USER", user.getId(),
+                        user.getId(), user.getUsername(), ip, httpRequest,
                         "Account locked due to max failed attempts", AuditLog.AuditStatus.SUSPICIOUS);
             }
             throw new BadCredentialsException("Invalid credentials");
         }
 
         user.setFailedLoginAttempts(0);
+
+        if (user.getPasswordChangedAt() != null) {
+            LocalDateTime expiryDate = user.getPasswordChangedAt()
+                    .plusDays(securityProperties.getPassword().getPasswordExpiryDays());
+            if (LocalDateTime.now().isAfter(expiryDate)) {
+                user.setForcePasswordChange(true);
+            }
+        }
 
         boolean deviceTrusted = deviceRegistryRepository
                 .findByUserAndDeviceFingerprint(user, fingerprint)
@@ -99,7 +108,8 @@ public class AuthService {
 
         if (!skipOtp) {
             otpService.generateAndSendOtp(user, OtpVerification.OtpType.LOGIN, ip);
-            recordAudit("OTP_SENT", "USER", user.getId(), ip, httpRequest,
+            recordAudit("OTP_SENT", "USER", user.getId(),
+                    user.getId(), user.getUsername(), ip, httpRequest,
                     "OTP sent for login", AuditLog.AuditStatus.SUCCESS);
             return LoginStep1Response.builder()
                     .requiresOtp(true)
@@ -145,7 +155,8 @@ public class AuthService {
         user.setLastLoginIp(deviceUtil.extractIp(httpRequest));
         user.setLastLoginMac(deviceUtil.extractMacAddress(httpRequest));
 
-        recordAudit("LOGIN_SUCCESS", "USER", user.getId(), deviceUtil.extractIp(httpRequest),
+        recordAudit("LOGIN_SUCCESS", "USER", user.getId(),
+                user.getId(), user.getUsername(), deviceUtil.extractIp(httpRequest),
                 httpRequest, "Login via " + fingerprint, AuditLog.AuditStatus.SUCCESS);
 
         if (httpResponse != null) {
@@ -158,6 +169,8 @@ public class AuthService {
                 .username(user.getUsername())
                 .role(user.getRole().getRoleName())
                 .roleId(user.getRole().getId())
+                .roleType(user.getRole().getRoleType().name())
+                .roleAccess(user.getRole().getRoleAccess().name())
                 .forcePasswordChange(user.getForcePasswordChange())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
@@ -206,13 +219,17 @@ public class AuthService {
             refreshTokenRepository.revokeAllActiveByUserId(storedToken.getUser().getId());
             tokenBlacklistService.blacklistRefreshToken(tokenHash,
                     securityProperties.getJwt().getRefreshTokenExpiryDays() * 86400L);
-            recordAudit("TOKEN_REUSE_DETECTED", "USER", storedToken.getUser().getId(), ip, req,
+            User staleUser = storedToken.getUser();
+            recordAudit("TOKEN_REUSE_DETECTED", "USER", staleUser.getId(),
+                    staleUser.getId(), staleUser.getUsername(), ip, req,
                     "Stale refresh token used — all tokens revoked", AuditLog.AuditStatus.SUSPICIOUS);
             throw new BadCredentialsException("Refresh token expired or revoked");
         }
 
         if (!storedToken.getDeviceFingerprint().equals(fingerprint)) {
-            recordAudit("DEVICE_MISMATCH_REFRESH", "USER", storedToken.getUser().getId(), ip, req,
+            User deviceUser = storedToken.getUser();
+            recordAudit("DEVICE_MISMATCH_REFRESH", "USER", deviceUser.getId(),
+                    deviceUser.getId(), deviceUser.getUsername(), ip, req,
                     "Device fingerprint mismatch during token refresh", AuditLog.AuditStatus.SUSPICIOUS);
         }
 
@@ -250,13 +267,17 @@ public class AuthService {
 
         setTokenCookies(res, newAccessToken, newRefreshToken);
 
-        recordAudit("TOKEN_REFRESHED", "USER", user.getId(), ip, req, null, AuditLog.AuditStatus.SUCCESS);
+        recordAudit("TOKEN_REFRESHED", "USER", user.getId(),
+                user.getId(), user.getUsername(), ip, req, null, AuditLog.AuditStatus.SUCCESS);
 
         return LoginStep1Response.builder()
                 .requiresOtp(false)
                 .userId(user.getId())
                 .username(user.getUsername())
                 .role(user.getRole().getRoleName())
+                .roleId(user.getRole().getId())
+                .roleType(user.getRole().getRoleType().name())
+                .roleAccess(user.getRole().getRoleAccess().name())
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .message("Token refreshed successfully")
@@ -302,7 +323,8 @@ public class AuthService {
 
         emailService.sendPasswordChangedNotification(user.getEmail(), user.getName(), ip);
 
-        recordAudit("PASSWORD_CHANGED", "USER", userId, ip, httpRequest,
+        recordAudit("PASSWORD_CHANGED", "USER", userId,
+                userId, user.getUsername(), ip, httpRequest,
                 "Password changed successfully", AuditLog.AuditStatus.SUCCESS);
     }
 
@@ -326,7 +348,8 @@ public class AuthService {
 
             emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), resetToken);
 
-            recordAudit("PASSWORD_RESET_REQUESTED", "USER", user.getId(), ip, httpRequest,
+            recordAudit("PASSWORD_RESET_REQUESTED", "USER", user.getId(),
+                    user.getId(), user.getUsername(), ip, httpRequest,
                     "Password reset link sent", AuditLog.AuditStatus.SUCCESS);
         } else {
             log.info("Password reset requested for unknown email: {}", email);
@@ -365,7 +388,8 @@ public class AuthService {
 
         emailService.sendPasswordChangedNotification(targetUser.getEmail(), targetUser.getName(), ip);
 
-        recordAudit("PASSWORD_RESET_COMPLETED", "USER", targetUser.getId(), ip, httpRequest,
+        recordAudit("PASSWORD_RESET_COMPLETED", "USER", targetUser.getId(),
+                targetUser.getId(), targetUser.getUsername(), ip, httpRequest,
                 "Password reset completed", AuditLog.AuditStatus.SUCCESS);
     }
 
@@ -384,7 +408,11 @@ public class AuthService {
         }
 
         clearCookies(res);
-        recordAudit("LOGOUT", "USER", userId, deviceUtil.extractIp(req), req, null, AuditLog.AuditStatus.SUCCESS);
+        userRepository.findById(userId).ifPresent(u ->
+            recordAudit("LOGOUT", "USER", userId,
+                    u.getId(), u.getUsername(), deviceUtil.extractIp(req), req,
+                    null, AuditLog.AuditStatus.SUCCESS)
+        );
     }
 
     private void setTokenCookies(HttpServletResponse response, String accessToken, String refreshToken) {
@@ -441,12 +469,21 @@ public class AuthService {
 
     private void recordAudit(String action, String entityType, Long entityId, String ip,
                              HttpServletRequest req, String details, AuditLog.AuditStatus status) {
+        recordAudit(action, entityType, entityId, null, null, ip, req, details, status);
+    }
+
+    private void recordAudit(String action, String entityType, Long entityId,
+                             Long performedById, String performedByUsername, String ip,
+                             HttpServletRequest req, String details, AuditLog.AuditStatus status) {
         AuditLog logEntry = AuditLog.builder()
                 .action(action)
                 .entityType(entityType)
                 .entityId(entityId)
+                .performedById(performedById)
+                .performedByUsername(performedByUsername)
                 .ipAddress(ip)
                 .userAgent(deviceUtil.extractUserAgent(req))
+                .deviceFingerprint(deviceUtil.buildFingerprint(req))
                 .details(details)
                 .status(status)
                 .build();

@@ -4,6 +4,7 @@ import com.nexmemo.core.entity.ChatMessage;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
+public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long>, JpaSpecificationExecutor<ChatMessage> {
     List<ChatMessage> findByMemoIdOrderByCreatedDateAsc(Long memoId);
 
     List<ChatMessage> findByBranchIdOrderByCreatedDateAsc(Long branchId);
@@ -26,18 +27,18 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     @Query("SELECT COUNT(c) FROM ChatMessage c WHERE c.receiverId = :userId AND c.isRead = false")
     long countUnreadByUserId(@Param("userId") Long userId);
 
-    @Query("SELECT COUNT(c) FROM ChatMessage c WHERE c.branchId IS NOT NULL AND c.conversationType = 'BRANCH_CHAT' AND c.isRead = false")
+    @Query("SELECT COUNT(c) FROM ChatMessage c WHERE c.branchId IS NOT NULL AND (c.conversationType = 'BRANCH_CHAT' OR c.conversationType IS NULL) AND c.isRead = false")
     long countUnreadBranchMessages();
 
     @Query("SELECT DISTINCT c.senderId FROM ChatMessage c WHERE c.receiverId = :userId ORDER BY MAX(c.createdDate) DESC")
     List<Long> findSendersByReceiverId(@Param("userId") Long userId);
 
-    @Query("SELECT c FROM ChatMessage c WHERE c.branchId IS NOT NULL AND c.conversationType = 'BRANCH_CHAT' ORDER BY c.createdDate DESC")
+    @Query("SELECT c FROM ChatMessage c WHERE c.branchId IS NOT NULL AND (c.conversationType = 'BRANCH_CHAT' OR c.conversationType IS NULL) ORDER BY COALESCE(c.createdDate, c.id) DESC")
     Page<ChatMessage> findAllBranchMessages(Pageable pageable);
 
-    @Query("SELECT c FROM ChatMessage c WHERE c.branchId = :branchId AND c.conversationType = 'BRANCH_CHAT' ORDER BY c.createdDate DESC")
+    @Query("SELECT c FROM ChatMessage c WHERE c.branchId = :branchId AND (c.conversationType = 'BRANCH_CHAT' OR c.conversationType IS NULL) ORDER BY COALESCE(c.createdDate, c.id) DESC")
     Page<ChatMessage> findBranchMessages(@Param("branchId") Long branchId, Pageable pageable);
 
-    @Query("SELECT DISTINCT c.branchId FROM ChatMessage c WHERE c.conversationType = 'BRANCH_CHAT'")
+    @Query("SELECT DISTINCT c.branchId FROM ChatMessage c WHERE c.conversationType = 'BRANCH_CHAT' OR c.conversationType IS NULL")
     List<Long> findDistinctBranchIds();
 }

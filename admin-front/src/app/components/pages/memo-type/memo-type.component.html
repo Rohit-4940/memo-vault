@@ -6,28 +6,34 @@
     }
   </div>
   <div class="card">
-    <div class="table-responsive">
-      <table class="table">
-        <thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>
-          @for(t of memoTypes; track t.id) {
-            <tr>
-              <td>{{ t.id }}</td>
-              <td>{{ t.name }}</td>
-              <td>{{ t.description }}</td>
-              <td><span class="badge" [class.badge-success]="t.status === 'ACTIVE'" [class.badge-danger]="t.status !== 'ACTIVE'">{{ t.status }}</span></td>
-              <td class="actions">
-                @if (isAdmin) {
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, t)"><i class="fas fa-edit"></i></button>
-                  <button class="btn btn-sm btn-outline-danger" (click)="deleteMemoType(t.id)"><i class="fas fa-trash"></i></button>
-                } @else {
-                  <span class="text-muted small">View only</span>
-                }
-              </td>
-            </tr>
-          } @empty { <tr><td colspan="5" class="text-center text-muted py-4">No memo types found</td></tr> }
-        </tbody>
-      </table>
+    <div class="card-body p-0">
+      <app-advanced-table
+        [columns]="columns"
+        [data]="data"
+        [totalElements]="totalElements"
+        [loading]="loading"
+        [pageNumber]="pageNumber"
+        [pageSize]="pageSize"
+        [totalPages]="totalPages"
+        [searchable]="true"
+        [showFilters]="true"
+        filterMode="panel"
+        searchPlaceholder="Search memo types..."
+        (searchChange)="onSearch($event)"
+        (pageChange)="onPageChange($event)"
+        (sizeChange)="onSizeChange($event)"
+        (sortChange)="onSortChange($event)"
+        (filterChange)="onFilterChange($event)"
+      >
+        <ng-template #actions let-row>
+          @if (isAdmin) {
+            <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, row); $event.stopPropagation()"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-danger" (click)="deleteMemoType(row.id); $event.stopPropagation()"><i class="fas fa-trash"></i></button>
+          } @else {
+            <span class="text-muted small">View only</span>
+          }
+        </ng-template>
+      </app-advanced-table>
     </div>
   </div>
 </div>

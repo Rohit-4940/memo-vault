@@ -1,0 +1,399 @@
+<div class="transfer-page">
+  <!-- Page Header -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex align-items-center gap-3">
+      <div class="page-icon">
+        <i class="fas fa-exchange-alt"></i>
+      </div>
+      <div>
+        <h5 class="fw-bold mb-0">Document Transfer</h5>
+        <p class="text-muted mb-0 small">Securely route documents across users and branches</p>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm px-3" (click)="toggleCreateForm()">
+      <i class="fas fa-plus me-1"></i>{{ showCreateForm ? 'Cancel' : 'New Transfer' }}
+    </button>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-2 mb-3" *ngIf="stats">
+    <div class="col-6 col-lg-3">
+      <div class="stat-card stat-sent">
+        <div class="stat-icon"><i class="fas fa-paper-plane"></i></div>
+        <div class="stat-info"><div class="stat-value">{{ stats.totalSent }}</div><div class="stat-label">Sent</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card stat-received">
+        <div class="stat-icon"><i class="fas fa-inbox"></i></div>
+        <div class="stat-info"><div class="stat-value">{{ stats.totalReceived }}</div><div class="stat-label">Received</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card stat-pending">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-info"><div class="stat-value">{{ stats.pendingCount }}</div><div class="stat-label">Pending</div></div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card stat-data">
+        <div class="stat-icon"><i class="fas fa-database"></i></div>
+        <div class="stat-info"><div class="stat-value">{{ formatBytes(stats.totalBytesTransferred) }}</div><div class="stat-label">Data Transferred</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Transfer Compose (Gmail-style) -->
+  <div class="compose-panel" *ngIf="showCreateForm">
+    <div class="compose-header">
+      <div class="d-flex align-items-center gap-2">
+        <i class="fas fa-pen-square"></i>
+        <span class="fw-semibold">New Message</span>
+      </div>
+      <button class="btn-close btn-close-white" (click)="toggleCreateForm()"></button>
+    </div>
+    <div class="compose-body">
+      <!-- To: Recipient chips -->
+      <div class="compose-field" [class.focused]="recipientInputFocused">
+        <label class="compose-label">To</label>
+        <div class="compose-input-wrap">
+          <div class="recipient-chips" *ngIf="recipientChips.length">
+            <span class="recipient-chip" *ngFor="let chip of recipientChips; let i = index">
+              <span class="chip-avatar">{{ getUserAvatar(chip.name) }}</span>
+              <span class="chip-name">{{ chip.name }}</span>
+              <span class="chip-branch" *ngIf="chip.branchName">({{ chip.branchName }})</span>
+              <i class="fas fa-times chip-remove" (click)="removeRecipient(i)"></i>
+            </span>
+          </div>
+          <input type="text" class="compose-input flex-grow-1"
+            placeholder="{{ recipientChips.length ? '' : 'Search users...' }}"
+            [(ngModel)]="recipientInput"
+            (input)="onRecipientInputChange()"
+            (focus)="recipientInputFocused = true"
+            (blur)="onRecipientInputBlur()"
+            (keydown)="onRecipientInputKeydown($event)" autocomplete="off">
+        </div>
+        <!-- Dropdown -->
+        <div class="recipient-dropdown" *ngIf="filteredUsers.length && recipientInputFocused">
+          <button class="dropdown-item" *ngFor="let u of filteredUsers" (mousedown)="selectRecipient(u)">
+            <span class="dropdown-avatar">{{ getUserAvatar(u.name) }}</span>
+            <div class="dropdown-info">
+              <span class="dropdown-name">{{ u.name }}</span>
+              <span class="dropdown-detail">{{ u.email }} <span *ngIf="getUserBranchName(u.id)">&middot; {{ getUserBranchName(u.id) }}</span></span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Subject -->
+      <div class="compose-field">
+        <label class="compose-label">Subject</label>
+        <input type="text" class="compose-input" [(ngModel)]="createForm.subject"
+          placeholder="Transfer subject..." autocomplete="off">
+      </div>
+
+      <!-- Priority + Branch row -->
+      <div class="d-flex gap-2">
+        <div class="compose-field flex-shrink-0" style="max-width:160px">
+          <label class="compose-label">Priority</label>
+          <select class="compose-select" [(ngModel)]="createForm.priority">
+            <option *ngFor="let p of priorities" [value]="p">{{ p }}</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Message -->
+      <div class="compose-field">
+        <label class="compose-label">Message</label>
+        <textarea class="compose-textarea" rows="2" [(ngModel)]="createForm.message"
+          placeholder="Optional notes for the recipient..."></textarea>
+      </div>
+
+      <!-- Drop zone -->
+      <div class="drop-zone" [class.drag-over]="dragOver"
+        (drop)="onDrop($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave()"
+        (click)="fileInput.click()">
+        <input #fileInput type="file" multiple hidden (change)="onFilesSelected($event)">
+        <div class="drop-zone-content" *ngIf="!selectedFiles.length">
+          <i class="fas fa-cloud-upload-alt drop-icon"></i>
+          <span class="drop-text">Drop files here or <span class="drop-link">browse</span></span>
+          <span class="drop-hint">Attach any documents to transfer</span>
+        </div>
+        <div class="file-list-mini" *ngIf="selectedFiles.length">
+          <div class="file-chip" *ngFor="let f of selectedFiles; let i = index">
+            <i class="fas fa-file me-1"></i>
+            <span class="text-truncate">{{ f.name }}</span>
+            <i class="fas fa-times file-chip-remove" (click)="removeFile(i); $event.stopPropagation()"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attach button + Send -->
+      <div class="d-flex align-items-center justify-content-between mt-2">
+        <button class="btn btn-sm btn-outline-secondary attach-btn" (click)="fileInput.click()">
+          <i class="fas fa-paperclip me-1"></i> Attach Files
+        </button>
+        <div class="d-flex gap-2 align-items-center">
+          <span class="file-count" *ngIf="selectedFiles.length">
+            <i class="fas fa-paperclip me-1"></i>{{ selectedFiles.length }} file(s) attached
+            <i class="fas fa-times ms-1 text-muted" style="cursor:pointer" (click)="clearFiles()"></i>
+          </span>
+          <button class="btn btn-primary btn-sm px-4" (click)="createTransfer()" [disabled]="creating">
+            <i class="fas fa-paper-plane me-1"></i>{{ creating ? 'Sending...' : 'Send' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Card -->
+  <div class="content-card">
+    <div class="card-tabs">
+      <button class="tab-btn" [class.active]="activeTab === 'sent'" (click)="switchTab('sent')">
+        <i class="fas fa-paper-plane me-1"></i>Sent
+        <span class="tab-badge bg-primary" *ngIf="stats">{{ stats.totalSent }}</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab === 'received'" (click)="switchTab('received')">
+        <i class="fas fa-inbox me-1"></i>Received
+        <span class="tab-badge bg-success" *ngIf="stats">{{ stats.totalReceived }}</span>
+      </button>
+    </div>
+
+    <div class="card-body">
+      <!-- Search + Filter -->
+      <div class="d-flex gap-2 mb-2" *ngIf="activeTab === 'sent'">
+        <div class="search-box flex-grow-1">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" class="form-control form-control-sm search-input"
+            placeholder="Search by subject..."
+            [(ngModel)]="sentSearch" (input)="onSentSearch()">
+        </div>
+        <select class="form-select form-select-sm status-filter"
+          [(ngModel)]="sentStatusFilter" (change)="onSentFilterChange()">
+          <option value="">All Status</option>
+          <option value="DRAFT">Draft</option>
+          <option value="SENT">Sent</option>
+          <option value="DELIVERED">Delivered</option>
+          <option value="RECEIVED">Received</option>
+          <option value="ARCHIVED">Archived</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
+      </div>
+      <div class="d-flex gap-2 mb-2" *ngIf="activeTab === 'received'">
+        <div class="search-box flex-grow-1">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" class="form-control form-control-sm search-input"
+            placeholder="Search by subject..."
+            [(ngModel)]="receivedSearch" (input)="onReceivedSearch()">
+        </div>
+        <select class="form-select form-select-sm status-filter"
+          [(ngModel)]="receivedStatusFilter" (change)="onReceivedFilterChange()">
+          <option value="">All Status</option>
+          <option value="DRAFT">Draft</option>
+          <option value="SENT">Sent</option>
+          <option value="DELIVERED">Delivered</option>
+          <option value="RECEIVED">Received</option>
+          <option value="ARCHIVED">Archived</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
+      </div>
+
+      <!-- Loading -->
+      <div class="text-center py-4" *ngIf="(activeTab === 'sent' && loadingSent) || (activeTab === 'received' && loadingReceived)">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+      </div>
+
+      <!-- Empty -->
+      <div class="empty-state" *ngIf="!loadingSent && !loadingReceived && !getCurrentItems().length">
+        <div class="empty-icon-wrap">
+          <i class="fas fa-paper-plane" *ngIf="activeTab === 'sent'"></i>
+          <i class="fas fa-inbox" *ngIf="activeTab === 'received'"></i>
+        </div>
+        <p class="text-muted mb-1">No {{ activeTab }} transfers yet</p>
+        <small class="text-muted" *ngIf="activeTab === 'sent'">Click "New Transfer" to send documents</small>
+        <small class="text-muted" *ngIf="activeTab === 'received'">Transfers sent to you will appear here</small>
+      </div>
+
+      <!-- Transfer List -->
+      <div class="transfer-list" *ngIf="getCurrentItems().length">
+        <div class="transfer-item" *ngFor="let item of getCurrentItems(); trackBy: trackById"
+          [class.selected]="selectedTransfer?.id === item.id"
+          (click)="openDetail(item)">
+          <div class="transfer-left">
+            <div class="transfer-avatar">
+              {{ getUserAvatar(activeTab === 'sent' ? item.recipientName : item.senderName) }}
+            </div>
+            <div class="transfer-info">
+              <div class="transfer-top">
+                <span class="transfer-name">
+                  {{ activeTab === 'sent' ? item.recipientName : item.senderName }}
+                </span>
+                <span class="transfer-subject text-truncate">{{ item.subject }}</span>
+              </div>
+              <div class="transfer-meta">
+                <span>{{ item.referenceNo }}</span>
+                <span class="meta-dot">&middot;</span>
+                <span>{{ item.totalFiles }} file(s)</span>
+                <span class="meta-dot">&middot;</span>
+                <span>{{ formatBytes(item.totalSize) }}</span>
+                <span class="meta-dot">&middot;</span>
+                <span>{{ item.createdDate | date:'MMM d, h:mm a' }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="transfer-right">
+            <span class="priority-dot"
+              [class.bg-success]="item.priority === 'LOW'"
+              [class.bg-primary]="item.priority === 'MEDIUM'"
+              [class.bg-warning]="item.priority === 'HIGH'"
+              [class.bg-danger]="item.priority === 'URGENT'"
+              [ngbTooltip]="item.priority"></span>
+            <span class="badge status-badge" [class]="getStatusBadge(item.transferStatus)">{{ item.transferStatus }}</span>
+            <div class="transfer-actions" (click)="$event.stopPropagation()">
+              <button class="action-btn" title="Send" *ngIf="item.transferStatus === 'DRAFT' && activeTab === 'sent'"
+                (click)="sendTransfer(item)"><i class="fas fa-paper-plane text-primary"></i></button>
+              <button class="action-btn" title="Deliver" *ngIf="activeTab === 'received' && item.transferStatus === 'SENT'"
+                (click)="deliverTransfer(item)"><i class="fas fa-truck text-info"></i></button>
+              <button class="action-btn" title="Receive" *ngIf="activeTab === 'received' && (item.transferStatus === 'DELIVERED')"
+                (click)="receiveTransfer(item)"><i class="fas fa-check-double text-success"></i></button>
+              <button class="action-btn" title="Archive" *ngIf="item.transferStatus === 'RECEIVED'"
+                (click)="archiveTransfer(item)"><i class="fas fa-archive text-secondary"></i></button>
+              <button class="action-btn" title="Cancel" *ngIf="item.transferStatus === 'DRAFT' || item.transferStatus === 'SENT'"
+                (click)="cancelTransfer(item)"><i class="fas fa-ban text-danger"></i></button>
+            </div>
+            <i class="fas fa-chevron-right text-muted" style="font-size:0.65rem"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="d-flex justify-content-between align-items-center pt-2" *ngIf="getCurrentItems().length">
+        <small class="text-muted">
+          {{ getCurrentItems().length }} of {{ activeTab === 'sent' ? sentTotalElements : receivedTotalElements }}
+        </small>
+        <ngb-pagination *ngIf="activeTab === 'sent' && sentTotalPages > 1"
+          [collectionSize]="sentTotalElements" [(page)]="sentPage" [pageSize]="sentSize"
+          [maxSize]="3" (pageChange)="onSentPageChange($event)" size="sm">
+        </ngb-pagination>
+        <ngb-pagination *ngIf="activeTab === 'received' && receivedTotalPages > 1"
+          [collectionSize]="receivedTotalElements" [(page)]="receivedPage" [pageSize]="receivedSize"
+          [maxSize]="3" (pageChange)="onReceivedPageChange($event)" size="sm">
+        </ngb-pagination>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" *ngIf="selectedTransfer" (click)="closeDetail()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fas fa-info-circle"></i>
+          <span class="fw-semibold">Transfer Details</span>
+        </div>
+        <button class="btn-close" (click)="closeDetail()"></button>
+      </div>
+      <div class="modal-body-detailed" *ngIf="loadingDetail">
+        <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+      </div>
+      <div class="modal-body-detailed" *ngIf="!loadingDetail && selectedTransfer">
+        <!-- Status bar -->
+        <div class="detail-status-bar">
+          <span class="badge status-badge-lg" [class]="getStatusBadge(selectedTransfer.transferStatus)">{{ selectedTransfer.transferStatus }}</span>
+          <span class="priority-dot-lg"
+            [class.bg-success]="selectedTransfer.priority === 'LOW'"
+            [class.bg-primary]="selectedTransfer.priority === 'MEDIUM'"
+            [class.bg-warning]="selectedTransfer.priority === 'HIGH'"
+            [class.bg-danger]="selectedTransfer.priority === 'URGENT'"></span>
+          <span class="fw-semibold priority-text">{{ selectedTransfer.priority }}</span>
+          <span class="ms-auto text-muted small">{{ selectedTransfer.referenceNo }}</span>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- Sender / Recipient -->
+        <div class="detail-participants">
+          <div class="participant">
+            <span class="participant-label">From</span>
+            <div class="d-flex align-items-center gap-2">
+              <span class="participant-avatar">{{ getUserAvatar(selectedTransfer.senderName) }}</span>
+              <div>
+                <div class="fw-semibold small">{{ selectedTransfer.senderName }}</div>
+                <small class="text-muted" *ngIf="selectedTransfer.senderBranchName">{{ selectedTransfer.senderBranchName }}</small>
+              </div>
+            </div>
+          </div>
+          <div class="participant-arrow"><i class="fas fa-arrow-right"></i></div>
+          <div class="participant">
+            <span class="participant-label">To</span>
+            <div class="d-flex align-items-center gap-2">
+              <span class="participant-avatar">{{ getUserAvatar(selectedTransfer.recipientName) }}</span>
+              <div>
+                <div class="fw-semibold small">{{ selectedTransfer.recipientName }}</div>
+                <small class="text-muted" *ngIf="selectedTransfer.recipientBranchName">{{ selectedTransfer.recipientBranchName }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- Subject & Message -->
+        <div class="mb-2">
+          <div class="detail-label">Subject</div>
+          <div class="fw-semibold">{{ selectedTransfer.subject }}</div>
+        </div>
+        <div class="mb-2" *ngIf="selectedTransfer.message">
+          <div class="detail-label">Message</div>
+          <p class="mb-0 small" style="white-space:pre-wrap">{{ selectedTransfer.message }}</p>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- Files -->
+        <div>
+          <div class="detail-label mb-1">Attachments ({{ selectedTransfer.files.length }})</div>
+          <div class="detail-files">
+            <div class="detail-file" *ngFor="let f of selectedTransfer.files">
+              <div class="file-icon-thumb"><i class="fas" [class]="getFileIcon(f.originalName)"></i></div>
+              <div class="file-info-mini">
+                <div class="file-name-mini text-truncate">{{ f.originalName }}</div>
+                <div class="file-size-mini">{{ formatBytes(f.fileSize) }}</div>
+              </div>
+              <button class="file-dl-btn" (click)="downloadFile(f)" title="Download">
+                <i class="fas fa-download"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="detail-divider"></div>
+        <div class="detail-timeline">
+          <div class="timeline-item" *ngIf="selectedTransfer.createdDate">
+            <div class="timeline-dot bg-primary"></div>
+            <div class="timeline-text">Created <span class="text-muted">{{ selectedTransfer.createdDate | date:'MMM d, y h:mm a' }}</span></div>
+          </div>
+          <div class="timeline-item" *ngIf="selectedTransfer.sentDate">
+            <div class="timeline-dot bg-info"></div>
+            <div class="timeline-text">Sent <span class="text-muted">{{ selectedTransfer.sentDate | date:'MMM d, y h:mm a' }}</span></div>
+          </div>
+          <div class="timeline-item" *ngIf="selectedTransfer.receivedDate">
+            <div class="timeline-dot bg-success"></div>
+            <div class="timeline-text">Received <span class="text-muted">{{ selectedTransfer.receivedDate | date:'MMM d, y h:mm a' }}</span></div>
+          </div>
+          <div class="timeline-item" *ngIf="selectedTransfer.archivedDate">
+            <div class="timeline-dot bg-dark"></div>
+            <div class="timeline-text">Archived <span class="text-muted">{{ selectedTransfer.archivedDate | date:'MMM d, y h:mm a' }}</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer-detailed">
+        <button class="btn btn-sm btn-primary" (click)="downloadAll()" *ngIf="selectedTransfer?.files?.length">
+          <i class="fas fa-download me-1"></i>Download All
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" (click)="closeDetail()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

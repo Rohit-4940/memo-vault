@@ -8,16 +8,35 @@ import { DepartmentService } from '../../../shared-services/api-service/departme
 import { BranchService } from '../../../shared-services/api-service/branch.service';
 import { ToastrService } from 'ngx-toastr';
 import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
+import { AdvancedTableComponent, TableColumn } from '../../../shared-components/advanced-table/advanced-table.component';
 
 @Component({
   selector: 'app-budget',
   standalone: true,
-  imports: [NgForOf, NgIf, FormsModule, NgbModalModule, DecimalPipe],
+  imports: [NgForOf, NgIf, FormsModule, NgbModalModule, DecimalPipe, AdvancedTableComponent],
   templateUrl: './budget.component.html',
   styleUrl: './budget.component.scss'
 })
 export class BudgetComponent implements OnInit {
-  budgets: any[] = [];
+  columns: TableColumn[] = [
+    { key: 'id', label: 'ID', sortable: true, width: '80px' },
+    { key: 'fiscalYearName', label: 'Fiscal Year', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'departmentName', label: 'Department', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'branchName', label: 'Branch', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'allocatedAmount', label: 'Allocated', sortable: true, type: 'number' },
+    { key: 'utilizedAmount', label: 'Utilized', sortable: true, type: 'number' },
+    { key: 'remainingAmount', label: 'Remaining', sortable: false, type: 'number' }
+  ];
+  data: any[] = [];
+  loading = false;
+  pageNumber = 1;
+  pageSize = 20;
+  totalElements = 0;
+  totalPages = 1;
+  sortBy = 'id';
+  sortDir: 'asc' | 'desc' = 'desc';
+  searchQuery = '';
+  filters = new Map<string, string>();
   fiscalYears: any[] = [];
   departments: any[] = [];
   branches: any[] = [];
@@ -37,18 +56,32 @@ export class BudgetComponent implements OnInit {
   ngOnInit() {
     const storage = LocalStorageUtil.getStorage();
     this.isAdmin = storage.roleName === 'ADMIN' || storage.roleName === 'SUPER_ADMIN';
-    this.loadBudgets();
+    this.loadData();
     this.fiscalYearService.getAllFiscalYears().subscribe({ next: (d) => this.fiscalYears = d });
     this.departmentService.getAllDepartments().subscribe({ next: (d) => this.departments = d });
     this.branchService.getAllBranches().subscribe({ next: (d) => this.branches = d });
   }
 
-  loadBudgets() {
-    this.budgetService.getAllBudgets().subscribe({
-      next: (data) => this.budgets = data,
-      error: () => this.toastr.error('Failed to load budgets')
+  loadData() {
+    this.loading = true;
+    const filterObj: any = {};
+    this.filters.forEach((v, k) => { if (v) filterObj[k] = v; });
+    this.budgetService.getPaginated(this.searchQuery, this.pageNumber, this.pageSize, this.sortBy, this.sortDir, filterObj).subscribe({
+      next: (res) => {
+        this.data = res.content || [];
+        this.totalElements = res.totalElements || 0;
+        this.totalPages = res.totalPages || 1;
+        this.loading = false;
+      },
+      error: () => { this.toastr.error('Failed to load'); this.loading = false; }
     });
   }
+
+  onSearch(value: string) { this.searchQuery = value; this.pageNumber = 1; this.loadData(); }
+  onPageChange(page: number) { this.pageNumber = page; this.loadData(); }
+  onSizeChange(size: number) { this.pageSize = size; this.pageNumber = 1; this.loadData(); }
+  onSortChange(sort: any) { this.sortBy = sort.sortBy; this.sortDir = sort.sortDir; this.loadData(); }
+  onFilterChange(filters: Map<string, string>) { this.filters = filters; this.pageNumber = 1; this.loadData(); }
 
   openCreateModal(content: any) {
     this.isEditing = false;
@@ -75,7 +108,7 @@ export class BudgetComponent implements OnInit {
       next: () => {
         this.toastr.success(this.isEditing ? 'Budget updated' : 'Budget created');
         this.modalService.dismissAll();
-        this.loadBudgets();
+        this.loadData();
       },
       error: (err) => this.toastr.error(err.error?.message || 'Failed')
     });
@@ -84,7 +117,7 @@ export class BudgetComponent implements OnInit {
   deleteBudget(id: number) {
     if (confirm('Delete this budget allocation?')) {
       this.budgetService.deleteBudget(id).subscribe({
-        next: () => { this.toastr.success('Budget deleted'); this.loadBudgets(); },
+        next: () => { this.toastr.success('Budget deleted'); this.loadData(); },
         error: () => this.toastr.error('Delete failed')
       });
     }

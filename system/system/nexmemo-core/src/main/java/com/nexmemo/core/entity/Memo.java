@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -82,13 +83,16 @@ public class Memo extends BaseEntity<Long> implements Serializable {
     @Column(name = "approved_date")
     private LocalDateTime approvedDate;
 
+    @BatchSize(size = 20)
     @OneToMany(mappedBy = "memo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("approvalLevel ASC")
     private List<ApprovalHistory> approvalHistory = new ArrayList<>();
 
+    @BatchSize(size = 20)
     @OneToMany(mappedBy = "memo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<MemoDocument> documents = new ArrayList<>();
 
+    @BatchSize(size = 20)
     @OneToMany(mappedBy = "memo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<MemoCc> ccRecipients = new ArrayList<>();
 

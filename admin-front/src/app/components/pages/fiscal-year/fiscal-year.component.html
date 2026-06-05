@@ -6,38 +6,37 @@
     }
   </div>
   <div class="card">
-    <div class="table-responsive">
-      <table class="table">
-        <thead><tr><th>ID</th><th>Name</th><th>Start Date</th><th>End Date</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>
-          @for(f of fiscalYears; track f.id) {
-            <tr>
-              <td>{{ f.id }}</td>
-              <td>{{ f.name }} @if (f.isActive) { <span class="badge badge-success">Active</span> }</td>
-              <td>{{ f.startDate | date:'mediumDate' }}</td>
-              <td>{{ f.endDate | date:'mediumDate' }}</td>
-              <td>
-                @if (f.isActive) {
-                  <span class="badge badge-success">Active</span>
-                } @else {
-                  <span class="badge badge-secondary">Inactive</span>
-                }
-              </td>
-              <td class="actions">
-                @if (isAdmin) {
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, f)"><i class="fas fa-edit"></i></button>
-                  @if (!f.isActive) {
-                    <button class="btn btn-sm btn-outline-success me-1" (click)="setActive(f)"><i class="fas fa-check-circle"></i></button>
-                  }
-                  <button class="btn btn-sm btn-outline-danger" (click)="deleteFiscalYear(f.id)"><i class="fas fa-trash"></i></button>
-                } @else {
-                  <span class="text-muted small">View only</span>
-                }
-              </td>
-            </tr>
-          } @empty { <tr><td colspan="6" class="text-center text-muted py-4">No fiscal years found</td></tr> }
-        </tbody>
-      </table>
+    <div class="card-body p-0">
+      <app-advanced-table
+        [columns]="columns"
+        [data]="data"
+        [totalElements]="totalElements"
+        [loading]="loading"
+        [pageNumber]="pageNumber"
+        [pageSize]="pageSize"
+        [totalPages]="totalPages"
+        [searchable]="true"
+        [showFilters]="true"
+        filterMode="panel"
+        searchPlaceholder="Search fiscal years..."
+        (searchChange)="onSearch($event)"
+        (pageChange)="onPageChange($event)"
+        (sizeChange)="onSizeChange($event)"
+        (sortChange)="onSortChange($event)"
+        (filterChange)="onFilterChange($event)"
+      >
+        <ng-template #actions let-row>
+          @if (isAdmin) {
+            <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, row); $event.stopPropagation()"><i class="fas fa-edit"></i></button>
+            @if (!row.isActive) {
+              <button class="btn btn-sm btn-outline-success me-1" (click)="setActive(row); $event.stopPropagation()"><i class="fas fa-check-circle"></i></button>
+            }
+            <button class="btn btn-sm btn-outline-danger" (click)="deleteFiscalYear(row.id); $event.stopPropagation()"><i class="fas fa-trash"></i></button>
+          } @else {
+            <span class="text-muted small">View only</span>
+          }
+        </ng-template>
+      </app-advanced-table>
     </div>
   </div>
 </div>

@@ -5,7 +5,7 @@
 # ════════════════════════════════════════════════════════════════════════════
 
 server:
-  port: 8089
+  port: ${SERVER_PORT:8086}
   servlet:
     context-path: /api/v1
   compression:
@@ -180,6 +180,8 @@ nexmemo:
       require-uppercase: true
       require-digit: true
       require-special: true
+      password-expiry-days: 30
+      session-timeout-minutes: 10
 
     # Distributed rate limiting — requires Redis for multi-instance deployments
     rate-limit:
@@ -240,9 +242,9 @@ spring:
       on-profile: dev
 
   datasource:
-    url: jdbc:sqlserver://localhost:1433;databaseName=new_memo_db;encrypt=false;trustServerCertificate=true
-    username: sa
-    password: root
+    url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=new_memo_db;encrypt=false;trustServerCertificate=true}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:root}
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
     hikari:
       minimum-idle: 2
@@ -273,10 +275,10 @@ nexmemo:
       # Longer in dev so you don't have to refresh constantly
       access-token-expiry-minutes: 480
       refresh-token-expiry-days: 30
-      secret: bmV4bWVtby1kZXYtc2VjcmV0LWtleS0tLTMyLWJ5dGVzLWxvbmctZW5vdWdoISE=
+      secret: ${JWT_SECRET:bmV4bWVtby1kZXYtc2VjcmV0LWtleS0tLTMyLWJ5dGVzLWxvbmctZW5vdWdoISE=}
 
     encryption:
-      key: ZGV2LW9ubHktZW5jcnlwdGlvbi1rZXktMzItYnl0ZXMAAAA=
+      key: ${ENCRYPTION_KEY:ZGV2LW9ubHktZW5jcnlwdGlvbi1rZXktMzItYnl0ZXMAAAA=}
 
     otp:
       # In dev: skip OTP entirely — accept "123456" always
@@ -447,13 +449,6 @@ logging:
       max-file-size: 50MB
       max-history: 30
       total-size-cap: 1GB
-
-server:
-  port: ${SERVER_PORT:8086}
-  error:
-    include-stacktrace: never
-    include-message: never
-    include-binding-errors: never
 
 # Jasypt master key — ONLY from environment variable in production
 # Set: export JASYPT_ENCRYPTOR_PASSWORD=your-very-strong-master-key

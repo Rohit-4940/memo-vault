@@ -12,11 +12,12 @@ import { ToastrService } from 'ngx-toastr';
 import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
 import { CKEditorModule, ChangeEvent } from '@ckeditor/ckeditor5-angular';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+import { AdvancedTableComponent, TableColumn } from '../../../shared-components/advanced-table/advanced-table.component';
 
 @Component({
   selector: 'app-memo-template',
   standalone: true,
-  imports: [NgForOf, NgIf, DecimalPipe, SlicePipe, FormsModule, NgbModalModule, CKEditorModule],
+  imports: [NgForOf, NgIf, DecimalPipe, SlicePipe, FormsModule, NgbModalModule, CKEditorModule, AdvancedTableComponent],
   templateUrl: './memo-template.component.html',
   styleUrl: './memo-template.component.scss'
 })
@@ -30,6 +31,26 @@ export class MemoTemplateComponent implements OnInit {
       'link', 'blockQuote', '|', 'undo', 'redo'],
     placeholder: 'Write the memo template content here...'
   };
+
+  columns: TableColumn[] = [
+    { key: 'name', label: 'Name', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'expenseCategoryName', label: 'Category', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'departmentName', label: 'Dept', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'defaultAmount', label: 'Default Amount', sortable: true, type: 'number' },
+    { key: 'requiredApprovalLevels', label: 'Approval Lvls', sortable: true },
+    { key: 'defaultPriority', label: 'Priority', sortable: true, filterable: true, filterType: 'select', filterOptions: [{label:'Low',value:'LOW'},{label:'Medium',value:'MEDIUM'},{label:'High',value:'HIGH'},{label:'Urgent',value:'URGENT'}] },
+    { key: 'status', label: 'Status', sortable: true, filterable: true, filterType: 'select', filterOptions: [{label:'Active',value:'ACTIVE'},{label:'Inactive',value:'INACTIVE'}] }
+  ];
+  data: any[] = [];
+  loading = false;
+  pageNumber = 1;
+  pageSize = 20;
+  totalElements = 0;
+  totalPages = 1;
+  sortBy = 'id';
+  sortDir: 'asc' | 'desc' = 'desc';
+  searchQuery = '';
+  filters = new Map<string, string>();
 
   templates: any[] = [];
   memoTypes: any[] = [];
@@ -61,19 +82,33 @@ export class MemoTemplateComponent implements OnInit {
   ngOnInit() {
     const storage = LocalStorageUtil.getStorage();
     this.isAdmin = storage.roleName === 'ADMIN' || storage.roleName === 'SUPER_ADMIN';
-    this.loadTemplates();
+    this.loadData();
     this.memoTypeService.getAllMemoTypes().subscribe({ next: (d) => this.memoTypes = d });
     this.departmentService.getAllDepartments().subscribe({ next: (d) => this.departments = d });
     this.http.get<any[]>(`${ApiConfig.URL}/api/v1/expense-categories`).subscribe({ next: (d) => this.expenseCategories = d });
     this.userService.getAllUsers().subscribe({ next: (d) => this.users = d });
   }
 
-  loadTemplates() {
-    this.templateService.getAllTemplates().subscribe({
-      next: (data) => this.templates = data,
-      error: () => this.toastr.error('Failed to load templates')
+  loadData() {
+    this.loading = true;
+    const filterObj: any = {};
+    this.filters.forEach((v, k) => { if (v) filterObj[k] = v; });
+    this.templateService.getPaginated(this.searchQuery, this.pageNumber, this.pageSize, this.sortBy, this.sortDir, filterObj).subscribe({
+      next: (res) => {
+        this.data = res.content || [];
+        this.totalElements = res.totalElements || 0;
+        this.totalPages = res.totalPages || 1;
+        this.loading = false;
+      },
+      error: () => { this.toastr.error('Failed to load'); this.loading = false; }
     });
   }
+
+  onSearch(value: string) { this.searchQuery = value; this.pageNumber = 1; this.loadData(); }
+  onPageChange(page: number) { this.pageNumber = page; this.loadData(); }
+  onSizeChange(size: number) { this.pageSize = size; this.pageNumber = 1; this.loadData(); }
+  onSortChange(sort: any) { this.sortBy = sort.sortBy; this.sortDir = sort.sortDir; this.loadData(); }
+  onFilterChange(filters: Map<string, string>) { this.filters = filters; this.pageNumber = 1; this.loadData(); }
 
   openCreateModal(content: any) {
     this.isEditing = false;
@@ -204,7 +239,7 @@ export class MemoTemplateComponent implements OnInit {
       next: () => {
         this.toastr.success(this.isEditing ? 'Template updated' : 'Template created');
         this.modalService.dismissAll();
-        this.loadTemplates();
+        this.loadData();
       },
       error: (err) => this.toastr.error(err.error?.message || 'Failed')
     });
@@ -213,7 +248,7 @@ export class MemoTemplateComponent implements OnInit {
   deleteTemplate(id: number) {
     if (confirm('Delete this template?')) {
       this.templateService.deleteTemplate(id).subscribe({
-        next: () => { this.toastr.success('Template deleted'); this.loadTemplates(); },
+        next: () => { this.toastr.success('Template deleted'); this.loadData(); },
         error: () => this.toastr.error('Delete failed')
       });
     }

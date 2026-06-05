@@ -23,16 +23,32 @@ public class AuditLogService {
     public Page<AuditLog> getFilteredAuditLogs(String action, String status, String username,
                                                 LocalDateTime dateFrom, LocalDateTime dateTo,
                                                 Pageable pageable) {
-        AuditLog.AuditStatus auditStatus = null;
+        AuditLog.AuditStatus auditStatus = parseStatus(status);
+        String actionLike = (action != null && !action.isEmpty()) ? action : null;
+        String usernameLike = (username != null && !username.isEmpty()) ? username : null;
+        return auditLogRepository.findFiltered(actionLike, auditStatus, usernameLike, dateFrom, dateTo, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<AuditLog> getFilteredAuditLogs(String action, String status, String username,
+                                                LocalDateTime dateFrom, LocalDateTime dateTo,
+                                                Long userId, Pageable pageable) {
+        if (userId != null && (username == null || username.isEmpty())) {
+            AuditLog.AuditStatus auditStatus = parseStatus(status);
+            String actionLike = (action != null && !action.isEmpty()) ? action : null;
+            return auditLogRepository.findFilteredByUser(actionLike, auditStatus, dateFrom, dateTo, userId, pageable);
+        }
+        return getFilteredAuditLogs(action, status, username, dateFrom, dateTo, pageable);
+    }
+
+    private AuditLog.AuditStatus parseStatus(String status) {
         if (status != null && !status.isEmpty()) {
             try {
-                auditStatus = AuditLog.AuditStatus.valueOf(status.toUpperCase());
+                return AuditLog.AuditStatus.valueOf(status.toUpperCase());
             } catch (IllegalArgumentException e) {
                 log.warn("Invalid audit status filter: {}", status);
             }
         }
-        String actionLike = (action != null && !action.isEmpty()) ? action : null;
-        String usernameLike = (username != null && !username.isEmpty()) ? username : null;
-        return auditLogRepository.findFiltered(actionLike, auditStatus, usernameLike, dateFrom, dateTo, pageable);
+        return null;
     }
 }

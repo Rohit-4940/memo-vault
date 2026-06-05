@@ -1,8 +1,12 @@
 package com.nexmemo.web.Controller;
 
 import com.nexmemo.core.dto.ApiResponse;
+import com.nexmemo.core.dto.PageResponse;
+import com.nexmemo.core.dto.PaginatedRequest;
 import com.nexmemo.core.entity.FiscalYear;
+import com.nexmemo.core.repository.FiscalYearRepository;
 import com.nexmemo.web.service.FiscalYearService;
+import com.nexmemo.web.service.PaginatedQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +22,14 @@ import java.util.List;
 public class FiscalYearController {
 
     private final FiscalYearService fiscalYearService;
+    private final PaginatedQueryService paginatedQueryService;
+    private final FiscalYearRepository fiscalYearRepository;
+
+    @GetMapping("/paginated")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PageResponse<FiscalYear>> findPaginated(PaginatedRequest request) {
+        return ResponseEntity.ok(paginatedQueryService.query(fiscalYearRepository, request, List.of("name")));
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<FiscalYear>>> getAll() {

@@ -7,33 +7,30 @@
   </div>
 
   <div class="card">
-    <div class="table-responsive">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>ID</th><th>Role Name</th><th>Type</th><th>Access</th><th>Approvable</th><th>Approval Limit</th><th>Menus</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for(role of roles; track role.id) {
-            <tr>
-              <td>{{ role.id }}</td>
-              <td><strong>{{ role.roleName }}</strong></td>
-              <td><span class="badge badge-info">{{ role.roleType }}</span></td>
-              <td><span class="badge badge-secondary">{{ role.roleAccess }}</span></td>
-              <td><span class="badge" [class.badge-success]="role.isRoleApprovable" [class.badge-danger]="!role.isRoleApprovable">{{ role.isRoleApprovable ? 'Yes' : 'No' }}</span></td>
-              <td>{{ role.roleApprovalLimitAmount ? 'रू ' + role.roleApprovalLimitAmount : '-' }}</td>
-              <td><span class="menu-count">{{ (role.menuIds || []).length }} menus</span></td>
-              <td class="actions">
-                <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, role)"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-outline-danger" (click)="deleteRole(role.id)"><i class="fas fa-trash"></i></button>
-              </td>
-            </tr>
-          } @empty {
-            <tr><td colspan="8" class="text-center text-muted py-4">No roles found</td></tr>
-          }
-        </tbody>
-      </table>
+    <div class="card-body p-0">
+      <app-advanced-table
+        [columns]="columns"
+        [data]="data"
+        [totalElements]="totalElements"
+        [loading]="loading"
+        [pageNumber]="pageNumber"
+        [pageSize]="pageSize"
+        [totalPages]="totalPages"
+        [searchable]="true"
+        [showFilters]="true"
+        filterMode="panel"
+        searchPlaceholder="Search roles..."
+        (searchChange)="onSearch($event)"
+        (pageChange)="onPageChange($event)"
+        (sizeChange)="onSizeChange($event)"
+        (sortChange)="onSortChange($event)"
+        (filterChange)="onFilterChange($event)"
+      >
+        <ng-template #actions let-row>
+          <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, row); $event.stopPropagation()"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" (click)="deleteRole(row.id); $event.stopPropagation()"><i class="fas fa-trash"></i></button>
+        </ng-template>
+      </app-advanced-table>
     </div>
   </div>
 </div>

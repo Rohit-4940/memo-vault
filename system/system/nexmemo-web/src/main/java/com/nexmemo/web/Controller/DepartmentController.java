@@ -1,8 +1,12 @@
 package com.nexmemo.web.Controller;
 
 import com.nexmemo.core.dto.ApiResponse;
+import com.nexmemo.core.dto.PageResponse;
+import com.nexmemo.core.dto.PaginatedRequest;
 import com.nexmemo.core.entity.Department;
+import com.nexmemo.core.repository.DepartmentRepository;
 import com.nexmemo.web.service.DepartmentService;
+import com.nexmemo.web.service.PaginatedQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +22,14 @@ import java.util.List;
 public class DepartmentController {
 
     private final DepartmentService departmentService;
+    private final PaginatedQueryService paginatedQueryService;
+    private final DepartmentRepository departmentRepository;
+
+    @GetMapping("/paginated")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PageResponse<Department>> findPaginated(PaginatedRequest request) {
+        return ResponseEntity.ok(paginatedQueryService.query(departmentRepository, request, List.of("name", "description")));
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Department>>> getAllDepartments() {

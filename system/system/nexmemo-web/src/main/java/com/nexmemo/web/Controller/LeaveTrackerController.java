@@ -1,9 +1,13 @@
 package com.nexmemo.web.Controller;
 
 import com.nexmemo.core.dto.ApiResponse;
+import com.nexmemo.core.dto.PageResponse;
+import com.nexmemo.core.dto.PaginatedRequest;
 import com.nexmemo.core.entity.LeaveTracker;
 import com.nexmemo.core.entity.User;
+import com.nexmemo.core.repository.LeaveTrackerRepository;
 import com.nexmemo.web.service.LeaveTrackerService;
+import com.nexmemo.web.service.PaginatedQueryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +24,14 @@ import java.util.List;
 public class LeaveTrackerController {
 
     private final LeaveTrackerService leaveTrackerService;
+    private final PaginatedQueryService paginatedQueryService;
+    private final LeaveTrackerRepository leaveTrackerRepository;
+
+    @GetMapping("/paginated")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PageResponse<LeaveTracker>> findPaginated(PaginatedRequest request) {
+        return ResponseEntity.ok(paginatedQueryService.query(leaveTrackerRepository, request, List.of("leaveType", "reason")));
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<LeaveTracker>>> getAll() {

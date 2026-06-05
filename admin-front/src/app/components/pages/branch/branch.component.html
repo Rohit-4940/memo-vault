@@ -1,26 +1,34 @@
 <div class="page-container">
   <div class="page-header">
-    <h1><i class="fas fa-building"></i> Branch</h1>
+    <h1><i class="fas fa-building"></i> Branches</h1>
     <button class="btn btn-primary" (click)="openCreateModal(createModal)"><i class="fas fa-plus"></i> Add Branch</button>
   </div>
   <div class="card">
-    <div class="table-responsive">
-      <table class="table">
-        <thead><tr><th>ID</th><th>Name</th><th>Code</th><th>Address</th><th>Email</th><th>Actions</th></tr></thead>
-        <tbody>
-          @for(b of branches; track b.id) {
-            <tr>
-              <td>{{ b.id }}</td><td>{{ b.name }}</td><td><span class="badge badge-info">{{ b.branchCode }}</span></td>
-              <td>{{ b.streetName }}{{ b.wardNumber ? ', Ward ' + b.wardNumber : '' }}</td>
-              <td>{{ b.branchEmail }}</td>
-              <td class="actions">
-                <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, b)"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-outline-danger" (click)="deleteBranch(b.id)"><i class="fas fa-trash"></i></button>
-              </td>
-            </tr>
-          } @empty { <tr><td colspan="6" class="text-center text-muted py-4">No branches found</td></tr> }
-        </tbody>
-      </table>
+    <div class="card-body p-0">
+      <app-advanced-table
+        [columns]="columns"
+        [data]="data"
+        [totalElements]="totalElements"
+        [loading]="loading"
+        [pageNumber]="pageNumber"
+        [pageSize]="pageSize"
+        [totalPages]="totalPages"
+        [searchable]="true"
+        [showFilters]="true"
+        filterMode="panel"
+        searchPlaceholder="Search branches..."
+        (searchChange)="onSearch($event)"
+        (pageChange)="onPageChange($event)"
+        (sizeChange)="onSizeChange($event)"
+        (sortChange)="onSortChange($event)"
+        (filterChange)="onFilterChange($event)"
+        (rowClick)="openEditModal(editModal, $event)"
+      >
+        <ng-template #actions let-row>
+          <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, row); $event.stopPropagation()"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-sm btn-outline-danger" (click)="deleteBranch(row.id); $event.stopPropagation()"><i class="fas fa-trash"></i></button>
+        </ng-template>
+      </app-advanced-table>
     </div>
   </div>
 </div>

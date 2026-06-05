@@ -1,0 +1,225 @@
+<div class="compressor-page">
+  <div class="page-header mb-3">
+    <div class="d-flex align-items-center gap-2">
+      <div class="header-icon"><i class="fas fa-compress-alt"></i></div>
+      <div>
+        <h5 class="fw-bold mb-0">Document Compressor</h5>
+        <p class="text-muted mb-0 small">Compress, archive, and manage your files</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Overview -->
+  <div class="row g-2 mb-3" *ngIf="stats">
+    <div class="col-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon bg-primary-subtle"><i class="fas fa-file-archive text-primary"></i></div>
+        <div class="stat-body">
+          <div class="stat-value">{{ stats.totalJobs }}</div>
+          <div class="stat-label">Files Compressed</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon bg-success-subtle"><i class="fas fa-database text-success"></i></div>
+        <div class="stat-body">
+          <div class="stat-value">{{ formatBytes(stats.totalOriginalBytes) }}</div>
+          <div class="stat-label">Original Size</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon bg-info-subtle"><i class="fas fa-compress text-info"></i></div>
+        <div class="stat-body">
+          <div class="stat-value">{{ formatBytes(stats.totalCompressedBytes) }}</div>
+          <div class="stat-label">Compressed Size</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon bg-warning-subtle"><i class="fas fa-chart-line text-warning"></i></div>
+        <div class="stat-body">
+          <div class="stat-value text-success fw-bold">{{ formatBytes(stats.totalSavings) }}</div>
+          <div class="stat-label">Space Saved</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <!-- Left: Upload Section -->
+    <div class="col-lg-5">
+      <div class="content-card">
+        <div class="card-header"><i class="fas fa-cloud-upload-alt me-2"></i>Upload &amp; Compress</div>
+        <div class="card-body">
+          <!-- Drop Zone -->
+          <div class="upload-zone text-center" *ngIf="queue.length === 0 && !compressing" [class.dragover]="isDragover"
+               (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+            <div class="upload-icon mb-1"><i class="fas fa-file-upload"></i></div>
+            <p class="mb-1 fw-medium small">Drag &amp; drop files here</p>
+            <p class="text-muted small mb-1">or</p>
+            <button class="btn btn-gradient btn-sm" (click)="fileInput.click()">Browse Files</button>
+            <input #fileInput type="file" multiple hidden (change)="onFilesSelected($event)">
+          </div>
+
+          <!-- Queue -->
+          <div *ngIf="queue.length > 0">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="fw-medium small">{{ queue.length }} file(s)</span>
+              <button class="btn btn-sm btn-ghost text-danger" (click)="clearQueue()" [disabled]="compressing">
+                <i class="fas fa-trash-alt me-1"></i>Clear
+              </button>
+            </div>
+
+            <div class="queue-list">
+              <div class="queue-item" *ngFor="let item of queue; trackBy: trackByIndex">
+                <div class="queue-item-icon"><i class="fas" [ngClass]="getFileIcon(item.file.name)"></i></div>
+                <div class="queue-item-info">
+                  <div class="queue-item-name text-truncate">{{ item.file.name }}</div>
+                  <div class="queue-item-size">{{ formatBytes(item.file.size) }}</div>
+                </div>
+                <div class="queue-item-status">
+                  <span class="badge"
+                        [class.badge-pending]="item.status === 'pending'"
+                        [class.badge-progress]="item.status === 'processing'"
+                        [class.badge-success]="item.status === 'done'"
+                        [class.badge-danger]="item.status === 'error'">{{ item.status }}</span>
+                </div>
+                <button class="btn btn-ghost btn-sm text-danger ms-1" (click)="removeFromQueue(item)" [disabled]="item.status === 'processing'">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Compression Options -->
+            <div class="mt-1">
+              <label class="form-label-sm mb-1">Format</label>
+              <div class="radio-group mini">
+                <label class="radio-card mini" *ngFor="let t of compressionTypes"
+                       [class.active]="compressType === t.value" (click)="compressType = t.value">
+                  <input type="radio" [value]="t.value" [checked]="compressType === t.value">
+                  <div class="radio-card-body">
+                    <div class="radio-card-icon"><i [class]="t.icon"></i></div>
+                    <div>
+                      <div class="radio-card-title">{{ t.label }}</div>
+                      <div class="radio-card-desc">{{ t.desc }}</div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <button class="btn btn-gradient w-100 mt-1" (click)="compressAll()" [disabled]="compressing">
+              <span *ngIf="!compressing"><i class="fas fa-compress me-2"></i>Compress All</span>
+              <span *ngIf="compressing"><i class="fas fa-spinner fa-spin me-2"></i>Compressing...</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: History -->
+    <div class="col-lg-7">
+      <div class="content-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="fas fa-history me-2"></i>Compression History</span>
+          <button class="btn btn-ghost btn-sm" (click)="refreshHistory()" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+        </div>
+        <div class="card-body">
+          <!-- Search + Filter -->
+          <div class="d-flex gap-2 mb-2">
+            <div class="search-box flex-grow-1">
+              <i class="fas fa-search search-icon"></i>
+              <input type="text" class="form-control form-control-sm" placeholder="Search files..."
+                     [(ngModel)]="searchQuery" (input)="onSearch()">
+            </div>
+            <select class="form-select form-select-sm w-auto" [(ngModel)]="statusFilter" (change)="onFilterChange()">
+              <option value="">All</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="FAILED">Failed</option>
+              <option value="IN_PROGRESS">In Progress</option>
+            </select>
+          </div>
+
+          <!-- Loading -->
+          <div class="text-center py-3" *ngIf="loadingHistory">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          </div>
+
+          <!-- Empty State -->
+          <div class="empty-state" *ngIf="!loadingHistory && historyItems.length === 0">
+            <i class="fas fa-box-open empty-icon"></i>
+            <p class="text-muted mb-0">No compression history yet</p>
+            <small class="text-muted">Upload files above to get started</small>
+          </div>
+
+          <!-- History Table -->
+          <div class="table-responsive" *ngIf="!loadingHistory && historyItems.length > 0">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Format</th>
+                  <th>Original</th>
+                  <th>Compressed</th>
+                  <th>Ratio</th>
+                  <th>Status</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of historyItems">
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="fas" [ngClass]="getFileIcon(item.originalName)"></i>
+                      <div class="text-truncate" style="max-width:140px" [title]="item.originalName">{{ item.originalName }}</div>
+                    </div>
+                  </td>
+                  <td><span class="badge badge-format">{{ item.compressionType }}</span></td>
+                  <td class="text-nowrap">{{ formatBytes(item.originalSize) }}</td>
+                  <td class="text-nowrap">{{ item.compressedSize ? formatBytes(item.compressedSize) : '-' }}</td>
+                  <td>
+                    <span class="badge" [class.bg-success]="item.ratioPercent < 80"
+                          [class.bg-warning]="item.ratioPercent >= 80 && item.ratioPercent < 100"
+                          [class.bg-secondary]="item.ratioPercent >= 100 || !item.compressedSize">
+                      {{ item.compressedSize ? (item.ratioPercent + '%') : '-' }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge"
+                          [class.badge-success]="item.status === 'COMPLETED'"
+                          [class.badge-danger]="item.status === 'FAILED'"
+                          [class.badge-progress]="item.status === 'IN_PROGRESS'">{{ item.status }}</span>
+                  </td>
+                  <td class="text-end text-nowrap">
+                    <button class="btn btn-ghost btn-sm" *ngIf="item.status === 'COMPLETED'"
+                            (click)="downloadJob(item)" title="Download"><i class="fas fa-download"></i></button>
+                    <button class="btn btn-ghost btn-sm text-danger" (click)="deleteJob(item)" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="d-flex justify-content-between align-items-center mt-2"
+               *ngIf="!loadingHistory && historyItems.length > 0">
+            <small class="text-muted">{{ historyItems.length }} of {{ historyTotalElements }} entries</small>
+            <ngb-pagination
+              [collectionSize]="historyTotalElements"
+              [(page)]="historyPage"
+              [pageSize]="historySize"
+              [maxSize]="3"
+              (pageChange)="onPageChange($event)"
+              size="sm"
+              *ngIf="historyTotalPages > 1">
+            </ngb-pagination>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

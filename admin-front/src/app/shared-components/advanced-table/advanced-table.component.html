@@ -1,0 +1,294 @@
+<div class="advanced-table-wrapper">
+  <div class="table-toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div class="d-flex align-items-center gap-2 flex-grow-1">
+      <div class="table-search-bar" *ngIf="searchable">
+        <i class="fas fa-search search-icon"></i>
+        <input
+          type="text"
+          class="form-control form-control-sm"
+          [placeholder]="searchPlaceholder"
+          [ngModel]="searchQuery"
+          (ngModelChange)="onSearchInput($event)"
+        />
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <button
+        *ngIf="filterMode === 'panel'"
+        class="btn btn-sm btn-ghost"
+        (click)="toggleFilterPanel()"
+      >
+        <i class="fas fa-filter me-1"></i>
+        {{ filterPanelVisible ? ('Hide Filters' | translate) : ('Filters' | translate) }}
+      </button>
+      <button
+        *ngIf="exportable"
+        class="btn btn-sm btn-outline-secondary export-btn"
+        (click)="export.emit()"
+        [title]="'table.export' | translate"
+      >
+        <i class="fas fa-download me-1"></i>
+        {{ 'table.export' | translate }}
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="filterMode === 'panel' && filterPanelVisible" class="card mb-3 filter-card">
+    <div class="card-body py-3">
+      <div class="row g-3 align-items-end">
+        <div *ngFor="let col of filterableColumns" class="col-md-3">
+          <label class="form-label small text-muted mb-1">{{ col.label }}</label>
+          <ng-container [ngSwitch]="col.filterType || 'text'">
+            <input *ngSwitchCase="'text'" class="form-control form-control-sm" type="text"
+              [placeholder]="'Filter ' + col.label" [(ngModel)]="panelFilters[col.key]">
+            <input *ngSwitchCase="'number'" class="form-control form-control-sm" type="number"
+              [placeholder]="'Filter ' + col.label" [(ngModel)]="panelFilters[col.key]">
+            <select *ngSwitchCase="'select'" class="form-select form-select-sm"
+              [(ngModel)]="panelFilters[col.key]">
+              <option value="">{{ 'common.all' | translate }}</option>
+              <option *ngFor="let opt of col.filterOptions || []" [value]="opt.value">{{ opt.label }}</option>
+            </select>
+            <input *ngSwitchCase="'date'" class="form-control form-control-sm" type="date"
+              [(ngModel)]="panelFilters[col.key]">
+            <select *ngSwitchCase="'boolean'" class="form-select form-select-sm"
+              [(ngModel)]="panelFilters[col.key]">
+              <option value="">{{ 'common.all' | translate }}</option>
+              <option value="true">{{ 'common.yes' | translate }}</option>
+              <option value="false">{{ 'common.no' | translate }}</option>
+            </select>
+          </ng-container>
+        </div>
+        <div class="col-md-3 d-flex gap-1">
+          <button class="btn btn-primary btn-sm flex-fill" (click)="onSearch()">
+            <i class="fas fa-search me-1"></i> Search
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" (click)="onClearFilters()" title="Clear">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-container" [class.loading]="loading">
+    <div class="table-loading-overlay" *ngIf="loading">
+      <div class="spinner-wrapper">
+        <i class="fas fa-spinner fa-spin fa-2x"></i>
+        <span class="mt-2">{{ loadingMessage }}</span>
+      </div>
+    </div>
+
+    <table
+      class="table"
+      [class.table-striped]="striped"
+      [class.table-hover]="hover"
+      [class.table-sm]="small"
+      [class.table-bordered]="bordered"
+    >
+      <thead>
+        <tr class="table-header-row">
+          <th *ngIf="selectable" class="select-col">
+            <div class="form-check">
+              <input
+                type="checkbox"
+                class="form-check-input"
+                [checked]="isAllSelected()"
+                (change)="toggleSelectAll()"
+              />
+            </div>
+          </th>
+          <th
+            *ngFor="let col of visibleColumns"
+            [style.width]="col.width"
+            class="header-cell"
+            [class.sortable-header]="col.sortable"
+            [class.pin-right]="col.pinRight"
+            (click)="onSort(col)"
+          >
+            <div class="d-flex align-items-center gap-1">
+              <span>{{ col.label }}</span>
+              <i
+                *ngIf="col.sortable"
+                class="fas {{ getSortIcon(col) }} sort-icon"
+              ></i>
+            </div>
+          </th>
+          <th *ngIf="actionsTemplate" class="actions-col">{{ 'common.action' | translate }}</th>
+        </tr>
+
+        <tr *ngIf="showFilters && filterMode !== 'panel'" class="filter-row">
+          <th *ngIf="selectable"></th>
+          <th *ngFor="let col of visibleColumns">
+            <div *ngIf="col.filterable" class="filter-cell">
+              <ng-container [ngSwitch]="col.filterType || 'text'">
+                <input
+                  *ngSwitchCase="'text'"
+                  type="text"
+                  class="form-control form-control-sm"
+                  placeholder="Filter {{ col.label }}"
+                  [ngModel]="filters[col.key]"
+                  (ngModelChange)="onFilterInput(col.key, $event)"
+                />
+                <select
+                  *ngSwitchCase="'select'"
+                  class="form-select form-select-sm"
+                  [ngModel]="filters[col.key]"
+                  (ngModelChange)="onFilterInput(col.key, $event)"
+                >
+                  <option value="">{{ 'common.all' | translate }}</option>
+                  <option
+                    *ngFor="let opt of col.filterOptions || []"
+                    [value]="opt.value"
+                  >{{ opt.label }}</option>
+                </select>
+                <input
+                  *ngSwitchCase="'number'"
+                  type="number"
+                  class="form-control form-control-sm"
+                  placeholder="Filter {{ col.label }}"
+                  [ngModel]="filters[col.key]"
+                  (ngModelChange)="onFilterInput(col.key, $event)"
+                />
+                <input
+                  *ngSwitchCase="'date'"
+                  type="date"
+                  class="form-control form-control-sm"
+                  [ngModel]="filters[col.key]"
+                  (ngModelChange)="onFilterInput(col.key, $event)"
+                />
+                <select
+                  *ngSwitchCase="'boolean'"
+                  class="form-select form-select-sm"
+                  [ngModel]="filters[col.key]"
+                  (ngModelChange)="onFilterInput(col.key, $event)"
+                >
+                  <option value="">{{ 'common.all' | translate }}</option>
+                  <option value="true">{{ 'common.yes' | translate }}</option>
+                  <option value="false">{{ 'common.no' | translate }}</option>
+                </select>
+              </ng-container>
+            </div>
+          </th>
+          <th *ngIf="actionsTemplate"></th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngIf="!loading && data.length === 0" class="empty-state-row">
+          <td [attr.colspan]="visibleColumns.length + (selectable ? 1 : 0) + (actionsTemplate ? 1 : 0)">
+            <div class="empty-state">
+              <i class="fas fa-inbox fa-3x mb-3"></i>
+              <p>{{ emptyMessage }}</p>
+            </div>
+          </td>
+        </tr>
+
+        <tr
+          *ngFor="let row of data; trackBy: trackByFn"
+          class="data-row"
+          [class.clickable]="rowClick.observers.length > 0"
+          (click)="onRowClick(row)"
+        >
+          <td *ngIf="selectable" class="select-col" (click)="$event.stopPropagation()">
+            <div class="form-check">
+              <input
+                type="checkbox"
+                class="form-check-input"
+                [checked]="isSelected(row.id)"
+                (change)="toggleSelect(row.id)"
+              />
+            </div>
+          </td>
+          <td
+            *ngFor="let col of visibleColumns"
+            [style.width]="col.width"
+            [class.pin-right]="col.pinRight"
+          >
+            <ng-container
+              *ngIf="customCellTemplate; else defaultCell"
+              [ngTemplateOutlet]="customCellTemplate"
+              [ngTemplateOutletContext]="{ $implicit: row, column: col }"
+            >
+            </ng-container>
+            <ng-template #defaultCell>
+              <ng-container [ngSwitch]="col.type">
+                <span *ngSwitchCase="'boolean'">
+                  <i
+                    class="fas"
+                    [class.fa-check]="getNestedValue(row, col.key)"
+                    [class.fa-times]="!getNestedValue(row, col.key)"
+                    [class.text-success]="getNestedValue(row, col.key)"
+                    [class.text-danger]="!getNestedValue(row, col.key)"
+                  ></i>
+                </span>
+                <span *ngSwitchCase="'date'">
+                  {{ getNestedValue(row, col.key) | date: 'medium' }}
+                </span>
+                <span *ngSwitchCase="'currency'">
+                  {{ getNestedValue(row, col.key) | currency }}
+                </span>
+                <span *ngSwitchDefault>
+                  {{ getCellValue(row, col) }}
+                </span>
+              </ng-container>
+            </ng-template>
+          </td>
+          <td *ngIf="actionsTemplate" class="actions-col" (click)="$event.stopPropagation()">
+            <ng-container
+              [ngTemplateOutlet]="actionsTemplate"
+              [ngTemplateOutletContext]="{ $implicit: row }"
+            ></ng-container>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-footer d-flex flex-wrap align-items-center justify-content-between gap-3 mt-3" *ngIf="totalPages > 0">
+    <div class="table-info" *ngIf="showInfo">
+      {{ 'table.showing' | translate }} {{ startIndex }} {{ 'table.to' | translate }} {{ endIndex }} {{ 'table.of' | translate }} {{ totalElements }} {{ 'table.entries' | translate }}
+    </div>
+
+    <ul class="pagination mb-0">
+      <li class="page-item" [class.disabled]="pageNumber === 1">
+        <button class="page-link" (click)="goToPage(1)" [title]="'table.first' | translate">
+          <i class="fas fa-angle-double-left"></i>
+        </button>
+      </li>
+      <li class="page-item" [class.disabled]="pageNumber === 1">
+        <button class="page-link" (click)="goToPage(pageNumber - 1)" [title]="'table.prev' | translate">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+      </li>
+      <li
+        *ngFor="let p of visiblePages"
+        class="page-item"
+        [class.active]="p === pageNumber"
+      >
+        <button class="page-link" (click)="goToPage(p)">{{ p }}</button>
+      </li>
+      <li class="page-item" [class.disabled]="pageNumber === totalPages">
+        <button class="page-link" (click)="goToPage(pageNumber + 1)" [title]="'table.next' | translate">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </li>
+      <li class="page-item" [class.disabled]="pageNumber === totalPages">
+        <button class="page-link" (click)="goToPage(totalPages)" [title]="'table.last' | translate">
+          <i class="fas fa-angle-double-right"></i>
+        </button>
+      </li>
+    </ul>
+
+    <div class="d-flex align-items-center gap-2" *ngIf="showPageSize">
+      <label class="form-label mb-0 text-nowrap">{{ 'table.perPage' | translate }}:</label>
+      <select
+        class="form-select form-select-sm"
+        [ngModel]="pageSize"
+        (ngModelChange)="onPageSizeChange($event)"
+        style="width: auto"
+      >
+        <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+      </select>
+    </div>
+  </div>
+</div>

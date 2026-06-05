@@ -5,7 +5,6 @@ import com.nexmemo.security.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -17,9 +16,18 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
+/**
+ * JWT authentication filter.
+ *
+ * Resolves the JWT from the Authorization: Bearer header ONLY.
+ * Cookie-based token resolution has been removed because:
+ * 1. Cookies are vulnerable to CSRF when Bearer tokens are used
+ * 2. The frontend always sends the Authorization header via the HttpInterceptor
+ * 3. SameSite=Strict cookies are set for potential future use but are never
+ *    consumed by this filter — eliminating the CSRF attack surface entirely
+ */
 @Slf4j
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -68,17 +76,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         chain.doFilter(req, res);
     }
 
+    /**
+     * Resolves JWT from Authorization: Bearer header only.
+     * Cookie-based resolution has been removed for CSRF mitigation.
+     */
     private String resolveToken(HttpServletRequest req) {
         String header = req.getHeader("Authorization");
         if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
             return header.substring(7);
-        }
-        if (req.getCookies() != null) {
-            return Arrays.stream(req.getCookies())
-                    .filter(c -> "access_token".equals(c.getName()))
-                    .map(Cookie::getValue)
-                    .findFirst()
-                    .orElse(null);
         }
         return null;
     }

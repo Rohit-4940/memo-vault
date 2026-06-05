@@ -6,6 +6,7 @@ import com.nexmemo.core.repository.ExpenseCategoryRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ public class ExpenseCategoryService {
 
     private final ExpenseCategoryRepository expenseCategoryRepository;
 
+    @Cacheable(value = "referenceData", key = "'all-' + #root.targetClass.simpleName")
     @Transactional(readOnly = true)
     public List<ExpenseCategory> getAllCategories() {
         return expenseCategoryRepository.findByStatus(Status.ACTIVE);

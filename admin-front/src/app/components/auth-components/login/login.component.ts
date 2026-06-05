@@ -85,9 +85,14 @@ export class LoginComponent {
     storage.userId = response.userId;
     storage.roleName = response.role;
     storage.roleId = response.roleId;
-    storage.roleAccess = response.role;
+    storage.roleType = response.roleType;
+    storage.roleAccess = response.roleAccess;
     LocalStorageUtil.setStorage(storage);
-    this.router.navigate(['/layout/dashboard']);
+    if (response.forcePasswordChange) {
+      this.router.navigate(['/change-password/force']);
+    } else {
+      this.router.navigate(['/layout/dashboard']);
+    }
   }
 
   private handleLoginError(error: any) {

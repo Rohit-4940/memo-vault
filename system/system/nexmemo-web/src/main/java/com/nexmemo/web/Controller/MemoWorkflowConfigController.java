@@ -6,6 +6,7 @@ import com.nexmemo.core.entity.MemoWorkflowPermission;
 import com.nexmemo.core.entity.MemoWorkflowStage;
 import com.nexmemo.web.service.MemoWorkflowConfigService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/memo-workflows")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
 public class MemoWorkflowConfigController {
 
     private final MemoWorkflowConfigService workflowConfigService;

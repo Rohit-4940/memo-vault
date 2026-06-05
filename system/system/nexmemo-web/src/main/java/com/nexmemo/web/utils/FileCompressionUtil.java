@@ -1,10 +1,16 @@
 package com.nexmemo.web.utils;
 
+import com.nexmemo.core.enums.CompressionType;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -14,56 +20,89 @@ public final class FileCompressionUtil {
 
     private FileCompressionUtil() {}
 
-    public static byte[] compressGzip(byte[] data, String fileName) {
+    public static byte[] compress(CompressionType type, byte[] data, String entryName) throws IOException {
+        return switch (type) {
+            case GZIP -> compressGzip(data, entryName);
+            case ZIP -> compressZip(entryName, data);
+            case TAR -> compressTar(entryName, data);
+            case TAR_GZ -> compressTarGz(entryName, data);
+        };
+    }
+
+    public static String outputFileName(String originalName, CompressionType type) {
+        return switch (type) {
+            case GZIP -> originalName + ".gz";
+            case ZIP -> originalName + ".zip";
+            case TAR -> originalName + ".tar";
+            case TAR_GZ -> originalName + ".tar.gz";
+        };
+    }
+
+    public static byte[] compressGzip(byte[] data, String fileName) throws IOException {
         if (data == null || data.length == 0) {
             log.warn("Skipping GZIP compression for empty file: {}", fileName);
             return data;
         }
-        long start = System.currentTimeMillis();
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              GZIPOutputStream gzos = new GZIPOutputStream(baos)) {
             gzos.write(data);
             gzos.finish();
-            byte[] compressed = baos.toByteArray();
-            log.info("GZIP compressed {}: {} bytes -> {} bytes ({}%) in {}ms",
-                    fileName, data.length, compressed.length,
-                    data.length > 0 ? compressed.length * 100 / data.length : 0,
-                    System.currentTimeMillis() - start);
-            return compressed;
-        } catch (IOException e) {
-            log.error("GZIP compression failed for {}: {}", fileName, e.getMessage());
-            return data;
+            return baos.toByteArray();
         }
     }
 
-    public static byte[] compressZip(String entryName, byte[] data) {
+    public static byte[] compressZip(String entryName, byte[] data) throws IOException {
         if (data == null || data.length == 0) {
             log.warn("Skipping ZIP compression for empty file: {}", entryName);
             return data;
         }
-        long start = System.currentTimeMillis();
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              ZipOutputStream zos = new ZipOutputStream(baos)) {
             ZipEntry entry = new ZipEntry(entryName);
             entry.setSize(data.length);
-            entry.setTime(System.currentTimeMillis());
             zos.putNextEntry(entry);
             zos.write(data);
             zos.closeEntry();
-            byte[] compressed = baos.toByteArray();
-            log.info("ZIP compressed {}: {} bytes -> {} bytes ({}%) in {}ms",
-                    entryName, data.length, compressed.length,
-                    data.length > 0 ? compressed.length * 100 / data.length : 0,
-                    System.currentTimeMillis() - start);
-            return compressed;
-        } catch (IOException e) {
-            log.error("ZIP compression failed for {}: {}", entryName, e.getMessage());
+            return baos.toByteArray();
+        }
+    }
+
+    public static byte[] compressTar(String entryName, byte[] data) throws IOException {
+        if (data == null || data.length == 0) {
+            log.warn("Skipping TAR compression for empty file: {}", entryName);
             return data;
+        }
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             TarArchiveOutputStream tos = new TarArchiveOutputStream(baos)) {
+            tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
+            TarArchiveEntry entry = new TarArchiveEntry(entryName);
+            entry.setSize(data.length);
+            tos.putArchiveEntry(entry);
+            tos.write(data);
+            tos.closeArchiveEntry();
+            return baos.toByteArray();
+        }
+    }
+
+    public static byte[] compressTarGz(String entryName, byte[] data) throws IOException {
+        if (data == null || data.length == 0) {
+            log.warn("Skipping TAR.GZ compression for empty file: {}", entryName);
+            return data;
+        }
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             GzipCompressorOutputStream gzos = new GzipCompressorOutputStream(baos);
+             TarArchiveOutputStream tos = new TarArchiveOutputStream(gzos)) {
+            tos.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
+            TarArchiveEntry entry = new TarArchiveEntry(entryName);
+            entry.setSize(data.length);
+            tos.putArchiveEntry(entry);
+            tos.write(data);
+            tos.closeArchiveEntry();
+            return baos.toByteArray();
         }
     }
 
     public static void compressFileToZip(Path sourceFile, Path zipOutput, String entryName) throws IOException {
-        long start = System.currentTimeMillis();
         byte[] fileData = Files.readAllBytes(sourceFile);
         try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipOutput.toFile()))) {
             ZipEntry entry = new ZipEntry(entryName != null ? entryName : sourceFile.getFileName().toString());
@@ -72,11 +111,19 @@ public final class FileCompressionUtil {
             zos.write(fileData);
             zos.closeEntry();
         }
-        log.info("ZIP file created: {} -> {} ({} bytes in {}ms)",
-                sourceFile, zipOutput, Files.size(zipOutput), System.currentTimeMillis() - start);
     }
 
     public static boolean shouldCompress(long fileSize, int thresholdBytes) {
         return fileSize > thresholdBytes;
+    }
+
+    public static String sha256(byte[] data) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(md.digest(data));
+        } catch (Exception e) {
+            log.warn("SHA-256 not available: {}", e.getMessage());
+            return null;
+        }
     }
 }

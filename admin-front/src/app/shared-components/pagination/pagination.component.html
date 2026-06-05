@@ -1,0 +1,49 @@
+<div class="pagination-bar" *ngIf="totalPages > 1">
+  <div class="pagination-info">
+    <i class="fas fa-list-ul"></i>
+    Showing <strong>{{ from }}-{{ to }}</strong> of <strong>{{ totalElements }}</strong> entries
+  </div>
+
+  <div class="pagination-controls">
+    <button class="page-btn page-btn-nav" [disabled]="isFirstPage" (click)="goToPage(0)" title="First page">
+      <i class="fas fa-angle-double-left"></i>
+    </button>
+    <button class="page-btn page-btn-nav" [disabled]="isFirstPage" (click)="goToPage(currentPage - 1)" title="Previous page">
+      <i class="fas fa-chevron-left"></i>
+    </button>
+
+    <ng-container *ngIf="visiblePages[0] > 0">
+      <button class="page-btn" (click)="goToPage(0)">1</button>
+      <span class="page-btn-ellipsis">...</span>
+    </ng-container>
+
+    <button *ngFor="let p of visiblePages"
+            class="page-btn"
+            [class.active]="p === currentPage"
+            (click)="goToPage(p)">
+      {{ p + 1 }}
+    </button>
+
+    <ng-container *ngIf="visiblePages[visiblePages.length - 1] < totalPages - 1">
+      <span class="page-btn-ellipsis">...</span>
+      <button class="page-btn" (click)="goToPage(totalPages - 1)">{{ totalPages }}</button>
+    </ng-container>
+
+    <button class="page-btn page-btn-nav" [disabled]="isLastPage" (click)="goToPage(currentPage + 1)" title="Next page">
+      <i class="fas fa-chevron-right"></i>
+    </button>
+    <button class="page-btn page-btn-nav" [disabled]="isLastPage" (click)="goToPage(totalPages - 1)" title="Last page">
+      <i class="fas fa-angle-double-right"></i>
+    </button>
+  </div>
+
+  <div class="pagination-size">
+    <label>
+      <span>Show</span>
+      <select (change)="onPageSizeChange($event)" [value]="pageSize">
+        <option *ngFor="let s of pageSizeOptions" [value]="s">{{ s }}</option>
+      </select>
+      <span>per page</span>
+    </label>
+  </div>
+</div>

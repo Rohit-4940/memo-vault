@@ -51,6 +51,7 @@ export class MemoComponent implements OnInit {
   approvalHistory: any[] = [];
   memoRouting: any[] = [];
   ccRecipients: any[] = [];
+  stageInstances: any[] = [];
   searchTerm = '';
   statusFilter = '';
   branchFilter = '';
@@ -60,6 +61,11 @@ export class MemoComponent implements OnInit {
   isEditing = false;
   forwardUserId: number | null = null;
   remarks = '';
+
+  // Action modal state
+  actionModalTitle = '';
+  actionModalType: 'approve' | 'reject' | 'return' | 'backward' = 'approve';
+  actionModalRemarks = '';
 
   // Pagination
   currentPage = 0;
@@ -330,6 +336,7 @@ export class MemoComponent implements OnInit {
     this.memoService.getApprovalHistory(id).subscribe({ next: (d) => this.approvalHistory = d });
     this.memoService.getMemoRouting(id).subscribe({ next: (d) => this.memoRouting = d });
     this.memoService.getMemoCc(id).subscribe({ next: (d) => this.ccRecipients = d });
+    this.memoService.getStageInstances(id).subscribe({ next: (d) => this.stageInstances = d });
     window.scrollTo(0, 0);
   }
 
@@ -339,41 +346,56 @@ export class MemoComponent implements OnInit {
     this.approvalHistory = [];
     this.memoRouting = [];
     this.ccRecipients = [];
+    this.stageInstances = [];
     this.loadMemos();
+  }
+
+  // --- Action Modal ---
+
+  openActionModal(content: any, type: 'approve' | 'reject' | 'return' | 'backward') {
+    this.actionModalType = type;
+    this.actionModalRemarks = '';
+    const titles: Record<string, string> = {
+      approve: 'Approve Memo',
+      reject: 'Reject Memo',
+      return: 'Return Memo for Revision',
+      backward: 'Backward Memo'
+    };
+    this.actionModalTitle = titles[type];
+    this.modalService.open(content, { centered: true, windowClass: 'action-modal' });
+  }
+
+  confirmAction() {
+    const id = this.detailMemo.id;
+    const remarks = this.actionModalRemarks || undefined;
+    const action$ = {
+      approve: this.memoService.approveMemo(id, remarks),
+      reject: this.memoService.rejectMemo(id, remarks),
+      return: this.memoService.returnMemo(id, remarks),
+      backward: this.memoService.backwardMemo(id, remarks)
+    }[this.actionModalType];
+
+    const successMsgs: Record<string, string> = {
+      approve: 'Memo approved',
+      reject: 'Memo rejected',
+      return: 'Memo returned for revision',
+      backward: 'Memo backwarded'
+    };
+
+    action$.subscribe({
+      next: () => {
+        this.toastr.success(successMsgs[this.actionModalType]);
+        this.modalService.dismissAll();
+        this.backToList();
+      },
+      error: (err) => this.toastr.error(err.error?.message || 'Failed')
+    });
   }
 
   submitMemo() {
     if (confirm('Submit this memo for approval?')) {
       this.memoService.submitMemo(this.detailMemo.id).subscribe({
         next: () => { this.toastr.success('Memo submitted'); this.backToList(); },
-        error: (err) => this.toastr.error(err.error?.message || 'Failed')
-      });
-    }
-  }
-
-  approveMemo() {
-    const remarks = prompt('Approval remarks (optional):');
-    this.memoService.approveMemo(this.detailMemo.id, remarks || undefined).subscribe({
-      next: () => { this.toastr.success('Memo approved'); this.backToList(); },
-      error: (err) => this.toastr.error(err.error?.message || 'Failed')
-    });
-  }
-
-  rejectMemo() {
-    const remarks = prompt('Rejection reason:');
-    if (remarks !== null) {
-      this.memoService.rejectMemo(this.detailMemo.id, remarks || undefined).subscribe({
-        next: () => { this.toastr.success('Memo rejected'); this.backToList(); },
-        error: (err) => this.toastr.error(err.error?.message || 'Failed')
-      });
-    }
-  }
-
-  returnMemo() {
-    const remarks = prompt('Return reason/remarks:');
-    if (remarks !== null) {
-      this.memoService.returnMemo(this.detailMemo.id, remarks || undefined).subscribe({
-        next: () => { this.toastr.success('Memo returned for revision'); this.backToList(); },
         error: (err) => this.toastr.error(err.error?.message || 'Failed')
       });
     }
@@ -477,6 +499,23 @@ export class MemoComponent implements OnInit {
   get canForward(): boolean {
     return (this.detailMemo?.status === 'PENDING_APPROVAL' || this.detailMemo?.status === 'APPROVED')
       && !this.isAdminRole;
+  }
+
+  get canBackward(): boolean {
+    return this.detailMemo?.status === 'PENDING_APPROVAL'
+      && this.detailMemo?.currentApprover?.id === this.currentUserId
+      && (this.detailMemo?.approvalLevel || 0) > 0;
+  }
+
+  getStageStatusBadge(status: string): string {
+    switch (status) {
+      case 'DRAFT': return 'badge-secondary';
+      case 'IN_PROGRESS': case 'PENDING': return 'badge-warning';
+      case 'APPROVED': case 'COMPLETED': return 'badge-success';
+      case 'REJECTED': return 'badge-danger';
+      case 'SKIPPED': return 'badge-light';
+      default: return 'badge-info';
+    }
   }
 
   getStatusIcon(status: string): string {

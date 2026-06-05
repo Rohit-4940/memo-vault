@@ -54,6 +54,8 @@ public class SecurityProperties {
         private boolean requireUppercase = true;
         private boolean requireDigit = true;
         private boolean requireSpecial = true;
+        private int passwordExpiryDays = 30;
+        private int sessionTimeoutMinutes = 10;
     }
 
     @Data

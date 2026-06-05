@@ -15,6 +15,8 @@ public class LoginStep1Response {
     private String username;
     private String role;
     private Long roleId;
+    private String roleType;
+    private String roleAccess;
     private Boolean forcePasswordChange;
     private String accessToken;
     private String refreshToken;

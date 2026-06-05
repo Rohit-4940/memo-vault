@@ -9,20 +9,38 @@ import { BranchService } from '../../../shared-services/api-service/branch.servi
 import { ToastrService } from 'ngx-toastr';
 import { HttpClient } from '@angular/common/http';
 import { ApiConfig } from '../../../@core/utils/api/ApiConfig';
+import { AdvancedTableComponent, TableColumn } from '../../../shared-components/advanced-table/advanced-table.component';
 
 @Component({
   selector: 'app-users',
   standalone: true,
-  imports: [NgForOf, NgIf, FormsModule, NgbModalModule, DatePipe],
+  imports: [NgForOf, NgIf, FormsModule, NgbModalModule, DatePipe, AdvancedTableComponent],
   templateUrl: './users.component.html',
   styleUrl: './users.component.scss'
 })
 export class UsersComponent implements OnInit {
-  users: any[] = [];
+  columns: TableColumn[] = [
+    { key: 'id', label: 'ID', sortable: true, width: '80px' },
+    { key: 'name', label: 'Name', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'username', label: 'Username', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'email', label: 'Email', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'role.roleName', label: 'Role', sortable: true, filterable: true, filterType: 'text' },
+    { key: 'status', label: 'Status', sortable: true, filterable: true, filterType: 'select', filterOptions: [{label:'Active',value:'ACTIVE'},{label:'Inactive',value:'INACTIVE'}] }
+  ];
+  data: any[] = [];
+  loading = false;
+  pageNumber = 1;
+  pageSize = 20;
+  totalElements = 0;
+  totalPages = 1;
+  sortBy = 'id';
+  sortDir: 'asc' | 'desc' = 'desc';
+  searchQuery = '';
+  filters = new Map<string, string>();
+
   roles: any[] = [];
   branches: any[] = [];
   departments: any[] = [];
-  searchTerm = '';
   selectedUser: any = {
     name: '', username: '', email: '', password: '', roleId: null,
     branchIds: [], departmentId: null,
@@ -47,10 +65,47 @@ export class UsersComponent implements OnInit {
   ngOnInit() { this.loadUsers(); this.loadRoles(); this.loadBranches(); this.loadDepartments(); }
 
   loadUsers() {
-    this.userService.getAllUsers().subscribe({
-      next: (data) => this.users = data,
-      error: () => this.toastr.error('Failed to load users')
+    this.loading = true;
+    const filterObj: any = {};
+    this.filters.forEach((v, k) => { if (v) filterObj[k] = v; });
+    this.userService.getPaginated(this.searchQuery, this.pageNumber, this.pageSize, this.sortBy, this.sortDir, filterObj).subscribe({
+      next: (res) => {
+        this.data = res.content || [];
+        this.totalElements = res.totalElements || 0;
+        this.totalPages = res.totalPages || 1;
+        this.loading = false;
+      },
+      error: () => { this.toastr.error('Failed to load users'); this.loading = false; }
     });
+  }
+
+  onSearch(value: string) {
+    this.searchQuery = value;
+    this.pageNumber = 1;
+    this.loadUsers();
+  }
+
+  onPageChange(page: number) {
+    this.pageNumber = page;
+    this.loadUsers();
+  }
+
+  onSizeChange(size: number) {
+    this.pageSize = size;
+    this.pageNumber = 1;
+    this.loadUsers();
+  }
+
+  onSortChange(sort: any) {
+    this.sortBy = sort.sortBy;
+    this.sortDir = sort.sortDir;
+    this.loadUsers();
+  }
+
+  onFilterChange(filters: Map<string, string>) {
+    this.filters = filters;
+    this.pageNumber = 1;
+    this.loadUsers();
   }
 
   loadRoles() {
@@ -72,14 +127,6 @@ export class UsersComponent implements OnInit {
       next: (data) => this.departments = data || [],
       error: () => {}
     });
-  }
-
-  get filteredUsers() {
-    return this.users.filter(u =>
-      u.name?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-      u.username?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-      u.email?.toLowerCase().includes(this.searchTerm.toLowerCase())
-    );
   }
 
   openCreateModal(content: TemplateRef<any>) {

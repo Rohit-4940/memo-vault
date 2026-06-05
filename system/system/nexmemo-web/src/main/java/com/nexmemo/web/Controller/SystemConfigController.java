@@ -1,7 +1,11 @@
 package com.nexmemo.web.Controller;
 
 import com.nexmemo.core.dto.ApiResponse;
+import com.nexmemo.core.dto.PageResponse;
+import com.nexmemo.core.dto.PaginatedRequest;
 import com.nexmemo.core.entity.SystemConfig;
+import com.nexmemo.core.repository.SystemConfigRepository;
+import com.nexmemo.web.service.PaginatedQueryService;
 import com.nexmemo.web.service.SystemConfigService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +23,14 @@ import java.util.Map;
 public class SystemConfigController {
 
     private final SystemConfigService systemConfigService;
+    private final PaginatedQueryService paginatedQueryService;
+    private final SystemConfigRepository systemConfigRepository;
+
+    @GetMapping("/paginated")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PageResponse<SystemConfig>> findPaginated(PaginatedRequest request) {
+        return ResponseEntity.ok(paginatedQueryService.query(systemConfigRepository, request, List.of("configKey", "configValue", "description")));
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<SystemConfig>>> getAllConfigs() {

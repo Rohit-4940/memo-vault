@@ -18,8 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
+/**
+ * Approval engine — determines approval levels and finds approvers.
+ *
+ * PERFORMANCE NOTE: This class no longer loads ALL users via findAll().
+ * Instead, it uses targeted JPQL queries that filter at the database level,
+ * adding JOIN FETCH to avoid N+1 on the User → Role relationship.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -34,44 +40,34 @@ public class ApprovalEngineService {
         return calculateRequiredLevels(amount, dept);
     }
 
+    @Transactional(readOnly = true)
     public User getNextApprover(Memo memo, int currentLevel) {
         int nextLevel = currentLevel + 1;
         BigDecimal amount = memo.getAmount() != null ? memo.getAmount() : BigDecimal.ZERO;
 
-        List<User> potentialApprovers = userRepository.findAll().stream()
-                .filter(u -> u.getStatus() == Status.ACTIVE)
-                .filter(u -> u.getRole() != null)
-                .filter(u -> u.getRole().getRoleType() == RoleType.APPROVAL
-                        || u.getRole().getRoleType() == RoleType.COMMITTEE
-                        || u.getRole().getRoleType() == RoleType.ADMIN
-                        || u.getRole().getRoleType() == RoleType.SUPER_ADMIN)
-                .filter(u -> Boolean.TRUE.equals(u.getRole().getIsRoleApprovable()))
-                .filter(u -> u.getRole().getRoleApprovalLimitAmount() == null
-                        || u.getRole().getRoleApprovalLimitAmount().compareTo(amount) >= 0)
+        // Load potential approvers via a targeted DB query — NOT findAll()
+        List<User> potentialApprovers = userRepository.findActiveApproversByMinLimit(amount)
+                .stream()
                 .filter(u -> !isUserOnLeave(u.getId()))
-                .collect(Collectors.toList());
+                .toList();
 
+        // Fallback: if no approver found by role/limit, look for ADMIN/SUPER_ADMIN
         if (potentialApprovers.isEmpty()) {
-            potentialApprovers = userRepository.findAll().stream()
-                    .filter(u -> u.getStatus() == Status.ACTIVE)
-                    .filter(u -> u.getRole() != null)
-                    .filter(u -> u.getRole().getRoleType() == RoleType.ADMIN
-                            || u.getRole().getRoleType() == RoleType.SUPER_ADMIN)
+            potentialApprovers = userRepository.findActiveAdminApprovers()
+                    .stream()
                     .filter(u -> !isUserOnLeave(u.getId()))
-                    .collect(Collectors.toList());
+                    .toList();
         }
 
         if (potentialApprovers.isEmpty()) {
             throw new RuntimeException("No available approver found for memo " + memo.getMemoNo());
         }
 
-        if (nextLevel == 1) {
-            return findLevel1Approver(potentialApprovers);
-        } else if (nextLevel == 2) {
-            return findLevel2Approver(potentialApprovers);
-        } else {
-            return findLevel3Approver(potentialApprovers);
-        }
+        return switch (nextLevel) {
+            case 1 -> findLevel1Approver(potentialApprovers);
+            case 2 -> findLevel2Approver(potentialApprovers);
+            default -> findLevel3Approver(potentialApprovers);
+        };
     }
 
     public int calculateRequiredLevels(BigDecimal amount, Department dept) {
@@ -103,12 +99,8 @@ public class ApprovalEngineService {
         }
 
         BigDecimal amount = memo.getAmount() != null ? memo.getAmount() : BigDecimal.ZERO;
-        if (role.getRoleApprovalLimitAmount() != null
-                && role.getRoleApprovalLimitAmount().compareTo(amount) >= 0) {
-            return true;
-        }
-
-        return false;
+        return role.getRoleApprovalLimitAmount() != null
+                && role.getRoleApprovalLimitAmount().compareTo(amount) >= 0;
     }
 
     private User findLevel1Approver(List<User> approvers) {

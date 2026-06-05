@@ -1,6 +1,22 @@
 /* ══════════════════════════════════════════════
-   PREMIUM UI COMPONENTS
+   PREMIUM UI COMPONENTS v2
    ══════════════════════════════════════════════ */
+
+   .card-primary {
+    border-top: 3px solid var(--nexmemo-primary);
+  }
+  .card-success {
+    border-top: 3px solid var(--nexmemo-success);
+  }
+  .card-warning {
+    border-top: 3px solid var(--nexmemo-warning);
+  }
+  .card-danger {
+    border-top: 3px solid var(--nexmemo-danger);
+  }
+  .card-info {
+    border-top: 3px solid var(--nexmemo-info);
+  }
 
 /* ── Glass Card ── */
 .glass-card {
@@ -21,7 +37,7 @@
 
 /* ── Gradient Text ── */
 .gradient-text {
-  background: linear-gradient(135deg, var(--nexmemo-primary), var(--nexmemo-secondary));
+  background: var(--gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -55,47 +71,87 @@
     color: var(--nexmemo-text-secondary); text-transform: uppercase;
     letter-spacing: 0.06em; background: var(--nexmemo-bg);
     border-bottom: 2px solid var(--nexmemo-border);
-    &:first-child { border-radius: var(--radius-sm) 0 0 0; }
-    &:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+    &:first-child { border-radius: var(--radius-sm) 0 0 0; padding-left: 1.25rem; }
+    &:last-child { border-radius: 0 var(--radius-sm) 0 0; padding-right: 1.25rem; }
   }
   tbody td {
     padding: 0.7rem 1rem; border-bottom: 1px solid var(--nexmemo-border-light);
     font-size: 0.85rem; transition: background 0.15s;
+    &:first-child { padding-left: 1.25rem; }
+    &:last-child { padding-right: 1.25rem; }
   }
   tbody tr {
     transition: background 0.15s;
     &:hover td { background: rgba(99,102,241,0.03); }
     &:last-child td { border-bottom: none; }
   }
+  &.premium-table-striped tbody tr:nth-child(even) td {
+    background: var(--nexmemo-bg-subtle);
+  }
+}
+
+/* ── Info Table (key-value rows) ── */
+.info-table {
+  width: 100%;
+  td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--nexmemo-border-light);
+    font-size: 0.85rem;
+    &:first-child {
+      font-weight: 500;
+      color: var(--nexmemo-text-secondary);
+      width: 160px;
+      white-space: nowrap;
+    }
+    &:last-child { color: var(--nexmemo-text); }
+  }
+  tr:last-child td { border-bottom: none; }
 }
 
 /* ── Gradient Buttons ── */
 .btn-gradient-primary {
-  background: linear-gradient(135deg, var(--nexmemo-500), var(--nexmemo-700));
+  background: var(--gradient-primary);
   color: white; border: none;
   box-shadow: 0 4px 15px rgba(99,102,241,0.3);
   &:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(99,102,241,0.4); }
 }
 
 .btn-gradient-success {
-  background: linear-gradient(135deg, #34d399, #059669);
+  background: var(--gradient-success);
   color: white; border: none;
   box-shadow: 0 4px 15px rgba(16,185,129,0.3);
   &:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(16,185,129,0.4); }
 }
 
 .btn-gradient-danger {
-  background: linear-gradient(135deg, #f87171, #dc2626);
+  background: var(--gradient-danger);
   color: white; border: none;
   box-shadow: 0 4px 15px rgba(239,68,68,0.3);
   &:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(239,68,68,0.4); }
 }
 
 .btn-gradient-warning {
-  background: linear-gradient(135deg, #fbbf24, #d97706);
+  background: var(--gradient-warning);
   color: white; border: none;
   box-shadow: 0 4px 15px rgba(245,158,11,0.3);
   &:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(245,158,11,0.4); }
+}
+
+/* ── Icon Buttons (round) ── */
+.btn-icon-round {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--nexmemo-border);
+  background: var(--nexmemo-surface);
+  color: var(--nexmemo-text-secondary);
+  cursor: pointer; transition: all var(--transition-fast);
+  &:hover {
+    background: var(--nexmemo-bg);
+    color: var(--nexmemo-text);
+    border-color: var(--nexmemo-border-dark);
+  }
+  i { font-size: 0.8rem; }
 }
 
 /* ── Status Badges ── */
@@ -113,15 +169,10 @@
   &.pending { background: var(--nexmemo-warning); box-shadow: 0 0 0 3px rgba(245,158,11,0.2); animation: pulse-dot 2s infinite; }
 }
 
-@keyframes pulse-dot {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(245,158,11,0.2); }
-  50% { box-shadow: 0 0 0 6px rgba(245,158,11,0); }
-}
-
 /* ── Avatar ── */
 .avatar {
   width: 36px; height: 36px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--nexmemo-400), var(--nexmemo-600));
+  background: var(--gradient-primary);
   display: inline-flex; align-items: center; justify-content: center;
   color: white; font-weight: 600; font-size: 0.8rem;
   flex-shrink: 0;
@@ -159,8 +210,6 @@
 .slide-in-up { animation: fadeInUp 0.4s ease both; }
 .scale-in { animation: scaleIn 0.3s ease both; }
 
-/* ── Stagger animations (use inline style for delay) ── */
-
 /* ── Skeleton Variants ── */
 .skeleton-loader { border-radius: var(--radius-xs); background: linear-gradient(90deg, var(--nexmemo-border-light) 25%, var(--nexmemo-bg) 50%, var(--nexmemo-border-light) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
 .skeleton-text { height: 12px; margin-bottom: 8px; width: 100%; }
@@ -177,25 +226,55 @@
   .info-value { font-size: 0.85rem; color: var(--nexmemo-text); flex: 1; }
 }
 
-/* ── Stats / KPI Card ── */
+/* ── Stats / KPI Card (modern) ── */
 .stat-card {
   padding: 1.25rem; border-radius: var(--radius-md);
   background: var(--nexmemo-surface); border: 1px solid var(--nexmemo-border);
-  .stat-label { font-size: 0.75rem; color: var(--nexmemo-text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
-  .stat-value { font-size: 1.75rem; font-weight: 700; color: var(--nexmemo-text); margin-top: 0.25rem; letter-spacing: -0.02em; }
-  .stat-change { font-size: 0.75rem; margin-top: 0.25rem; display: flex; align-items: center; gap: 0.25rem; }
-  .stat-icon { width: 40px; height: 40px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+  transition: box-shadow var(--transition-normal), transform var(--transition-normal);
+  &:hover { box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
+  .stat-label {
+    font-size: 0.72rem; color: var(--nexmemo-text-muted);
+    text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500;
+  }
+  .stat-value {
+    font-size: 1.75rem; font-weight: 700; color: var(--nexmemo-text);
+    margin-top: 0.25rem; letter-spacing: -0.02em;
+  }
+  .stat-change {
+    font-size: 0.75rem; margin-top: 0.25rem;
+    display: flex; align-items: center; gap: 0.25rem;
+  }
+  .stat-icon {
+    width: 40px; height: 40px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
 }
 
 .stat-card-modern {
-  @extend .stat-card;
   position: relative; overflow: hidden;
   &::after {
     content: ''; position: absolute; top: 0; right: 0;
-    width: 80px; height: 80px; border-radius: 50%;
+    width: 100px; height: 100px; border-radius: 50%;
     background: radial-gradient(circle, rgba(99,102,241,0.06), transparent 70%);
-    transform: translate(20px, -20px);
+    transform: translate(30px, -30px);
+    pointer-events: none;
   }
+}
+
+.stat-card-mini {
+  padding: 0.85rem 1rem; display: flex; align-items: center; gap: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--nexmemo-bg-subtle);
+  border: 1px solid var(--nexmemo-border-light);
+  .mini-icon {
+    width: 36px; height: 36px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    i { font-size: 0.9rem; }
+  }
+  .mini-value { font-size: 1.1rem; font-weight: 700; line-height: 1.2; }
+  .mini-label { font-size: 0.7rem; color: var(--nexmemo-text-muted); }
 }
 
 /* ── Content Card ── */
@@ -207,6 +286,7 @@
     display: flex; align-items: center; gap: 0.85rem;
     padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--nexmemo-border-light);
+    background: linear-gradient(135deg, var(--nexmemo-bg-subtle), var(--nexmemo-surface));
     .content-header-icon {
       width: 40px; height: 40px; border-radius: var(--radius-sm);
       display: flex; align-items: center; justify-content: center;
