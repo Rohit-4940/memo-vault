@@ -23,25 +23,27 @@ public class ChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final ChatAuthorizationService chatAuthorizationService;
     private final SimpMessagingTemplate messagingTemplate;
 
     public ChatMessage sendMessage(Long senderId, Long receiverId, Long memoId, Long branchId, String conversationType, String message) {
+        String type = conversationType != null ? conversationType : "DIRECT_MESSAGE";
         ChatMessage msg = ChatMessage.builder()
                 .senderId(senderId)
                 .receiverId(receiverId)
                 .memoId(memoId)
                 .branchId(branchId)
-                .conversationType(conversationType != null ? conversationType : "DIRECT_MESSAGE")
+                .conversationType(type)
                 .message(message)
                 .isRead(false)
                 .build();
         ChatMessage saved = chatMessageRepository.save(msg);
-        log.info("Chat message sent: senderId={} conversationType={} branchId={}", senderId, conversationType, branchId);
+        log.info("Chat message sent: senderId={} conversationType={} branchId={}", senderId, type, branchId);
 
-        if ("BRANCH_CHAT".equals(conversationType)) {
+        if ("BRANCH_CHAT".equals(type)) {
             notifyAdminsOnBranchMessage(senderId, branchId, message);
             messagingTemplate.convertAndSend("/topic/branch/" + branchId, saved);
-        } else if ("DIRECT_MESSAGE".equals(conversationType) && receiverId != null) {
+        } else if ("DIRECT_MESSAGE".equals(type) && receiverId != null) {
             messagingTemplate.convertAndSend("/queue/messages/" + receiverId, saved);
         }
 
@@ -54,12 +56,19 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public List<ChatMessage> getMemoMessages(Long memoId) {
-        return chatMessageRepository.findByMemoIdOrderByCreatedDateAsc(memoId);
+        return notDeleted(chatMessageRepository.findByMemoIdOrderByCreatedDateAsc(memoId));
     }
 
     @Transactional(readOnly = true)
     public List<ChatMessage> getBranchMessages(Long branchId) {
-        return chatMessageRepository.findByBranchIdOrderByCreatedDateAsc(branchId);
+        return notDeleted(chatMessageRepository.findByBranchIdOrderByCreatedDateAsc(branchId));
+    }
+
+    /** Soft-deleted (moderated) messages must not be surfaced through the legacy endpoints. */
+    private static List<ChatMessage> notDeleted(List<ChatMessage> messages) {
+        return messages.stream()
+                .filter(m -> !Boolean.TRUE.equals(m.getIsDeleted()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -93,20 +102,20 @@ public class ChatService {
     }
 
     public void markBranchMessagesAsRead(Long branchId) {
-        List<ChatMessage> unread = chatMessageRepository.findByBranchIdOrderByCreatedDateAsc(branchId);
-        for (ChatMessage msg : unread) {
-            if (!msg.getIsRead()) {
-                msg.setIsRead(true);
-                chatMessageRepository.save(msg);
-            }
-        }
+        int updated = chatMessageRepository.markBranchMessagesRead(branchId);
+        log.debug("Marked {} branch messages as read for branchId={}", updated, branchId);
     }
 
-    public void markAsRead(Long messageId) {
-        chatMessageRepository.findById(messageId).ifPresent(msg -> {
-            msg.setIsRead(true);
-            chatMessageRepository.save(msg);
-        });
+    /**
+     * Marks a single message as read. Only the intended recipient, an authorized member of
+     * the owning branch, or an admin may do so. This closes the previous hole where any
+     * authenticated caller could mark any message id as read (and probe for existence).
+     */
+    public void markAsRead(Long messageId, Long userId) {
+        ChatMessage msg = chatMessageRepository.findById(messageId)
+                .orElseThrow(() -> new IllegalArgumentException("Message not found"));
+        chatAuthorizationService.assertCanAcknowledgeMessage(userId, msg);
+        chatMessageRepository.markMessageRead(messageId);
     }
 
     private void notifyAdminsOnBranchMessage(Long senderId, Long branchId, String message) {

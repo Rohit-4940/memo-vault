@@ -76,6 +76,18 @@ public class User extends BaseEntity<Long> implements UserDetails {
     )
     private List<Branch> branches = new ArrayList<>();
 
+    // ── Department assignments ────────────────────────────────────────────────
+
+    @JsonIgnore
+    @BatchSize(size = 20)
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_departments",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "department_id")
+    )
+    private List<Department> departments = new ArrayList<>();
+
     // ── Security / audit fields ───────────────────────────────────────────────
 
     /** Set to true after user clicks the welcome-email set-password link */

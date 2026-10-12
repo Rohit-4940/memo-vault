@@ -161,6 +161,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
 
   getIcon(type: string): string {
     switch (type) {
+      case 'CHAT_MENTION': return 'fa-at';
       case 'MEMO_APPROVAL': return 'fa-file-alt';
       case 'MEMO_APPROVED': return 'fa-check-circle';
       case 'MEMO_REJECTED': return 'fa-times-circle';

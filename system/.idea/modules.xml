@@ -2,12 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/system/nexmemo-audit/nexmemo-audit.iml" filepath="$PROJECT_DIR$/system/nexmemo-audit/nexmemo-audit.iml" />
-      <module fileurl="file://$PROJECT_DIR$/system/nexmemo-core/nexmemo-core.iml" filepath="$PROJECT_DIR$/system/nexmemo-core/nexmemo-core.iml" />
-      <module fileurl="file://$PROJECT_DIR$/system/nexmemo-security/nexmemo-security.iml" filepath="$PROJECT_DIR$/system/nexmemo-security/nexmemo-security.iml" />
-      <module fileurl="file://$PROJECT_DIR$/system/nexmemo-service/nexmemo-service.iml" filepath="$PROJECT_DIR$/system/nexmemo-service/nexmemo-service.iml" />
-      <module fileurl="file://$PROJECT_DIR$/system/nexmemo-web/nexmemo-web.iml" filepath="$PROJECT_DIR$/system/nexmemo-web/nexmemo-web.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/system.iml" filepath="$PROJECT_DIR$/.idea/system.iml" />
+      <module fileurl="file://$PROJECT_DIR$/system/system.iml" filepath="$PROJECT_DIR$/system/system.iml" />
     </modules>
   </component>
 </project>

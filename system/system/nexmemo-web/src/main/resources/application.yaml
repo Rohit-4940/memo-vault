@@ -191,6 +191,12 @@ nexmemo:
       api-max-per-minute: 200
       password-reset-max-per-hour: 3
 
+    # Fine-grained role→URL permission enforcement (url_api / role_permission_api).
+    # Fails open for roles with no URL rights configured, so it is a no-op until an
+    # administrator populates the permission matrix. Set false to disable entirely.
+    permission-enforcement:
+      enabled: ${PERMISSION_ENFORCEMENT_ENABLED:true}
+
     # ClamAV virus scanner — free, self-hosted
     clamav:
       enabled: ${CLAMAV_ENABLED:false}    # true in prod

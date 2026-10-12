@@ -27,7 +27,27 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     Optional<User> findByResetPasswordToken(String resetPasswordToken);
 
+    /**
+     * Resource-based check used by chat authorization: does this user belong to the given branch?
+     * Derived query on the ManyToMany {@code branches} collection.
+     */
+    boolean existsByIdAndBranches_Id(Long id, Long branchId);
+
+    /** Resource-based check for DEPARTMENT chat channels via the user_departments join table. */
+    boolean existsByIdAndDepartments_Id(Long id, Long departmentId);
+
+    /** All branch ids a user belongs to — used to scope search results. */
+    @Query("SELECT b.id FROM User u JOIN u.branches b WHERE u.id = :userId")
+    List<Long> findBranchIdsByUserId(@Param("userId") Long userId);
+
+    /** All department ids a user belongs to — used to scope search results. */
+    @Query("SELECT d.id FROM User u JOIN u.departments d WHERE u.id = :userId")
+    List<Long> findDepartmentIdsByUserId(@Param("userId") Long userId);
+
     List<User> findByRole_RoleName(String roleName);
+
+    /** Active users only — used by the chat participant directory (never expose all statuses). */
+    List<User> findByStatus(com.nexmemo.core.enums.Status status);
 
     List<User> findByRoleId(Long roleId);
 

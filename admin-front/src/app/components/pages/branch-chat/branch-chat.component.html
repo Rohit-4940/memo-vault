@@ -147,12 +147,28 @@
             <strong><i class="fas fa-building me-1"></i> {{ activeConv.name }}</strong>
             <small class="text-muted ms-2">{{ activeConv.code }}</small>
           </div>
-          <div class="d-flex gap-2">
+          <div class="d-flex gap-2 align-items-center">
+            <button class="btn btn-sm btn-outline-secondary" title="Mark as unread" (click)="markUnread()">
+              <i class="fas fa-envelope"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary"
+              [title]="'Notifications: ' + notificationLevel" (click)="cycleNotification()">
+              <i class="fas" [ngClass]="notificationLevel === 'MUTE' ? 'fa-bell-slash' : 'fa-bell'"></i>
+            </button>
+            @if (adminMode) {
+              <button class="btn btn-sm" [class.btn-warning]="convLocked" [class.btn-outline-secondary]="!convLocked"
+                [title]="convLocked ? 'Unlock conversation' : 'Lock conversation'" (click)="toggleLock()">
+                <i class="fas fa-lock"></i>
+              </button>
+            }
             <button class="btn btn-sm btn-outline-warning" (click)="openProblemFormForCurrentConv()">
               <i class="fas fa-exclamation-triangle"></i> Report Problem
             </button>
           </div>
         </div>
+        @if (convLocked) {
+          <div class="bc-locked-banner"><i class="fas fa-lock"></i> This conversation is locked (read-only)</div>
+        }
         <div class="chat-messages">
           @if (loading) {
             <div class="text-center py-5"><div class="spinner-border spinner-border-sm text-primary"></div></div>
@@ -164,7 +180,8 @@
             </div>
           }
           @for (msg of messages; track msg.id) {
-            <div class="message-row" [class.mine]="isCurrentUser(msg.senderId)">
+            <div class="message-row" [class.mine]="isCurrentUser(msg.senderId)"
+              [class.mentioned]="isMentionedIn(msg)">
               <div class="message-bubble" [class.problem-report]="isProblemReport(msg)">
                 @if (isProblemReport(msg)) {
                   <div class="problem-badge"><i class="fas fa-exclamation-triangle"></i> PROBLEM REPORT</div>
@@ -173,15 +190,131 @@
                   {{ getSenderName(msg.senderId) }}
                   @if (isCurrentUser(msg.senderId)) { <span class="badge badge-sm badge-primary ms-1">You</span> }
                 </div>
-                <div class="message-text" style="white-space: pre-wrap;">{{ msg.message }}</div>
-                <div class="message-time">{{ msg.createdDate | date:'medium' }}</div>
+                <div class="message-text" style="white-space: pre-wrap;">
+                  @for (seg of messageSegments(msg.message); track $index) {
+                    @if (seg.type === 'mention') {
+                      <span class="bc-mention" [class.self]="seg.userId === currentUserId">{{ '@' + seg.text }}</span>
+                    } @else {
+                      <span>{{ seg.text }}</span>
+                    }
+                  }
+                </div>
+                @if (!msg.isDeleted && msg.attachments?.length) {
+                  <div class="bc-attachments">
+                    @for (a of msg.attachments; track a.id) {
+                      <button class="bc-attachment" (click)="downloadAttachment(a)">
+                        <i class="fas fa-paperclip"></i>
+                        <span class="bc-attachment-name">{{ fileName(a) }}</span>
+                        <span class="bc-attachment-size">{{ fileSize(a) }}</span>
+                      </button>
+                    }
+                  </div>
+                }
+                <div class="message-time">
+                  {{ msg.createdDate | date:'medium' }}
+                  @if (msg.isEdited) { <span class="bc-tag">edited</span> }
+                  @if (msg.isPinned) { <span class="bc-tag" title="Pinned"><i class="fas fa-thumbtack"></i></span> }
+                  @if (msg.isBookmarked) { <span class="bc-tag" title="Saved"><i class="fas fa-bookmark"></i></span> }
+                  @if (msg.replyCount > 0) {
+                    <button class="bc-reply-count" title="Replies" (click)="openThread(msg)">
+                      <i class="fas fa-comment-dots"></i> {{ msg.replyCount }}
+                    </button>
+                  }
+                </div>
+                @if (msg.reactions?.length) {
+                  <div class="message-reactions">
+                    @for (r of msg.reactions; track r.emoji) {
+                      <button class="reaction-chip" [class.mine]="r.reactedByMe"
+                        [title]="reactionTooltip(r)" (click)="toggleReaction(msg, r.emoji)">
+                        <span>{{ r.emoji }}</span><span class="reaction-count">{{ r.count }}</span>
+                      </button>
+                    }
+                  </div>
+                }
+                <div class="message-actions">
+                  <button class="react-btn" title="Reply" (click)="replyTo(msg)"><i class="fas fa-reply"></i></button>
+                  <button class="react-btn" title="React" (click)="toggleReactionPicker(msg, $event)">
+                    <i class="fas fa-smile"></i>
+                  </button>
+                  @if (canPin(msg)) {
+                    <button class="react-btn" [class.active]="msg.isPinned" title="Pin / unpin" (click)="togglePinMsg(msg)">
+                      <i class="fas fa-thumbtack"></i>
+                    </button>
+                  }
+                  <button class="react-btn" [class.active]="msg.isBookmarked" title="Save / unsave" (click)="toggleBookmark(msg)">
+                    <i class="fas fa-bookmark"></i>
+                  </button>
+                </div>
+                @if (pickerMessageId === msg.id) {
+                  <div class="reaction-picker">
+                    @for (emoji of reactionPalette; track emoji) {
+                      <button (click)="toggleReaction(msg, emoji)">{{ emoji }}</button>
+                    }
+                  </div>
+                }
               </div>
             </div>
           }
         </div>
-        <div class="chat-input">
-          <input class="form-control" [(ngModel)]="newMessage" placeholder="Type a message to this branch..." (keyup.enter)="sendMessage()">
-          <button class="btn btn-primary" (click)="sendMessage()" [disabled]="!canSend"><i class="fas fa-paper-plane"></i> Send</button>
+        @if (threadId != null) {
+          <div class="bc-thread-panel">
+            <div class="bc-thread-head">
+              <span><i class="fas fa-reply"></i> Thread · reply to <strong>{{ getSenderName(threadParent()?.senderId) }}</strong></span>
+              <button type="button" class="bc-thread-close" (click)="closeThread()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="bc-thread-replies">
+              @if (threadLoading) {
+                <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+              }
+              @for (r of threadReplies; track r.id) {
+                <div class="message-row" [class.mine]="isCurrentUser(r.senderId)">
+                  <div class="message-bubble">
+                    <div class="message-sender">{{ getSenderName(r.senderId) }}</div>
+                    <div class="message-text" style="white-space: pre-wrap;">
+                      @for (seg of messageSegments(r.message); track $index) {
+                        @if (seg.type === 'mention') {
+                          <span class="bc-mention" [class.self]="seg.userId === currentUserId">{{ '@' + seg.text }}</span>
+                        } @else {
+                          <span>{{ seg.text }}</span>
+                        }
+                      }
+                    </div>
+                    <div class="message-time">{{ r.createdDate | date:'medium' }}</div>
+                  </div>
+                </div>
+              }
+              @if (!threadLoading && threadReplies.length === 0) {
+                <div class="text-center text-muted py-3"><small>No replies yet — be the first.</small></div>
+              }
+            </div>
+            <div class="bc-thread-input">
+              <input class="form-control" [(ngModel)]="threadReplyText" placeholder="Reply in thread..."
+                (keydown.enter)="sendReply()" [disabled]="convLocked">
+              <button class="btn btn-primary btn-sm" (click)="sendReply()"
+                [disabled]="!threadReplyText.trim() || convLocked"><i class="fas fa-paper-plane"></i></button>
+            </div>
+          </div>
+        }
+        <div class="chat-input" [class.bc-hidden]="threadId != null">
+          @if (mentionCandidates.length) {
+            <div class="bc-mention-list">
+              @for (u of mentionCandidates; track u.id) {
+                <button type="button" (mousedown)="selectMention(u, composer)">{{ u.name }}</button>
+              }
+            </div>
+          }
+          @if (typingLabel) {
+            <div class="bc-typing"><i class="fas fa-ellipsis-h"></i> {{ typingLabel }}</div>
+          }
+          <label class="bc-attach" title="Attach a file (up to 25 MB)" [class.disabled]="convLocked">
+            <i class="fas fa-paperclip"></i>
+            <input #fileInput type="file" (change)="onFilePicked($event)" [disabled]="convLocked">
+          </label>
+          <input #composer class="form-control" [(ngModel)]="newMessage"
+            placeholder="Type a message to this branch... Type @ to mention"
+            (input)="onComposerInput(composer)" (keydown)="onComposerKeydown($event, composer)"
+            [disabled]="convLocked">
+          <button class="btn btn-primary" (click)="sendMessage()" [disabled]="!canSend || convLocked"><i class="fas fa-paper-plane"></i> Send</button>
         </div>
       }
     </div>

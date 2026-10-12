@@ -11,6 +11,12 @@ export class WebSocketService implements OnDestroy {
   private connected = false;
   private messageSubject = new Subject<{ topic: string; body: any }>();
   private subscriptions: { topic: string; sub: any }[] = [];
+  /**
+   * Every topic the app currently wants to receive. Kept separate from the live subscriptions
+   * so they can be re-established after a reconnect and de-duplicated when a component
+   * subscribes to the same topic twice.
+   */
+  private desiredTopics = new Set<string>();
 
   constructor() {
     const token = LocalStorageUtil.getStorage()?.at?.accessToken;
@@ -23,6 +29,9 @@ export class WebSocketService implements OnDestroy {
       heartbeatOutgoing: 10000,
       onConnect: () => {
         this.connected = true;
+        // A reconnect invalidates the previous broker-side subscriptions.
+        this.subscriptions = [];
+        this.desiredTopics.forEach(topic => this.doSubscribe(topic));
       },
       onDisconnect: () => {
         this.connected = false;
@@ -35,22 +44,20 @@ export class WebSocketService implements OnDestroy {
   }
 
   subscribe(topic: string): Observable<any> {
-    const obs = this.messageSubject.pipe(
+    this.desiredTopics.add(topic);
+    if (this.connected) {
+      this.doSubscribe(topic);
+    }
+    return this.messageSubject.pipe(
       filter(msg => msg.topic === topic),
       map(msg => msg.body)
     );
-    if (this.connected) {
-      this.doSubscribe(topic);
-    } else {
-      this.client.onConnect = () => {
-        this.connected = true;
-        this.doSubscribe(topic);
-      };
-    }
-    return obs;
   }
 
   private doSubscribe(topic: string) {
+    if (this.subscriptions.some(s => s.topic === topic)) {
+      return;
+    }
     const sub = this.client.subscribe(topic, (message: IMessage) => {
       try {
         const body = JSON.parse(message.body);
@@ -61,6 +68,7 @@ export class WebSocketService implements OnDestroy {
   }
 
   unsubscribe(topic: string) {
+    this.desiredTopics.delete(topic);
     const idx = this.subscriptions.findIndex(s => s.topic === topic);
     if (idx !== -1) {
       this.subscriptions[idx].sub.unsubscribe();
@@ -71,6 +79,7 @@ export class WebSocketService implements OnDestroy {
   ngOnDestroy() {
     this.subscriptions.forEach(s => s.sub.unsubscribe());
     this.subscriptions = [];
+    this.desiredTopics.clear();
     if (this.client) this.client.deactivate();
   }
 }

@@ -1492,4 +1492,289 @@
             <column name="memo_id"/><column name="status"/>
         </createIndex>
     </changeSet>
+
+    <!-- ============================================================= -->
+    <!-- Phase 1a: Chat conversation & message core                    -->
+    <!-- ============================================================= -->
+
+    <changeSet id="20260612-1" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="user_departments"/></not></preConditions>
+        <createTable tableName="user_departments">
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="department_id" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="user_departments" columnNames="user_id,department_id" constraintName="pk_user_departments"/>
+        <addForeignKeyConstraint baseTableName="user_departments" baseColumnNames="user_id"
+                                 referencedTableName="users" referencedColumnNames="id" constraintName="fk_ud_user"/>
+        <addForeignKeyConstraint baseTableName="user_departments" baseColumnNames="department_id"
+                                 referencedTableName="department" referencedColumnNames="id" constraintName="fk_ud_department"/>
+        <comment>user_departments: enables DEPARTMENT chat channels (Phase 1)</comment>
+    </changeSet>
+
+    <changeSet id="20260612-2" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_conversation"/></not></preConditions>
+        <createTable tableName="chat_conversation">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="conversation_type" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="title" type="VARCHAR(255)"/>
+            <column name="branch_id" type="BIGINT"/>
+            <column name="department_id" type="BIGINT"/>
+            <column name="memo_id" type="BIGINT"/>
+            <column name="dedupe_key" type="VARCHAR(200)"/>
+            <column name="is_archived" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="is_locked" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="last_message_id" type="BIGINT"/>
+            <column name="last_message_at" type="DATETIME"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <createIndex tableName="chat_conversation" indexName="idx_conv_type_memo">
+            <column name="conversation_type"/><column name="memo_id"/>
+        </createIndex>
+        <createIndex tableName="chat_conversation" indexName="idx_conv_branch"><column name="branch_id"/></createIndex>
+        <createIndex tableName="chat_conversation" indexName="idx_conv_dept"><column name="department_id"/></createIndex>
+        <createIndex tableName="chat_conversation" indexName="idx_conv_last_msg"><column name="last_message_at"/></createIndex>
+        <createIndex tableName="chat_conversation" indexName="idx_conv_dedupe"><column name="dedupe_key"/></createIndex>
+    </changeSet>
+
+    <changeSet id="20260612-3" author="NexMemo" dbms="mssql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="uq_chat_conv_dedupe"/></not></preConditions>
+        <sql>CREATE UNIQUE INDEX uq_chat_conv_dedupe ON chat_conversation(dedupe_key) WHERE dedupe_key IS NOT NULL</sql>
+        <comment>Idempotent get-or-create for DIRECT/BRANCH/DEPARTMENT/MEMO conversations</comment>
+    </changeSet>
+
+    <changeSet id="20260612-4" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_participant"/></not></preConditions>
+        <createTable tableName="chat_participant">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="conversation_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="participant_role" type="VARCHAR(20)" defaultValue="MEMBER"><constraints nullable="false"/></column>
+            <column name="notification_level" type="VARCHAR(20)" defaultValue="ALL"><constraints nullable="false"/></column>
+            <column name="last_read_message_id" type="BIGINT"/>
+            <column name="last_read_at" type="DATETIME"/>
+            <column name="is_active" type="BIT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="joined_at" type="DATETIME"/>
+            <column name="left_at" type="DATETIME"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addUniqueConstraint tableName="chat_participant" constraintName="uq_participant_conv_user"
+                             columnNames="conversation_id,user_id"/>
+        <addForeignKeyConstraint baseTableName="chat_participant" baseColumnNames="conversation_id"
+                                 referencedTableName="chat_conversation" referencedColumnNames="id" constraintName="fk_cp_conversation"/>
+        <addForeignKeyConstraint baseTableName="chat_participant" baseColumnNames="user_id"
+                                 referencedTableName="users" referencedColumnNames="id" constraintName="fk_cp_user"/>
+        <createIndex tableName="chat_participant" indexName="idx_cp_user_active">
+            <column name="user_id"/><column name="is_active"/>
+        </createIndex>
+        <createIndex tableName="chat_participant" indexName="idx_cp_conversation"><column name="conversation_id"/></createIndex>
+    </changeSet>
+
+    <changeSet id="20260612-5" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_message_receipt"/></not></preConditions>
+        <createTable tableName="chat_message_receipt">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="message_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="delivered_at" type="DATETIME"/>
+            <column name="read_at" type="DATETIME"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addUniqueConstraint tableName="chat_message_receipt" constraintName="uq_receipt_message_user"
+                             columnNames="message_id,user_id"/>
+        <addForeignKeyConstraint baseTableName="chat_message_receipt" baseColumnNames="message_id"
+                                 referencedTableName="chat_message" referencedColumnNames="id" constraintName="fk_cmr_message"/>
+        <addForeignKeyConstraint baseTableName="chat_message_receipt" baseColumnNames="user_id"
+                                 referencedTableName="users" referencedColumnNames="id" constraintName="fk_cmr_user"/>
+        <createIndex tableName="chat_message_receipt" indexName="idx_cmr_user_read">
+            <column name="user_id"/><column name="read_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260612-6" author="NexMemo">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="chat_message" columnName="conversation_id"/></not>
+        </preConditions>
+        <addColumn tableName="chat_message">
+            <column name="conversation_id" type="BIGINT"/>
+            <column name="client_message_id" type="VARCHAR(64)"/>
+            <column name="message_type" type="VARCHAR(20)" defaultValue="TEXT"/>
+            <column name="is_edited" type="BIT" defaultValueNumeric="0"/>
+            <column name="edited_at" type="DATETIME"/>
+            <column name="is_deleted" type="BIT" defaultValueNumeric="0"/>
+            <column name="deleted_by_id" type="BIGINT"/>
+            <column name="deleted_reason" type="VARCHAR(255)"/>
+            <column name="parent_message_id" type="BIGINT"/>
+            <column name="reply_count" type="INT" defaultValueNumeric="0"/>
+        </addColumn>
+        <createIndex tableName="chat_message" indexName="idx_cm_conversation_id">
+            <column name="conversation_id"/><column name="id"/>
+        </createIndex>
+        <createIndex tableName="chat_message" indexName="idx_cm_client_message_id"><column name="client_message_id"/></createIndex>
+        <createIndex tableName="chat_message" indexName="idx_cm_parent"><column name="parent_message_id"/></createIndex>
+        <addForeignKeyConstraint baseTableName="chat_message" baseColumnNames="conversation_id"
+                                 referencedTableName="chat_conversation" referencedColumnNames="id" constraintName="fk_cm_conversation"/>
+    </changeSet>
+
+    <changeSet id="20260612-7" author="NexMemo" dbms="mssql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="uq_chat_msg_client_id"/></not></preConditions>
+        <sql>CREATE UNIQUE INDEX uq_chat_msg_client_id ON chat_message(sender_id, client_message_id) WHERE client_message_id IS NOT NULL</sql>
+        <comment>Idempotency: one message per (sender, client_message_id)</comment>
+    </changeSet>
+
+    <!-- ============================================================= -->
+    <!-- Phase 1c: receipts + message edit/delete history              -->
+    <!-- ============================================================= -->
+
+    <changeSet id="20260613-1" author="NexMemo">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="chat_participant" columnName="last_delivered_message_id"/></not>
+        </preConditions>
+        <addColumn tableName="chat_participant">
+            <column name="last_delivered_message_id" type="BIGINT"/>
+        </addColumn>
+        <comment>Delivery watermark per participant (read watermark is last_read_message_id)</comment>
+    </changeSet>
+
+    <changeSet id="20260613-2" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_message_edit_history"/></not></preConditions>
+        <createTable tableName="chat_message_edit_history">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="message_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="previous_content" type="TEXT"/>
+            <column name="edited_by_id" type="BIGINT"/>
+            <column name="edited_at" type="DATETIME"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="chat_message_edit_history" baseColumnNames="message_id"
+                                 referencedTableName="chat_message" referencedColumnNames="id" constraintName="fk_cmeh_message"/>
+        <createIndex tableName="chat_message_edit_history" indexName="idx_cmeh_message">
+            <column name="message_id"/><column name="edited_at"/>
+        </createIndex>
+        <createIndex tableName="chat_message_edit_history" indexName="idx_cmeh_edited_by">
+            <column name="edited_by_id"/>
+        </createIndex>
+        <comment>Immutable audit of every message edit (previous content retained)</comment>
+    </changeSet>
+
+    <!-- ============================================================= -->
+    <!-- Phase 2a: emoji reactions                                     -->
+    <!-- ============================================================= -->
+
+    <changeSet id="20260614-1" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_message_reaction"/></not></preConditions>
+        <createTable tableName="chat_message_reaction">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="message_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="emoji" type="NVARCHAR(32)"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="chat_message_reaction" baseColumnNames="message_id"
+                                 referencedTableName="chat_message" referencedColumnNames="id" constraintName="fk_cmreact_message"/>
+        <addUniqueConstraint tableName="chat_message_reaction" columnNames="message_id,user_id,emoji"
+                             constraintName="uq_cmreact_msg_user_emoji"/>
+        <createIndex tableName="chat_message_reaction" indexName="idx_cmreact_message">
+            <column name="message_id"/>
+        </createIndex>
+        <comment>One reaction row per (message, user, emoji)</comment>
+    </changeSet>
+
+    <!-- ============================================================= -->
+    <!-- Phase 2b: @mentions                                           -->
+    <!-- ============================================================= -->
+
+    <changeSet id="20260615-1" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_message_mention"/></not></preConditions>
+        <createTable tableName="chat_message_mention">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="message_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="conversation_id" type="BIGINT"/>
+            <column name="mentioned_user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="chat_message_mention" baseColumnNames="message_id"
+                                 referencedTableName="chat_message" referencedColumnNames="id" constraintName="fk_cmment_message"/>
+        <addUniqueConstraint tableName="chat_message_mention" columnNames="message_id,mentioned_user_id"
+                             constraintName="uq_cmment_msg_user"/>
+        <createIndex tableName="chat_message_mention" indexName="idx_cmment_message">
+            <column name="message_id"/>
+        </createIndex>
+        <createIndex tableName="chat_message_mention" indexName="idx_cmment_user">
+            <column name="mentioned_user_id"/><column name="id"/>
+        </createIndex>
+        <comment>One row per (message, mentioned user); drives tagging notifications/inbox</comment>
+    </changeSet>
+
+    <!-- ============================================================= -->
+    <!-- Phase 2c-2j: threads, pin, bookmark, attachments             -->
+    <!-- ============================================================= -->
+
+    <changeSet id="20260616-1" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><columnExists tableName="chat_message" columnName="is_pinned"/></not></preConditions>
+        <addColumn tableName="chat_message">
+            <column name="is_pinned" type="BIT" defaultValueBoolean="false"><constraints nullable="false"/></column>
+        </addColumn>
+        <comment>Pinned flag on messages (author/admin can toggle)</comment>
+    </changeSet>
+
+    <changeSet id="20260616-2" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_bookmark"/></not></preConditions>
+        <createTable tableName="chat_bookmark">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="message_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="conversation_id" type="BIGINT"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="chat_bookmark" baseColumnNames="message_id"
+                                 referencedTableName="chat_message" referencedColumnNames="id" constraintName="fk_cbookmark_message"/>
+        <addUniqueConstraint tableName="chat_bookmark" columnNames="user_id,message_id"
+                             constraintName="uq_cbookmark_user_msg"/>
+        <createIndex tableName="chat_bookmark" indexName="idx_cbookmark_user">
+            <column name="user_id"/>
+        </createIndex>
+        <comment>Per-user saved messages</comment>
+    </changeSet>
+
+    <changeSet id="20260616-3" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_attachment"/></not></preConditions>
+        <createTable tableName="chat_attachment">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="message_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="conversation_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="file_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="content_type" type="VARCHAR(120)"/>
+            <column name="size_bytes" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="sha256" type="CHAR(64)"><constraints nullable="false"/></column>
+            <column name="scan_status" type="VARCHAR(20)" defaultValue="PENDING"><constraints nullable="false"/></column>
+            <column name="file_data" type="VARBINARY(MAX)"/>
+            <column name="uploaded_by_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="chat_attachment" baseColumnNames="message_id"
+                                 referencedTableName="chat_message" referencedColumnNames="id" constraintName="fk_cattach_message"/>
+        <createIndex tableName="chat_attachment" indexName="idx_cattach_message">
+            <column name="message_id"/>
+        </createIndex>
+        <createIndex tableName="chat_attachment" indexName="idx_cattach_conv">
+            <column name="conversation_id"/>
+        </createIndex>
+        <comment>Secure attachments: original bytes in-database, scanned (clamd) before release</comment>
+    </changeSet>
 </databaseChangeLog>

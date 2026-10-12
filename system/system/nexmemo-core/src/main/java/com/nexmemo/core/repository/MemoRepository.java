@@ -2,10 +2,12 @@ package com.nexmemo.core.repository;
 
 import com.nexmemo.core.entity.Memo;
 import com.nexmemo.core.enums.MemoStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -67,6 +69,16 @@ public interface MemoRepository extends JpaRepository<Memo, Long>, JpaSpecificat
     Page<Memo> findByCurrentApproverIdAndStatusNotIn(@Param("approverId") Long approverId, @Param("statuses") List<MemoStatus> statuses, Pageable pageable);
 
     Optional<Memo> findTopByOrderByIdDesc();
+
+    /**
+     * Loads a memo under a pessimistic write lock. Used by workflow-decision paths so that two
+     * concurrent approve/reject/return calls are serialised: the second transaction blocks until
+     * the first commits, then observes the new status and is rejected by the status guard. This
+     * prevents concurrent decisions from producing inconsistent workflow states.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT m FROM Memo m WHERE m.id = :id")
+    Optional<Memo> findByIdForUpdate(@Param("id") Long id);
 
     @Query("SELECT m FROM Memo m " + FETCH_GRAPH + " WHERE LOWER(m.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(m.memoNo) LIKE LOWER(CONCAT('%', :searchTerm, '%')) ORDER BY m.createdDate DESC")
     List<Memo> findByTitleContainingIgnoreCaseOrMemoNoContainingIgnoreCase(@Param("searchTerm") String searchTerm);

@@ -11,47 +11,217 @@
   <div class="cw-panel">
     <!-- HEADER -->
     <div class="cw-header">
-      @if (activeConv) {
-        <button class="cw-back" (click)="backToList()"><i class="fas fa-arrow-left"></i></button>
+      @if (view !== 'list') {
+        <button class="cw-back" (click)="back()"><i class="fas fa-arrow-left"></i></button>
       }
       <span class="cw-title">
-        @if (activeConv) { {{ activeConv.name }} } @else { Branch Chat }
+        @switch (view) {
+          @case ('chat') { {{ displayTitle(activeConv) }} }
+          @case ('people') { New Direct Message }
+          @case ('branches') { Branches }
+          @case ('saved') { Saved Messages }
+          @case ('search') { Search Messages }
+          @case ('members') { Members }
+          @case ('reports') { Moderation Queue }
+          @default { Messages }
+        }
       </span>
       <button class="cw-close" (click)="toggleOpen()"><i class="fas fa-minus"></i></button>
     </div>
 
-    <!-- BRANCH LIST -->
-    @if (!activeConv) {
+    <!-- CONVERSATION LIST -->
+    @if (view === 'list') {
       <div class="cw-search">
         <i class="fas fa-search"></i>
-        <input type="text" placeholder="Search branch..." [(ngModel)]="branchSearch">
+        <input type="text" placeholder="Search conversations..." [(ngModel)]="search">
       </div>
       <div class="cw-list">
         @for (conv of filteredConversations; track conv.id) {
-          <div class="cw-item" (click)="selectBranch(conv)">
-            <div class="cw-item-icon"><i class="fas fa-building"></i></div>
+          <div class="cw-item" (click)="openConversation(conv)">
+            <div class="cw-item-icon"><i class="fas" [ngClass]="typeIcon(conv)"></i></div>
             <div class="cw-item-info">
-              <div class="cw-item-name">{{ conv.name }}</div>
-              <div class="cw-item-code">{{ conv.code }}</div>
+              <div class="cw-item-name">{{ displayTitle(conv) }}</div>
+              <div class="cw-item-code">{{ conv.lastMessagePreview || 'No messages yet' }}</div>
             </div>
-            @if (unreadCounts[conv.id]) {
-              <span class="cw-item-badge">{{ unreadCounts[conv.id] }}</span>
+            @if (conv.unreadCount) {
+              <span class="cw-item-badge">{{ conv.unreadCount > 99 ? '99+' : conv.unreadCount }}</span>
             }
           </div>
         }
         @if (filteredConversations.length === 0) {
-          <div class="cw-empty">No branches found</div>
+          <div class="cw-empty">No conversations yet. Start one below.</div>
         }
       </div>
       <div class="cw-footer-actions">
-        <button class="cw-report-btn" (click)="reportProblem()">
-          <i class="fas fa-exclamation-triangle"></i> Report Problem
-        </button>
+        <button class="cw-action-btn" (click)="showPeople()"><i class="fas fa-user-plus"></i> New Chat</button>
+        <button class="cw-action-btn" (click)="showBranches()"><i class="fas fa-building"></i> Branches</button>
+        <button class="cw-action-btn" (click)="loadSaved()"><i class="fas fa-bookmark"></i> Saved</button>
+        <button class="cw-action-btn" (click)="openSearchView()"><i class="fas fa-search"></i> Search</button>
+        @if (isAdmin) {
+          <button class="cw-action-btn" (click)="openReports()"><i class="fas fa-shield-alt"></i> Moderate</button>
+        }
+        <button class="cw-report-btn" (click)="reportProblem()"><i class="fas fa-exclamation-triangle"></i> Report</button>
+      </div>
+    }
+
+    <!-- PEOPLE PICKER -->
+    @if (view === 'people') {
+      <div class="cw-search">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Search people..." [(ngModel)]="search">
+      </div>
+      <div class="cw-list">
+        @for (user of filteredUsers; track user.id) {
+          <div class="cw-item" (click)="startDirect(user)">
+            <div class="cw-item-icon"><i class="fas fa-user"></i></div>
+            <div class="cw-item-info">
+              <div class="cw-item-name">{{ user.name }}</div>
+            </div>
+          </div>
+        }
+        @if (filteredUsers.length === 0) {
+          <div class="cw-empty">No people found</div>
+        }
+      </div>
+    }
+
+    <!-- BRANCH PICKER -->
+    @if (view === 'branches') {
+      <div class="cw-search">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Search branches..." [(ngModel)]="search">
+      </div>
+      <div class="cw-list">
+        @for (branch of filteredBranches; track branch.id) {
+          <div class="cw-item" (click)="openBranch(branch)">
+            <div class="cw-item-icon"><i class="fas fa-building"></i></div>
+            <div class="cw-item-info">
+              <div class="cw-item-name">{{ branch.name }}</div>
+              <div class="cw-item-code">{{ branch.branchCode }}</div>
+            </div>
+          </div>
+        }
+        @if (filteredBranches.length === 0) {
+          <div class="cw-empty">No branches found</div>
+        }
+      </div>
+    }
+
+    <!-- SAVED (BOOKMARKS) VIEW -->
+    @if (view === 'saved') {
+      <div class="cw-list">
+        @for (bm of savedMessages; track bm.messageId) {
+          <div class="cw-item" (click)="openBookmark(bm)">
+            <div class="cw-item-icon"><i class="fas fa-bookmark"></i></div>
+            <div class="cw-item-info">
+              <div class="cw-item-name">{{ bm.conversationTitle || 'Conversation' }}</div>
+              <div class="cw-item-code">{{ bm.preview }}</div>
+            </div>
+            <small class="text-muted">{{ bm.createdDate | date:'short' }}</small>
+          </div>
+        }
+        @if (savedMessages.length === 0) {
+          <div class="cw-empty">No saved messages yet. Use the bookmark icon on any message.</div>
+        }
+      </div>
+    }
+
+    <!-- SEARCH VIEW (Phase 2i: scoped search) -->
+    @if (view === 'search') {
+      <div class="cw-search">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Search my conversations..." [(ngModel)]="searchQuery"
+          (input)="onSearchInput()">
+      </div>
+      <div class="cw-list">
+        @if (searchLoading) {
+          <div class="cw-empty">Searching…</div>
+        }
+        @for (r of searchResults; track r.id) {
+          <div class="cw-item" (click)="openSearchResult(r)">
+            <div class="cw-item-icon"><i class="fas fa-file-alt"></i></div>
+            <div class="cw-item-info">
+              <div class="cw-item-name">{{ getSenderName(r.senderId) }}</div>
+              <div class="cw-item-code">{{ r.message }}</div>
+            </div>
+          </div>
+        }
+        @if (!searchLoading && searchResults.length === 0 && searchQuery.trim().length >= 2) {
+          <div class="cw-empty">No messages found</div>
+        }
+        @if (searchQuery.trim().length < 2) {
+          <div class="cw-empty">Type at least 2 characters to search your conversations</div>
+        }
+      </div>
+    }
+
+    <!-- MEMBERS VIEW (Phase 2j + presence) -->
+    @if (view === 'members' && activeConv) {
+      <div class="cw-list">
+        <div class="cw-members-head">
+          <span>{{ members.length }} members · {{ onlineCount }} online</span>
+        </div>
+        @for (m of members; track m.userId) {
+          <div class="cw-item">
+            <div class="cw-item-icon"><i class="fas fa-user"></i></div>
+            <div class="cw-item-info">
+              <div class="cw-item-name">
+                {{ m.name }}
+                @if (isCurrentMember(m.userId)) { <small class="text-muted">(you)</small> }
+              </div>
+              <div class="cw-item-code">{{ m.participantRole || 'participant' }}</div>
+            </div>
+            <span class="cw-presence-dot" [class.online]="m.online"
+              [title]="m.online ? 'Online' : 'Offline'"></span>
+          </div>
+        }
+        @if (members.length === 0) {
+          <div class="cw-empty">Loading members…</div>
+        }
+      </div>
+    }
+
+    <!-- REPORTS VIEW (Phase 2j: admin moderation queue) -->
+    @if (view === 'reports') {
+      <div class="cw-list">
+        @for (r of reports; track r.messageId) {
+          <div class="cw-item" (click)="openReport(r)">
+            <div class="cw-item-icon"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i></div>
+            <div class="cw-item-info">
+              <div class="cw-item-name">{{ r.senderName || ('User #' + r.senderId) }}</div>
+              <div class="cw-item-code">{{ r.preview }}</div>
+            </div>
+          </div>
+        }
+        @if (reports.length === 0) {
+          <div class="cw-empty">No reported issues in the queue</div>
+        }
       </div>
     }
 
     <!-- CHAT VIEW -->
-    @if (activeConv) {
+    @if (view === 'chat' && activeConv) {
+      <div class="cw-toolbar">
+        <button class="cw-tool" [class.active]="showPinnedOnly" title="Pinned messages"
+          (click)="togglePinnedOnly()"><i class="fas fa-thumbtack"></i></button>
+        <button class="cw-tool" title="Mark as unread" (click)="markUnread()">
+          <i class="fas fa-envelope"></i>
+        </button>
+        <button class="cw-tool" [title]="'Notifications: ' + notificationLevel" (click)="cycleNotification()">
+          <i class="fas" [ngClass]="notificationLevel === 'MUTE' ? 'fa-bell-slash' : 'fa-bell'"></i>
+        </button>
+        <button class="cw-tool" title="Members" (click)="openMembers()"><i class="fas fa-users"></i></button>
+        <span class="cw-presence-count" [title]="onlineCount + ' online'">
+          <span class="cw-presence-dot online"></span>{{ onlineCount }}
+        </span>
+        @if (isAdmin) {
+          <button class="cw-tool" [class.active]="convLocked" [title]="convLocked ? 'Unlock conversation' : 'Lock conversation'"
+            (click)="toggleLock()"><i class="fas fa-lock"></i></button>
+        }
+      </div>
+      @if (convLocked) {
+        <div class="cw-locked-banner"><i class="fas fa-lock"></i> This conversation is locked (read-only)</div>
+      }
       <div class="cw-messages">
         @if (loading) {
           <div class="cw-loading"><div class="spinner-border spinner-border-sm"></div></div>
@@ -59,26 +229,199 @@
         @if (!loading && messages.length === 0) {
           <div class="cw-empty">No messages yet. Say hello!</div>
         }
-        @for (msg of messages; track msg.id) {
-          <div class="cw-msg" [class.mine]="isCurrentUser(msg.senderId)">
-            <div class="cw-bubble" [class.problem]="isProblemReport(msg)">
+        @for (msg of visibleMessages; track msg.id) {
+          <div class="cw-msg" [class.mine]="isCurrentUser(msg.senderId)"
+            [class.mentioned]="isMentionedIn(msg)">
+            <div class="cw-bubble" [class.mine]="isCurrentUser(msg.senderId)"
+              [class.problem]="isProblemReport(msg)" [class.deleted]="msg.isDeleted">
               @if (isProblemReport(msg)) {
                 <div class="cw-problem-badge"><i class="fas fa-exclamation-triangle"></i> PROBLEM</div>
               }
               <div class="cw-sender">{{ getSenderName(msg.senderId) }}</div>
-              <div class="cw-text">{{ msg.message }}</div>
-              <div class="cw-time">{{ msg.createdDate | date:'short' }}</div>
+
+              @if (msg.isDeleted) {
+                <div class="cw-text cw-text-deleted"><i class="fas fa-ban"></i> This message was deleted</div>
+              } @else if (editingId === msg.id) {
+                <div class="cw-edit">
+                  <textarea [(ngModel)]="editText" rows="2"></textarea>
+                  <div class="cw-edit-actions">
+                    <button class="cw-edit-save" (click)="saveEdit(msg)">Save</button>
+                    <button class="cw-edit-cancel" (click)="cancelEdit()">Cancel</button>
+                  </div>
+                </div>
+              } @else {
+                <div class="cw-text">
+                  @for (seg of messageSegments(msg.message); track $index) {
+                    @if (seg.type === 'mention') {
+                      <span class="cw-mention" [class.self]="seg.userId === currentUserId">{{ '@' + seg.text }}</span>
+                    } @else {
+                      <span>{{ seg.text }}</span>
+                    }
+                  }
+                </div>
+              }
+
+              @if (!msg.isDeleted && msg.attachments?.length) {
+                <div class="cw-attachments">
+                  @for (a of msg.attachments; track a.id) {
+                    <button class="cw-attachment" (click)="downloadAttachment(a)">
+                      @switch (a.contentType) {
+                        @case ('application/pdf') { <i class="fas fa-file-pdf"></i> }
+                        @case ('image/png') { <i class="fas fa-file-image"></i> }
+                        @case ('image/jpeg') { <i class="fas fa-file-image"></i> }
+                        @default { <i class="fas fa-paperclip"></i> }
+                      }
+                      <span class="cw-attachment-name">{{ fileName(a) }}</span>
+                      <span class="cw-attachment-size">{{ fileSize(a) }}</span>
+                    </button>
+                  }
+                </div>
+              }
+
+              <div class="cw-meta">
+                <span class="cw-time">{{ msg.createdDate | date:'short' }}</span>
+                @if (msg.isEdited) { <span class="cw-edited">edited</span> }
+                @if (msg.isPinned) { <span class="cw-pinned" title="Pinned"><i class="fas fa-thumbtack"></i></span> }
+                @if (msg.isBookmarked) { <span class="cw-pinned" title="Saved"><i class="fas fa-bookmark"></i></span> }
+                @if (msg.replyCount > 0) {
+                  <button class="cw-reply-count" title="Replies" (click)="openThread(msg)">
+                    <i class="fas fa-comment-dots"></i> {{ msg.replyCount }}
+                  </button>
+                }
+                @if (deliveryIcon(msg)) {
+                  <i class="fas cw-tick" [ngClass]="[deliveryIcon(msg), deliveryStateClass(msg)]"></i>
+                }
+              </div>
+
+              @if (!msg.isDeleted && msg.reactions?.length) {
+                <div class="cw-reactions">
+                  @for (r of msg.reactions; track r.emoji) {
+                    <button class="cw-reaction" [class.mine]="r.reactedByMe"
+                      [title]="reactionTooltip(r)" (click)="toggleReaction(msg, r.emoji)">
+                      <span class="cw-reaction-emoji">{{ r.emoji }}</span>
+                      <span class="cw-reaction-count">{{ r.count }}</span>
+                    </button>
+                  }
+                </div>
+              }
+
+              @if (!msg.isDeleted && editingId !== msg.id) {
+                <div class="cw-msg-actions">
+                  <button title="Reply" (click)="replyTo(msg)"><i class="fas fa-reply"></i></button>
+                  <button title="React" (click)="toggleReactionPicker(msg, $event)"><i class="fas fa-smile"></i></button>
+                  <button title="Forward" (click)="startForward(msg)"><i class="fas fa-share"></i></button>
+                  @if (canPin(msg)) {
+                    <button [class.active]="msg.isPinned" title="Pin / unpin" (click)="togglePinMsg(msg)">
+                      <i class="fas fa-thumbtack"></i>
+                    </button>
+                  }
+                  <button [class.active]="msg.isBookmarked" title="Save / unsave" (click)="toggleBookmark(msg)">
+                    <i class="fas fa-bookmark"></i>
+                  </button>
+                  @if (canEdit(msg)) {
+                    <button title="Edit" (click)="startEdit(msg)"><i class="fas fa-pen"></i></button>
+                  }
+                  @if (canDelete(msg)) {
+                    <button title="Delete" (click)="deleteMsg(msg)"><i class="fas fa-trash"></i></button>
+                  }
+                </div>
+                @if (pickerMessageId === msg.id) {
+                  <div class="cw-reaction-picker">
+                    @for (emoji of reactionPalette; track emoji) {
+                      <button (click)="toggleReaction(msg, emoji)">{{ emoji }}</button>
+                    }
+                  </div>
+                }
+              }
             </div>
           </div>
         }
       </div>
-      <div class="cw-input">
-        <input type="text" [(ngModel)]="newMessage" placeholder="Type a message..."
-          (keyup.enter)="sendMessage()" [disabled]="loading">
-        <button class="cw-send" (click)="sendMessage()" [disabled]="!newMessage.trim()">
+      @if (typingLabel && threadId == null) {
+        <div class="cw-typing"><i class="fas fa-ellipsis-h"></i> {{ typingLabel }}</div>
+      }
+      @if (threadId != null) {
+        <div class="cw-thread-panel">
+          <div class="cw-thread-head">
+            <span><i class="fas fa-reply"></i> Thread · reply to <strong>{{ getSenderName(threadParent()?.senderId) }}</strong></span>
+            <button class="cw-close-thread" (click)="closeThread()"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="cw-thread-replies">
+            @if (threadLoading) {
+              <div class="cw-loading"><div class="spinner-border spinner-border-sm"></div></div>
+            }
+            @for (r of threadReplies; track r.id) {
+              <div class="cw-msg" [class.mine]="isCurrentUser(r.senderId)">
+                <div class="cw-bubble" [class.mine]="isCurrentUser(r.senderId)">
+                  <div class="cw-sender">{{ getSenderName(r.senderId) }}</div>
+                  <div class="cw-text">
+                    @for (seg of messageSegments(r.message); track $index) {
+                      @if (seg.type === 'mention') {
+                        <span class="cw-mention" [class.self]="seg.userId === currentUserId">{{ '@' + seg.text }}</span>
+                      } @else {
+                        <span>{{ seg.text }}</span>
+                      }
+                    }
+                  </div>
+                  <div class="cw-meta">
+                    <span class="cw-time">{{ r.createdDate | date:'short' }}</span>
+                    @if (r.isPinned) { <span class="cw-pinned"><i class="fas fa-thumbtack"></i></span> }
+                  </div>
+                </div>
+              </div>
+            }
+            @if (!threadLoading && threadReplies.length === 0) {
+              <div class="cw-empty">No replies yet — be the first.</div>
+            }
+          </div>
+          <div class="cw-thread-input">
+            <input type="text" [(ngModel)]="threadReplyText" placeholder="Reply in thread..."
+              (keydown.enter)="sendReply()" [disabled]="loading || convLocked">
+            <button class="cw-send" (click)="sendReply()" [disabled]="!threadReplyText.trim() || convLocked">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+      }
+      <div class="cw-input" [class.hidden]="threadId != null">
+        @if (mentionCandidates.length) {
+          <div class="cw-mention-list">
+            @for (u of mentionCandidates; track u.id) {
+              <button type="button" (mousedown)="selectMention(u, composer)">{{ u.name }}</button>
+            }
+          </div>
+        }
+        <label class="cw-attach" title="Attach a file (up to 25 MB)" [class.disabled]="convLocked">
+          <i class="fas fa-paperclip"></i>
+          <input #fileInput type="file" (change)="onFilePicked($event)" [disabled]="convLocked">
+        </label>
+        <input #composer type="text" [(ngModel)]="newMessage" placeholder="Type a message... Type @ to mention"
+          (input)="onComposerInput(composer)" (keydown)="onComposerKeydown($event, composer)"
+          [disabled]="loading || convLocked">
+        <button class="cw-send" (click)="sendMessage()" [disabled]="!newMessage.trim() || convLocked">
           <i class="fas fa-paper-plane"></i>
         </button>
       </div>
+      @if (showForwardPicker) {
+        <div class="cw-modal-backdrop" (click)="cancelForward()">
+          <div class="cw-forward-picker" (click)="$event.stopPropagation()">
+            <div class="cw-thread-head">
+              <span><i class="fas fa-share"></i> Forward to…</span>
+              <button class="cw-close-thread" (click)="cancelForward()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="cw-forward-list">
+              @for (t of forwardTargets; track t.id) {
+                <button (click)="pickForwardTarget(t)">
+                  <i class="fas" [ngClass]="typeIcon(t)"></i> {{ displayTitle(t) }}
+                </button>
+              }
+              @if (forwardTargets.length === 0) {
+                <div class="cw-empty">No other conversations to forward to.</div>
+              }
+            </div>
+          </div>
+        </div>
+      }
     }
   </div>
 }

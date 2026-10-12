@@ -44,6 +44,7 @@ public class AuditLog {
     @Column(name = "details", columnDefinition = "TEXT")
     private String details;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
     private AuditStatus status = AuditStatus.SUCCESS;

@@ -25,7 +25,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -51,6 +53,8 @@ public class MemoService {
     private final WorkflowEngineService workflowEngineService;
     private final MemoNumberGeneratorService memoNumberGeneratorService;
     private final MemoCategoryRepository memoCategoryRepository;
+    private final AuditEventPublisher auditEventPublisher;
+    private final MemoAuthorizationService memoAuthorizationService;
 
     @Data
     public static class CreateMemoRequest {
@@ -70,13 +74,21 @@ public class MemoService {
     }
 
     @Transactional(readOnly = true)
-    public List<Memo> getAllMemos() {
-        return memoRepository.findAll();
+    public List<Memo> getAllMemos(Long userId) {
+        if (memoAuthorizationService.isAdmin(userId)) {
+            return memoRepository.findAll();
+        }
+        return memoRepository.findAll(
+                MemoSpecifications.notDeleted().and(MemoSpecifications.accessibleBy(userId)));
     }
 
     @Transactional(readOnly = true)
-    public Page<Memo> getAllMemosPaginated(Pageable pageable) {
-        return memoRepository.findAllActive(pageable);
+    public Page<Memo> getAllMemosPaginated(Long userId, Pageable pageable) {
+        if (memoAuthorizationService.isAdmin(userId)) {
+            return memoRepository.findAllActive(pageable);
+        }
+        return memoRepository.findAll(
+                MemoSpecifications.notDeleted().and(MemoSpecifications.accessibleBy(userId)), pageable);
     }
 
     @Transactional(readOnly = true)
@@ -99,8 +111,13 @@ public class MemoService {
     }
 
     @Transactional(readOnly = true)
-    public List<Memo> getMemosByStatus(MemoStatus status) {
-        return memoRepository.findByStatus(status);
+    public List<Memo> getMemosByStatus(Long userId, MemoStatus status) {
+        if (memoAuthorizationService.isAdmin(userId)) {
+            return memoRepository.findByStatus(status);
+        }
+        return memoRepository.findAll(MemoSpecifications.notDeleted()
+                .and(MemoSpecifications.accessibleBy(userId))
+                .and(MemoSpecifications.withStatus(status)));
     }
 
     @Transactional(readOnly = true)
@@ -112,8 +129,13 @@ public class MemoService {
     }
 
     @Transactional(readOnly = true)
-    public List<Memo> searchMemos(String keyword) {
-        return memoRepository.findByTitleContainingIgnoreCaseOrMemoNoContainingIgnoreCase(keyword);
+    public List<Memo> searchMemos(Long userId, String keyword) {
+        if (memoAuthorizationService.isAdmin(userId)) {
+            return memoRepository.findByTitleContainingIgnoreCaseOrMemoNoContainingIgnoreCase(keyword);
+        }
+        return memoRepository.findAll(MemoSpecifications.notDeleted()
+                .and(MemoSpecifications.accessibleBy(userId))
+                .and(MemoSpecifications.titleOrMemoNoContains(keyword)));
     }
 
     @Transactional(readOnly = true)
@@ -195,7 +217,7 @@ public class MemoService {
     }
 
     public Memo submitMemo(Long memoId, Long userId) {
-        Memo memo = memoRepository.findById(memoId)
+        Memo memo = memoRepository.findByIdForUpdate(memoId)
                 .orElseThrow(() -> new EntityNotFoundException("Memo not found with id: " + memoId));
 
         if (memo.getStatus() != MemoStatus.DRAFT && memo.getStatus() != MemoStatus.REVISION_REQUESTED) {
@@ -206,8 +228,13 @@ public class MemoService {
             throw new IllegalStateException("Only the creator can submit the memo");
         }
 
+        Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), null);
+
         if (memo.getCategory() != null) {
-            return workflowEngineService.submitMemo(memo, userId);
+            Memo submitted = workflowEngineService.submitMemo(memo, userId);
+            auditEventPublisher.recordChange(userId, ACTION_SUBMITTED, ENTITY_MEMO, memoId, before,
+                    stateSnapshot(submitted.getStatus(), submitted.getApprovalLevel(), approverIdOf(submitted), null));
+            return submitted;
         }
 
         int totalLevels = approvalEngineService.determineApprovalLevels(memo);
@@ -240,23 +267,31 @@ public class MemoService {
                 "MEMO_APPROVAL", memo.getId(), "MEMO");
         log.debug("Notification sent to approver userId={} for memo {}", nextApprover.getId(), memo.getId());
 
+        auditEventPublisher.recordChange(userId, ACTION_SUBMITTED, ENTITY_MEMO, memoId, before,
+                stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), null));
+
         return memo;
     }
 
     public Memo approveMemo(Long memoId, Long approverId, String remarks) {
-        Memo memo = memoRepository.findById(memoId)
+        Memo memo = memoRepository.findByIdForUpdate(memoId)
                 .orElseThrow(() -> new EntityNotFoundException("Memo not found with id: " + memoId));
 
         if (memo.getStatus() != MemoStatus.PENDING_APPROVAL) {
             throw new IllegalStateException("Memo is not pending approval. Current status: " + memo.getStatus());
         }
 
+        Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks);
+
         if (memo.getCategory() != null) {
             WorkflowStageInstance current = workflowEngineService.getCurrentStage(memoId);
             if (current != null) {
                 workflowEngineService.approveStage(memoId, current.getStage().getId(), approverId, remarks);
             }
-            return memoRepository.findById(memoId).orElse(memo);
+            Memo after = memoRepository.findById(memoId).orElse(memo);
+            auditEventPublisher.recordChange(approverId, ACTION_APPROVED, ENTITY_MEMO, memoId, before,
+                    stateSnapshot(after.getStatus(), after.getApprovalLevel(), approverIdOf(after), remarks));
+            return after;
         }
 
         User approver = userRepository.findById(approverId)
@@ -311,23 +346,30 @@ public class MemoService {
         }
 
         memo = memoRepository.save(memo);
+        auditEventPublisher.recordChange(approverId, ACTION_APPROVED, ENTITY_MEMO, memoId, before,
+                stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks));
         return memo;
     }
 
     public Memo rejectMemo(Long memoId, Long approverId, String remarks) {
-        Memo memo = memoRepository.findById(memoId)
+        Memo memo = memoRepository.findByIdForUpdate(memoId)
                 .orElseThrow(() -> new EntityNotFoundException("Memo not found with id: " + memoId));
 
         if (memo.getStatus() != MemoStatus.PENDING_APPROVAL) {
             throw new IllegalStateException("Memo is not pending approval. Current status: " + memo.getStatus());
         }
 
+        Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks);
+
         if (memo.getCategory() != null) {
             WorkflowStageInstance current = workflowEngineService.getCurrentStage(memoId);
             if (current != null) {
                 workflowEngineService.rejectStage(memoId, current.getStage().getId(), approverId, remarks);
             }
-            return memoRepository.findById(memoId).orElse(memo);
+            Memo after = memoRepository.findById(memoId).orElse(memo);
+            auditEventPublisher.recordChange(approverId, ACTION_REJECTED, ENTITY_MEMO, memoId, before,
+                    stateSnapshot(after.getStatus(), after.getApprovalLevel(), approverIdOf(after), remarks));
+            return after;
         }
 
         User approver = userRepository.findById(approverId)
@@ -355,23 +397,31 @@ public class MemoService {
                         + (remarks != null ? ": " + remarks : ""),
                 "MEMO_REJECTED", memo.getId(), "MEMO");
 
+        auditEventPublisher.recordChange(approverId, ACTION_REJECTED, ENTITY_MEMO, memoId, before,
+                stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks));
+
         return memo;
     }
 
     public Memo returnMemo(Long memoId, Long approverId, String remarks) {
-        Memo memo = memoRepository.findById(memoId)
+        Memo memo = memoRepository.findByIdForUpdate(memoId)
                 .orElseThrow(() -> new EntityNotFoundException("Memo not found with id: " + memoId));
 
         if (memo.getStatus() != MemoStatus.PENDING_APPROVAL) {
             throw new IllegalStateException("Memo is not pending approval. Current status: " + memo.getStatus());
         }
 
+        Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks);
+
         if (memo.getCategory() != null) {
             WorkflowStageInstance current = workflowEngineService.getCurrentStage(memoId);
             if (current != null) {
                 workflowEngineService.returnToStage(memoId, current.getStage().getId(), approverId, remarks);
             }
-            return memoRepository.findById(memoId).orElse(memo);
+            Memo after = memoRepository.findById(memoId).orElse(memo);
+            auditEventPublisher.recordChange(approverId, ACTION_RETURNED, ENTITY_MEMO, memoId, before,
+                    stateSnapshot(after.getStatus(), after.getApprovalLevel(), approverIdOf(after), remarks));
+            return after;
         }
 
         User approver = userRepository.findById(approverId)
@@ -391,16 +441,22 @@ public class MemoService {
         approvalHistoryRepository.save(history);
 
         log.info("Memo {} returned for revision by user {}: {}", memo.getMemoNo(), approverId, remarks);
+
+        auditEventPublisher.recordChange(approverId, ACTION_RETURNED, ENTITY_MEMO, memoId, before,
+                stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks));
+
         return memo;
     }
 
     public Memo forwardMemo(Long memoId, Long userId, Long toUserId, String remarks) {
-        Memo memo = memoRepository.findById(memoId)
+        Memo memo = memoRepository.findByIdForUpdate(memoId)
                 .orElseThrow(() -> new EntityNotFoundException("Memo not found with id: " + memoId));
         User fromUser = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
         User toUser = userRepository.findById(toUserId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + toUserId));
+
+        Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks);
 
         if (memo.getBranch() != null) {
             Branch toBranch = toUser.getBranches() != null && !toUser.getBranches().isEmpty()
@@ -428,14 +484,20 @@ public class MemoService {
         approvalHistoryRepository.save(history);
 
         log.info("Memo {} forwarded from user {} to user {}", memo.getMemoNo(), userId, toUserId);
+
+        auditEventPublisher.recordChange(userId, ACTION_FORWARDED, ENTITY_MEMO, memoId, before,
+                stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks));
+
         return memo;
     }
 
     public Memo backwardMemo(Long memoId, Long userId, String remarks) {
-        Memo memo = memoRepository.findById(memoId)
+        Memo memo = memoRepository.findByIdForUpdate(memoId)
                 .orElseThrow(() -> new EntityNotFoundException("Memo not found with id: " + memoId));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
+
+        Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks);
 
         List<ApprovalHistory> historyList = approvalHistoryRepository.findByMemoIdOrderByApprovalLevelAsc(memoId);
         if (historyList.isEmpty()) {
@@ -470,11 +532,15 @@ public class MemoService {
         approvalHistoryRepository.save(history);
 
         log.info("Memo {} backwarded to level {} by user {}", memo.getMemoNo(), previousLevel, userId);
+
+        auditEventPublisher.recordChange(userId, ACTION_BACKWARDED, ENTITY_MEMO, memoId, before,
+                stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks));
+
         return memo;
     }
 
     public void cancelMemo(Long memoId, Long userId) {
-        Memo memo = memoRepository.findById(memoId)
+        Memo memo = memoRepository.findByIdForUpdate(memoId)
                 .orElseThrow(() -> new EntityNotFoundException("Memo not found with id: " + memoId));
 
         if (memo.getStatus() != MemoStatus.DRAFT) {
@@ -485,10 +551,15 @@ public class MemoService {
             throw new IllegalStateException("Only the creator can cancel the memo");
         }
 
+        Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), null);
+
         memo.setStatus(MemoStatus.CANCELLED);
         memo.setCurrentApprover(null);
         memoRepository.save(memo);
         log.info("Memo {} cancelled by user {}", memo.getMemoNo(), userId);
+
+        auditEventPublisher.recordChange(userId, ACTION_CANCELLED, ENTITY_MEMO, memoId, before,
+                stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), null));
     }
 
     public void enableBranchRouting(Long memoId, boolean enabled) {
@@ -608,5 +679,29 @@ public class MemoService {
                 .findFirst()
                 .map(ApprovalHistory::getApprover)
                 .orElse(null);
+    }
+
+    // ── Audit helpers ─────────────────────────────────────────────────────────
+
+    static final String ENTITY_MEMO = "MEMO";
+    static final String ACTION_SUBMITTED = "MEMO_SUBMITTED";
+    static final String ACTION_APPROVED = "MEMO_APPROVED";
+    static final String ACTION_REJECTED = "MEMO_REJECTED";
+    static final String ACTION_RETURNED = "MEMO_RETURNED";
+    static final String ACTION_FORWARDED = "MEMO_FORWARDED";
+    static final String ACTION_BACKWARDED = "MEMO_BACKWARDED";
+    static final String ACTION_CANCELLED = "MEMO_CANCELLED";
+
+    private static Long approverIdOf(Memo memo) {
+        return memo != null && memo.getCurrentApprover() != null ? memo.getCurrentApprover().getId() : null;
+    }
+
+    private static Map<String, Object> stateSnapshot(MemoStatus status, Integer level, Long approverId, String remarks) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("status", status != null ? status.name() : null);
+        map.put("approvalLevel", level);
+        map.put("currentApproverId", approverId);
+        map.put("remarks", remarks);
+        return map;
     }
 }

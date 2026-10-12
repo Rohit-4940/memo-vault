@@ -32,6 +32,7 @@ public class Notification {
     @Column(length = 50)
     private String referenceType;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean isRead = false;
 
