@@ -19,6 +19,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /**
  * Central, server-side authorization for the chat module.
  *
@@ -170,6 +172,20 @@ public class ChatAuthorizationService {
         return chatConversationRepository.findById(conversationId)
                 .map(conversation -> canAccessConversation(userId, conversation))
                 .orElse(false);
+    }
+
+    /**
+     * Conversation ids the caller is an active participant of — used to widen a readable-document
+     * query for {@code CONVERSATION} grants (Phase 5) without exposing the raw participant table.
+     * Resource-typed conversations (BRANCH/DEPARTMENT/MEMO) are only listed once the caller has
+     * opened them (which materializes the participant row).
+     */
+    @Transactional(readOnly = true)
+    public List<Long> activeConversationIds(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        return chatParticipantRepository.findActiveConversationIdsByUserId(userId);
     }
 
     // ── Assertions (throw + audit) ────────────────────────────────────────────

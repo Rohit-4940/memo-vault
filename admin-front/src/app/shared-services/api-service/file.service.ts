@@ -11,7 +11,14 @@ export interface CompressionResponse {
   compressedName: string;
   compressedSize: number;
   compressionType: string;
+  preset: string;
   status: string;
+  progressPercent: number;
+  attempts: number;
+  batchId: string;
+  verified: boolean;
+  archiveEntryCount: number;
+  archiveUncompressedBytes: number;
   durationMs: number;
   ratioPercent: number;
   savings: number;
@@ -66,25 +73,19 @@ export class FileService {
     return this.http.delete(`${ApiConfig.URL}/api/v1/files`, { params: { path: filePath } });
   }
 
-  compress(file: File, type: string): Observable<any> {
+  compress(file: File, type: string, preset: string = 'BALANCED'): Observable<any> {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('type', type);
+    fd.append('preset', preset);
     return this.http.post(`${ApiConfig.URL}/api/v1/files/compress`, fd);
   }
 
-  compressAsync(file: File, type: string): Observable<any> {
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('type', type);
-    fd.append('async', 'true');
-    return this.http.post(`${ApiConfig.URL}/api/v1/files/compress`, fd);
-  }
-
-  compressBatch(files: File[], type: string): Observable<any> {
+  compressBatch(files: File[], type: string, preset: string = 'BALANCED'): Observable<any> {
     const fd = new FormData();
     files.forEach(f => fd.append('files', f));
     fd.append('type', type);
+    fd.append('preset', preset);
     return this.http.post(`${ApiConfig.URL}/api/v1/files/compress/batch`, fd);
   }
 
@@ -97,6 +98,18 @@ export class FileService {
 
   getJob(id: number): Observable<any> {
     return this.http.get(`${ApiConfig.URL}/api/v1/files/compress/${id}`);
+  }
+
+  cancelJob(id: number): Observable<any> {
+    return this.http.post(`${ApiConfig.URL}/api/v1/files/compress/${id}/cancel`, {});
+  }
+
+  retryJob(id: number): Observable<any> {
+    return this.http.post(`${ApiConfig.URL}/api/v1/files/compress/${id}/retry`, {});
+  }
+
+  verifyJob(id: number): Observable<any> {
+    return this.http.post(`${ApiConfig.URL}/api/v1/files/compress/${id}/verify`, {});
   }
 
   getDownloadUrl(id: number): string {

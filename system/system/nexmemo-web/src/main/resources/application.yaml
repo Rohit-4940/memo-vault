@@ -121,6 +121,20 @@ nexmemo:
     enabled: true
     threshold-bytes: 10240
     type: gzip
+    # Phase 3 — asynchronous, secure compressor
+    max-input-bytes: 104857600        # 100 MB hard ceiling on an accepted upload
+    executor:
+      core-pool-size: 2
+      max-pool-size: 4
+      queue-capacity: 200
+      keep-alive-seconds: 60
+    guardrails:
+      inspect-archives: true          # walk archive inputs for bombs/traversal
+      scan-with-clamav: true          # hand inputs to clamd before processing (fail-closed)
+      max-entries: 2000
+      max-uncompressed-bytes: 524288000   # 500 MB
+      max-compression-ratio: 200
+      max-nesting-depth: 1
 
   storage:
     type: ${STORAGE_TYPE:local}
@@ -138,6 +152,22 @@ nexmemo:
 
   upload:
     max-size: 50MB
+
+  # ── Document vault policy (Enterprise Phase 4) ──────────────────────────────
+  # Everything here is enforced server-side; the Angular client cannot widen it.
+  documents:
+    # Public base URL used to build share links (also read via @Value for compatibility).
+    share-base-url: ${SHARE_BASE_URL:http://localhost:4202}
+    quota:
+      enabled: ${DOC_QUOTA_ENABLED:false}          # turn on in production
+      bytes-per-user: ${DOC_QUOTA_BYTES_PER_USER:1073741824}   # 1 GiB
+    share:
+      allow-confidential: ${DOC_SHARE_ALLOW_CONFIDENTIAL:false}
+      allow-restricted: ${DOC_SHARE_ALLOW_RESTRICTED:false}
+    preview:
+      enabled: ${DOC_PREVIEW_ENABLED:true}
+      max-text-bytes: 2097152        # 2 MiB — largest file treated as renderable text
+      max-head-bytes: 4096
 
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
@@ -227,6 +257,12 @@ nexmemo:
       from-address: ${MAIL_FROM:no-reply@nexmemo.com}
       from-name: ${MAIL_FROM_NAME:NexMemo System}
       use-tls: true
+
+  # ── Notifications (Phase 4a) ────────────────────────────────────────────────
+  notifications:
+    # Base URL used to build "Open memo" links in notification emails.
+    # Leave empty to omit links. Example: https://app.nexmemo.com
+    memo-link-base: ${MEMO_LINK_BASE:http://localhost:4202}
 
 logging:
   level:

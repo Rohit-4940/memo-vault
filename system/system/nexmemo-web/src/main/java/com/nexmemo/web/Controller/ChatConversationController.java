@@ -17,11 +17,20 @@ import com.nexmemo.core.dto.MessageStatusDto;
 import com.nexmemo.core.dto.NotificationSettingRequest;
 import com.nexmemo.core.dto.ReactionRequest;
 import com.nexmemo.core.dto.SendMessageRequest;
+import com.nexmemo.core.dto.ShareDocumentRequest;
+import com.nexmemo.core.dto.SaveDraftRequest;
+import com.nexmemo.core.dto.ChatDraftDto;
+import com.nexmemo.core.dto.ChatLabelDto;
+import com.nexmemo.core.dto.SaveChatLabelRequest;
+import com.nexmemo.core.dto.ChatMessageDocumentDto;
 import com.nexmemo.core.entity.ChatAttachment;
 import com.nexmemo.core.entity.ChatConversation;
 import com.nexmemo.web.service.ChatAttachmentService;
 import com.nexmemo.web.service.ChatBookmarkService;
 import com.nexmemo.web.service.ChatConversationService;
+import com.nexmemo.web.service.ChatDocumentService;
+import com.nexmemo.web.service.ChatDraftService;
+import com.nexmemo.web.service.ChatLabelService;
 import com.nexmemo.web.service.ChatMentionService;
 import com.nexmemo.web.service.ChatMessageService;
 import com.nexmemo.web.service.ChatPresenceService;
@@ -71,6 +80,9 @@ public class ChatConversationController {
     private final ChatTypingService typingService;
     private final ChatPresenceService presenceService;
     private final ChatSearchService searchService;
+    private final ChatDocumentService documentService;
+    private final ChatDraftService draftService;
+    private final ChatLabelService labelService;
 
     // ── Conversations ─────────────────────────────────────────────────────────
 
@@ -412,6 +424,7 @@ public class ChatConversationController {
 
     // ── Phase 2i: scoped search ───────────────────────────────────────────────
 
+
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<Page<ChatMessageDto>>> search(
             @AuthenticationPrincipal Long userId,
@@ -419,6 +432,119 @@ public class ChatConversationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         return ResponseEntity.ok(ApiResponse.success(searchService.search(userId, q, page, size)));
+    }
+
+    // ── Enterprise Phase 5: vault document sharing, drafts, labels ───────────
+
+    @GetMapping("/conversations/{id}/messages/{messageId}/documents")
+    public ResponseEntity<ApiResponse<List<ChatMessageDocumentDto>>> listDocuments(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id,
+            @PathVariable Long messageId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                documentService.listForMessage(userId, id, messageId)));
+    }
+
+    @PostMapping("/conversations/{id}/messages/{messageId}/documents")
+    public ResponseEntity<ApiResponse<ChatMessageDocumentDto>> shareDocument(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id,
+            @PathVariable Long messageId,
+            @Valid @RequestBody ShareDocumentRequest request) {
+        ChatMessageDocumentDto dto = documentService.share(userId, id, messageId, request);
+        // Re-broadcast to peers so the message card updates immediately.
+        messageService.broadcastMessageAfterAttachment(userId, messageId);
+        return ResponseEntity.ok(ApiResponse.success("Document shared into conversation", dto));
+    }
+
+    @DeleteMapping("/documents/shares/{shareId}")
+    public ResponseEntity<ApiResponse<Void>> revokeShare(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long shareId) {
+        documentService.revoke(userId, shareId);
+        return ResponseEntity.ok(ApiResponse.success("Share revoked", null));
+    }
+
+    // Drafts
+    @GetMapping("/conversations/{id}/draft")
+    public ResponseEntity<ApiResponse<ChatDraftDto>> getDraft(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(draftService.get(userId, id)));
+    }
+
+    @PutMapping("/conversations/{id}/draft")
+    public ResponseEntity<ApiResponse<ChatDraftDto>> saveDraft(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id,
+            @Valid @RequestBody SaveDraftRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Draft saved",
+                draftService.save(userId, id, request.getBody())));
+    }
+
+    @DeleteMapping("/conversations/{id}/draft")
+    public ResponseEntity<ApiResponse<Void>> deleteDraft(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+        draftService.clear(userId, id);
+        return ResponseEntity.ok(ApiResponse.success("Draft cleared", null));
+    }
+
+    // Labels
+    @GetMapping("/labels")
+    public ResponseEntity<ApiResponse<List<ChatLabelDto>>> listLabels(
+            @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(labelService.list(userId)));
+    }
+
+    @PostMapping("/labels")
+    public ResponseEntity<ApiResponse<ChatLabelDto>> createLabel(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody SaveChatLabelRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Label created",
+                labelService.create(userId, request.getName(), request.getColor())));
+    }
+
+    @PutMapping("/labels/{labelId}")
+    public ResponseEntity<ApiResponse<ChatLabelDto>> updateLabel(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long labelId,
+            @Valid @RequestBody SaveChatLabelRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Label updated",
+                labelService.update(userId, labelId, request.getName(), request.getColor())));
+    }
+
+    @DeleteMapping("/labels/{labelId}")
+    public ResponseEntity<ApiResponse<Void>> deleteLabel(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long labelId) {
+        labelService.delete(userId, labelId);
+        return ResponseEntity.ok(ApiResponse.success("Label deleted", null));
+    }
+
+    @GetMapping("/conversations/{id}/labels")
+    public ResponseEntity<ApiResponse<List<ChatLabelDto>>> labelsForConversation(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(labelService.labelsForConversation(userId, id)));
+    }
+
+    @PostMapping("/labels/{labelId}/conversations/{conversationId}")
+    public ResponseEntity<ApiResponse<Void>> assignLabel(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long labelId,
+            @PathVariable Long conversationId) {
+        labelService.assign(userId, labelId, conversationId);
+        return ResponseEntity.ok(ApiResponse.success("Label assigned", null));
+    }
+
+    @DeleteMapping("/labels/{labelId}/conversations/{conversationId}")
+    public ResponseEntity<ApiResponse<Void>> unassignLabel(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long labelId,
+            @PathVariable Long conversationId) {
+        labelService.unassign(userId, labelId, conversationId);
+        return ResponseEntity.ok(ApiResponse.success("Label unassigned", null));
     }
 
     // ── Phase 2j: admin moderation queue ──────────────────────────────────────

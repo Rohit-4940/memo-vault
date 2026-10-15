@@ -55,6 +55,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Access denied", 403, request.getRequestURI()));
     }
 
+    @ExceptionHandler(DocumentPolicyException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePolicy(DocumentPolicyException ex, HttpServletRequest request) {
+        return ResponseEntity.status(ex.getStatus())
+                .body(ApiResponse.error(ex.getMessage(), ex.getStatus().value(), request.getRequestURI()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception at {}: {}", request.getRequestURI(), ex.getMessage(), ex);

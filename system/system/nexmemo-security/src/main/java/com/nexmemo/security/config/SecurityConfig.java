@@ -68,6 +68,8 @@ public class SecurityConfig {
             "/auth/reset-password",
             "/auth/verify-otp",
             "/auth/set-password",
+            // Phase 2 — token-gated document share links (the opaque token is the credential).
+            "/documents/shared/**",
             "/ws/**"
     };
 

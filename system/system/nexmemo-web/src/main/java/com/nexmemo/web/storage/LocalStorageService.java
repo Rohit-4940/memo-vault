@@ -131,6 +131,22 @@ public class LocalStorageService implements StorageService {
     }
 
     @Override
+    public String uploadRaw(String path, byte[] bytes, String fileName) {
+        long start = System.currentTimeMillis();
+        try {
+            String fullPath = path + "/" + fileName;
+            Path targetPath = basePath.resolve(fullPath).normalize();
+            Files.createDirectories(targetPath.getParent());
+            Files.write(targetPath, bytes);
+            log.info("Stored raw {} ({} bytes, {}ms)", fullPath, bytes.length, System.currentTimeMillis() - start);
+            return fullPath;
+        } catch (IOException e) {
+            log.error("Failed to store raw file: {}", e.getMessage());
+            throw new RuntimeException("Failed to store file", e);
+        }
+    }
+
+    @Override
     public Resource download(String filePath) {
         Path targetPath = basePath.resolve(filePath).normalize();
         if (!Files.exists(targetPath)) {

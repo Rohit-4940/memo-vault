@@ -7,7 +7,6 @@ import { MemoWorkflowService } from '../../../shared-services/api-service/memo-w
 import { MemoTypeService } from '../../../shared-services/api-service/memo-type.service';
 import { UserService } from '../../../shared-services/api-service/user.service';
 import { RoleService } from '../../../shared-services/api-service/role.service';
-import { MemoFormFieldService } from '../../../shared-services/api-service/memo-form-field.service';
 import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
 
 @Component({
@@ -36,21 +35,25 @@ export class MemoWorkflowConfigComponent implements OnInit {
   newStageUserId: number | null = null;
   newStageRoleId: number | null = null;
   userBased = true;
+  /** Phase 6c — guards applied to stages added from the panel. */
+  newStageRequireComment = true;
+  newStageRequireDocument = false;
 
-  fieldTypes = ['TEXT', 'NUMBER', 'CURRENCY', 'DATE', 'DATETIME', 'DROPDOWN', 'MULTI_SELECT', 'RADIO', 'CHECKBOX', 'TEXTAREA'];
+  /** Phase 4c/6 — the widget hints stored on MemoType.formSchema (lowercase, matches the backend/FormField). */
+  fieldTypes = ['text', 'textarea', 'number', 'money', 'date', 'datetime', 'select', 'multiselect', 'radio', 'checkbox'];
 
   constructor(
     private workflowService: MemoWorkflowService,
     private memoTypeService: MemoTypeService,
     private userService: UserService,
     private roleService: RoleService,
-    private formFieldService: MemoFormFieldService,
     private toastr: ToastrService,
     private modalService: NgbModal
   ) {}
 
+  /** Field row shape used by this tab; it is mapped to/from the backend FormField JSON on load/save. */
   emptyField(): any {
-    return { fieldKey: '', fieldLabel: '', fieldType: 'TEXT', fieldOrder: 0, sectionName: '', required: false, readOnly: false, defaultValue: '', options: '', validationRules: '', conditionalLogic: '', placeholder: '', helpText: '', isActive: true };
+    return { id: null, fieldKey: '', fieldLabel: '', fieldType: 'text', required: false, defaultValue: '', placeholder: '', options: '' };
   }
 
   ngOnInit() {
@@ -142,6 +145,8 @@ export class MemoWorkflowConfigComponent implements OnInit {
       stageName: '',
       assigneeType: this.userBased ? 'USER' : 'ROLE',
       assigneeId: this.userBased ? this.newStageUserId : this.newStageRoleId,
+      requireComment: this.newStageRequireComment,
+      requireDocument: this.newStageRequireDocument,
       assigneeName: this.userBased
         ? (user ? user.name || user.userName : 'User ' + this.newStageUserId)
         : (role ? role.roleName : 'Role ' + this.newStageRoleId)
@@ -149,6 +154,8 @@ export class MemoWorkflowConfigComponent implements OnInit {
     this.stages.push(stage);
     this.newStageUserId = null;
     this.newStageRoleId = null;
+    this.newStageRequireComment = true;
+    this.newStageRequireDocument = false;
   }
 
   removeStage(index: number) {
@@ -215,10 +222,23 @@ export class MemoWorkflowConfigComponent implements OnInit {
     return user.name || user.userName || '';
   }
 
+  /** Loads the memo type's real form schema (Phase 4c) into the editable field rows. */
   loadFormFields() {
     if (!this.selectedMemoTypeId) return;
-    this.formFieldService.getFieldsByMemoType(this.selectedMemoTypeId).subscribe({
-      next: (d) => { this.formFields = d || []; this.resetFieldForm(); },
+    this.memoTypeService.getFormSchema(this.selectedMemoTypeId).subscribe({
+      next: (fields) => {
+        this.formFields = (fields || []).map((f: any, i: number) => ({
+          id: i,
+          fieldKey: f.key || '',
+          fieldLabel: f.label || '',
+          fieldType: f.type || 'text',
+          required: !!f.required,
+          defaultValue: f.defaultValue || '',
+          placeholder: f.placeholder || '',
+          options: (f.options && f.options.length) ? JSON.stringify(f.options) : ''
+        }));
+        this.resetFieldForm();
+      },
       error: () => this.formFields = []
     });
   }
@@ -244,34 +264,65 @@ export class MemoWorkflowConfigComponent implements OnInit {
       this.toastr.warning('Field key and label are required');
       return;
     }
-    modal.close();
-    const field = { ...this.newField, fieldOrder: this.formFields.length + 1 };
-    if (this.editingFieldId) {
-      this.formFieldService.updateField(this.editingFieldId, this.selectedMemoTypeId!, field).subscribe({
-        next: () => { this.toastr.success('Field updated'); this.loadFormFields(); },
-        error: () => this.toastr.error('Failed to update field')
-      });
-    } else {
-      this.formFieldService.createField(this.selectedMemoTypeId!, field).subscribe({
-        next: () => { this.toastr.success('Field added'); this.loadFormFields(); },
-        error: () => this.toastr.error('Failed to add field')
-      });
+    const key = String(this.newField.fieldKey).trim();
+    const duplicate = this.formFields.some((f, i) => f.id !== this.editingFieldId && String(f.fieldKey).trim() === key);
+    if (duplicate) {
+      this.toastr.warning(`Field key '${key}' is already used`);
+      return;
     }
+    modal.close();
+    if (this.editingFieldId !== null && this.editingFieldId !== undefined) {
+      const idx = this.formFields.findIndex(f => f.id === this.editingFieldId);
+      if (idx >= 0) this.formFields[idx] = { ...this.newField, id: this.editingFieldId };
+    } else {
+      this.formFields.push({ ...this.newField, id: this.nextFieldId() });
+    }
+    this.persistFields();
   }
 
   deleteField(id: number) {
     if (!confirm('Delete this field?')) return;
-    this.formFieldService.deleteField(id).subscribe({
-      next: () => { this.toastr.success('Field deleted'); this.loadFormFields(); },
-      error: () => this.toastr.error('Failed to delete field')
-    });
+    this.formFields = this.formFields.filter(f => f.id !== id);
+    this.persistFields();
   }
 
   saveAllFormFields() {
+    this.persistFields();
+  }
+
+  private nextFieldId(): number {
+    return this.formFields.reduce((max, f) => Math.max(max, Number(f.id) || 0), 0) + 1;
+  }
+
+  /** Parses the options input (JSON array, or comma-separated fallback) into a string list. */
+  private parseOptions(options: any): string[] {
+    if (!options) return [];
+    if (Array.isArray(options)) return options;
+    try {
+      const parsed = JSON.parse(options);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return String(options).split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+    }
+  }
+
+  /** Persists the field rows to the memo type's form_schema JSON via the memo-types API. */
+  private persistFields() {
     if (!this.selectedMemoTypeId) return;
-    this.formFieldService.saveAllFields(this.selectedMemoTypeId, this.formFields).subscribe({
-      next: () => { this.toastr.success('All fields saved'); this.loadFormFields(); },
-      error: () => this.toastr.error('Failed to save fields')
+    const type = this.memoTypes.find(t => t.id === Number(this.selectedMemoTypeId));
+    if (!type) { this.toastr.error('Memo type not found'); return; }
+    const schema = this.formFields.map((f: any) => ({
+      key: String(f.fieldKey || '').trim(),
+      label: String(f.fieldLabel || '').trim(),
+      type: f.fieldType || 'text',
+      required: !!f.required,
+      placeholder: f.placeholder || '',
+      defaultValue: f.defaultValue || '',
+      options: this.parseOptions(f.options)
+    }));
+    this.memoTypeService.updateMemoType(type.id, { ...type, formSchema: JSON.stringify(schema) }).subscribe({
+      next: () => { this.toastr.success('Form fields saved'); this.loadFormFields(); },
+      error: (err) => this.toastr.error(err.error?.message || 'Failed to save fields')
     });
   }
 

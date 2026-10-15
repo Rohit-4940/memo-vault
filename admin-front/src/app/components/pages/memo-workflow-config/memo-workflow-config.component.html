@@ -140,6 +140,19 @@
                   </select>
                 </div>
               }
+              <div class="add-stage-field add-stage-guards">
+                <label class="form-label-sm">Stage rules</label>
+                <div class="guard-toggles">
+                  <label class="guard-toggle">
+                    <input type="checkbox" [(ngModel)]="newStageRequireComment" />
+                    <span>Require comment</span>
+                  </label>
+                  <label class="guard-toggle">
+                    <input type="checkbox" [(ngModel)]="newStageRequireDocument" />
+                    <span>Require document</span>
+                  </label>
+                </div>
+              </div>
               <div class="add-stage-btn">
                 <button class="btn btn-primary" (click)="addStage()"
                   [disabled]="userBased ? !newStageUserId : !newStageRoleId">
@@ -174,6 +187,16 @@
                           [class.secondary]="stage.assigneeType === 'ROLE'">
                           {{ stage.assigneeType }}
                         </span>
+                      </div>
+                      <div class="stage-guards">
+                        <label class="guard-toggle" title="A decision at this stage must include a comment">
+                          <input type="checkbox" [(ngModel)]="stage.requireComment" />
+                          <span>Comment</span>
+                        </label>
+                        <label class="guard-toggle" title="Approving at this stage requires an attached document">
+                          <input type="checkbox" [(ngModel)]="stage.requireDocument" />
+                          <span>Document</span>
+                        </label>
                       </div>
                       <button class="btn-icon btn-remove" (click)="removeStage($index)" title="Remove stage">
                         <i class="fas fa-times"></i>
@@ -420,41 +443,22 @@
       </div>
       <div class="col-md-6">
         <div class="form-group">
-          <label>Section</label>
-          <input class="form-control" [(ngModel)]="newField.sectionName" placeholder="e.g. Loan Details" />
-        </div>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-md-6">
-        <div class="form-group">
           <label>Default Value</label>
           <input class="form-control" [(ngModel)]="newField.defaultValue" placeholder="Default value" />
         </div>
       </div>
+    </div>
+    <div class="row">
       <div class="col-md-6">
         <div class="form-group">
           <label>Placeholder</label>
           <input class="form-control" [(ngModel)]="newField.placeholder" placeholder="Placeholder text" />
         </div>
       </div>
-    </div>
-    <div class="form-group">
-      <label>Options <span class="form-hint-inline">(JSON array for dropdown / multi / radio / checkbox)</span></label>
-      <input class="form-control" [(ngModel)]="newField.options" placeholder='["Option 1","Option 2"]' />
-    </div>
-    <div class="row">
       <div class="col-md-6">
         <div class="form-group">
-          <label>Conditional Logic <span class="form-hint-inline">(JSON)</span></label>
-          <input class="form-control" [(ngModel)]="newField.conditionalLogic"
-            placeholder='{"fieldKey":"type","value":"value"}' />
-        </div>
-      </div>
-      <div class="col-md-6">
-        <div class="form-group">
-          <label>Help Text</label>
-          <input class="form-control" [(ngModel)]="newField.helpText" placeholder="Help text for users" />
+          <label>Options <span class="form-hint-inline">(JSON array for select / multi / radio / checkbox)</span></label>
+          <input class="form-control" [(ngModel)]="newField.options" placeholder='["Option 1","Option 2"]' />
         </div>
       </div>
     </div>
@@ -463,12 +467,6 @@
         <div class="form-check">
           <input type="checkbox" class="form-check-input" id="chkRequired" [(ngModel)]="newField.required" />
           <label class="form-check-label" for="chkRequired">Required</label>
-        </div>
-      </div>
-      <div class="col-6">
-        <div class="form-check">
-          <input type="checkbox" class="form-check-input" id="chkReadOnly" [(ngModel)]="newField.readOnly" />
-          <label class="form-check-label" for="chkReadOnly">Read Only</label>
         </div>
       </div>
     </div>

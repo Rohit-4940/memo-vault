@@ -1,5 +1,6 @@
 package com.nexmemo.core.dto;
 
+import com.nexmemo.core.enums.CompressionPreset;
 import com.nexmemo.core.enums.CompressionStatus;
 import com.nexmemo.core.enums.CompressionType;
 import lombok.AllArgsConstructor;
@@ -18,7 +19,14 @@ public class CompressionResponse {
     private String compressedName;
     private Long compressedSize;
     private CompressionType compressionType;
+    private CompressionPreset preset;
     private CompressionStatus status;
+    private Integer progressPercent;
+    private Integer attempts;
+    private String batchId;
+    private Boolean verified;
+    private Integer archiveEntryCount;
+    private Long archiveUncompressedBytes;
     private Long durationMs;
     private int ratioPercent;
     private long savings;

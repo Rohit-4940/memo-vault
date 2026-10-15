@@ -27,4 +27,12 @@ public class MemoWorkflowStage extends BaseEntity<Long> implements Serializable 
 
     @Column(name = "assignee_name")
     private String assigneeName;
+
+    /** Phase 6c — a decision on this stage must include a comment. */
+    @Column(name = "require_comment", nullable = false)
+    private Boolean requireComment = true;
+
+    /** Phase 6c — approving at this stage requires an attached document. */
+    @Column(name = "require_document", nullable = false)
+    private Boolean requireDocument = false;
 }

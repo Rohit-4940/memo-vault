@@ -76,6 +76,12 @@ public class MinioStorageService implements StorageService {
     }
 
     @Override
+    public String uploadRaw(String path, byte[] bytes, String fileName) {
+        // MinIO storage never applies transparent compression, so this matches upload(byte[]...).
+        return upload(path, bytes, fileName);
+    }
+
+    @Override
     public Resource download(String filePath) {
         try {
             try (var stream = minioClient.getObject(GetObjectArgs.builder()

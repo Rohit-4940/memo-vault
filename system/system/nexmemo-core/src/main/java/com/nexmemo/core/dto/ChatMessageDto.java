@@ -56,6 +56,10 @@ public class ChatMessageDto {
     // ── attachments (Phase 2f) ────────────────────────────────────────────────
     private java.util.List<ChatAttachmentDto> attachments;
 
+    // ── shared vault documents (Phase 5) ──────────────────────────────────────
+    /** Vault documents shared into this message; metadata is only present when the viewer may read. */
+    private java.util.List<ChatMessageDocumentDto> documents;
+
     // ── delivery/read status (sender's own messages only) ─────────────────────
     /** SENT | DELIVERED | READ — null when the viewer is not the author. */
     private String deliveryState;

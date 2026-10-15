@@ -38,6 +38,13 @@ public class Memo extends BaseEntity<Long> implements Serializable {
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    /**
+     * Dynamic field values captured by the memo type's form schema, stored as JSON (Phase 4c).
+     * Nullable so legacy memos / template-content memos are unaffected.
+     */
+    @Column(name = "form_values", columnDefinition = "TEXT")
+    private String formValues;
+
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

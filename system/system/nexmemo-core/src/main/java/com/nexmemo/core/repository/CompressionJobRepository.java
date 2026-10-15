@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -19,18 +20,22 @@ public interface CompressionJobRepository extends JpaRepository<CompressionJob, 
 
     Page<CompressionJob> findByCreatedByAndStatusOrderByCreatedDateDesc(Long createdBy, CompressionStatus status, Pageable pageable);
 
-    Page<CompressionJob> findByCreatedByAndOriginalNameContainingIgnoreCaseOrderByCreatedDateDesc(Long createdBy, String search, Pageable pageable);
+    Page<CompressionJob> findByCreatedByAndOriginalNameContainingIgnoreCaseOrderByCreatedDateDesc(
+            Long createdBy, String search, Pageable pageable);
 
     Optional<CompressionJob> findByIdAndCreatedBy(Long id, Long createdBy);
 
-    long countByCreatedBy(Long createdBy);
+    List<CompressionJob> findByCreatedByAndBatchIdOrderByCreatedDateAsc(Long createdBy, String batchId);
 
-    @Query("SELECT COALESCE(SUM(c.originalSize), 0) FROM CompressionJob c WHERE c.createdBy = :userId AND c.status = 'COMPLETED'")
+    /**
+     * Jobs that were left mid-flight (e.g. the process restarted). Used by the recovery sweep to
+     * re-queue work instead of leaving rows stuck in {@code IN_PROGRESS} forever.
+     */
+    List<CompressionJob> findByStatus(CompressionStatus status);
+
+    @Query("select coalesce(sum(j.originalSize), 0) from CompressionJob j where j.createdBy = :userId and j.status = com.nexmemo.core.enums.CompressionStatus.COMPLETED")
     long totalOriginalBytesByUser(@Param("userId") Long userId);
 
-    @Query("SELECT COALESCE(SUM(c.compressedSize), 0) FROM CompressionJob c WHERE c.createdBy = :userId AND c.status = 'COMPLETED'")
+    @Query("select coalesce(sum(j.compressedSize), 0) from CompressionJob j where j.createdBy = :userId and j.status = com.nexmemo.core.enums.CompressionStatus.COMPLETED")
     long totalCompressedBytesByUser(@Param("userId") Long userId);
-
-    @Query("SELECT COUNT(c) FROM CompressionJob c WHERE c.createdBy = :userId AND c.status = 'COMPLETED'")
-    long completedCountByUser(@Param("userId") Long userId);
 }

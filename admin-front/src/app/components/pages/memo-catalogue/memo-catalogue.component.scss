@@ -1,0 +1,103 @@
+.tab-switch {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab-btn {
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  background: transparent;
+  color: inherit;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &.active {
+    background: var(--bs-primary, #0d6efd);
+    border-color: var(--bs-primary, #0d6efd);
+    color: #fff;
+  }
+
+  .tab-count {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    padding: 0 0.45rem;
+    font-size: 0.75rem;
+  }
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+
+  i { color: #6c757d; }
+}
+
+.catalogue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.catalogue-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--bs-border-color, #e4e7eb);
+  border-radius: 0.75rem;
+  background: var(--bs-body-bg, #fff);
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--bs-primary, #0d6efd);
+    box-shadow: 0 6px 18px rgba(13, 110, 253, 0.12);
+    transform: translateY(-2px);
+  }
+
+  .catalogue-icon {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    border-radius: 0.6rem;
+    display: grid;
+    place-items: center;
+    background: rgba(13, 110, 253, 0.1);
+    color: var(--bs-primary, #0d6efd);
+    font-size: 1.25rem;
+  }
+
+  .catalogue-body {
+    flex: 1 1 auto;
+    min-width: 0;
+
+    h4 { margin: 0 0 0.15rem; font-size: 1rem; }
+    p { margin: 0 0 0.4rem; font-size: 0.85rem; color: #6c757d;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  }
+
+  .catalogue-action { color: #adb5bd; }
+}
+
+.tracking-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--bs-border-color, #eef1f4);
+
+    &:last-child { border-bottom: 0; }
+  }
+
+  .tracking-action { font-size: 0.9rem; }
+  .tracking-meta { font-size: 0.82rem; }
+  .tracking-remarks { font-size: 0.82rem; color: #6c757d; font-style: italic; }
+}

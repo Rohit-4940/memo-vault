@@ -1777,4 +1777,411 @@
         </createIndex>
         <comment>Secure attachments: original bytes in-database, scanned (clamd) before release</comment>
     </changeSet>
+
+    <changeSet id="20261012-1" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="financial_period"/></not></preConditions>
+        <createTable tableName="financial_period">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="fiscal_year_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="start_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="end_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)" defaultValue="CLOSED"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="financial_period" baseColumnNames="fiscal_year_id"
+                                 referencedTableName="fiscal_year" referencedColumnNames="id"
+                                 constraintName="fk_financial_period_fiscal_year"/>
+        <createIndex tableName="financial_period" indexName="idx_financial_period_fy_status">
+            <column name="fiscal_year_id"/><column name="status"/>
+        </createIndex>
+        <createIndex tableName="financial_period" indexName="idx_financial_period_dates">
+            <column name="start_date"/><column name="end_date"/>
+        </createIndex>
+        <comment>Phase 4b — financial periods with open/closed/locked lifecycle inside a fiscal year</comment>
+    </changeSet>
+
+    <changeSet id="20261012-2" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><columnExists tableName="memo_type" columnName="form_schema"/></not></preConditions>
+        <addColumn tableName="memo_type">
+            <column name="form_schema" type="TEXT"/>
+        </addColumn>
+        <comment>Phase 4c — dynamic creation-form schema (JSON list of FormField) per memo type</comment>
+    </changeSet>
+
+    <changeSet id="20261012-3" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><columnExists tableName="memo" columnName="form_values"/></not></preConditions>
+        <addColumn tableName="memo">
+            <column name="form_values" type="TEXT"/>
+        </addColumn>
+        <comment>Phase 4c — dynamic form values captured at memo creation (JSON)</comment>
+    </changeSet>
+
+    <changeSet id="20261012-4" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><columnExists tableName="memo_workflow_config" columnName="revision"/></not></preConditions>
+        <addColumn tableName="memo_workflow_config">
+            <column name="revision" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <comment>Phase 5 — workflow config revision, bumped on every config/stage save; in-flight stage instances keep the revision they were launched with</comment>
+    </changeSet>
+
+    <changeSet id="20261012-5" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><columnExists tableName="workflow_stage_instance" columnName="config_id"/></not></preConditions>
+        <addColumn tableName="workflow_stage_instance">
+            <column name="config_id" type="BIGINT"/>
+            <column name="config_version" type="INT"/>
+            <column name="assignee_ids" type="VARCHAR(800)"/>
+            <column name="stage_name" type="VARCHAR(255)"/>
+            <column name="require_comment" type="BIT"/>
+            <column name="require_document" type="BIT"/>
+        </addColumn>
+        <comment>Phase 5 — frozen per-instance workflow snapshot (config revision, assignee pool, stage name, guard flags) so later config versions never rewrite in-flight instances</comment>
+    </changeSet>
+
+    <changeSet id="20261012-6" author="NexMemo">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="workflow_stage_instance" columnName="stage_id"/>
+        </preConditions>
+        <dropNotNullConstraint tableName="workflow_stage_instance" columnName="stage_id" columnDataType="BIGINT"/>
+        <comment>Phase 5 — config-driven stage instances do not reference a global workflow_stage row; stage_id becomes nullable (stage_name snapshot carries the label)</comment>
+    </changeSet>
+
+    <changeSet id="20261013-1" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><columnExists tableName="memo_workflow_stage" columnName="require_comment"/></not></preConditions>
+        <addColumn tableName="memo_workflow_stage">
+            <column name="require_comment" type="BIT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="require_document" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </addColumn>
+        <comment>Phase 6c — per-stage decision guards for config-driven workflow stages; null falls back to the config-level defaults</comment>
+    </changeSet>
+
+    <!-- ============================================================= -->
+    <!-- Enterprise Phase 2: document storage, metadata & access control -->
+    <!-- ============================================================= -->
+
+    <changeSet id="20261014-1" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="document_record"/></not></preConditions>
+        <createTable tableName="document_record">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="storage_key" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="original_filename" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="content_type" type="VARCHAR(120)"/>
+            <column name="size_bytes" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="sha256" type="VARCHAR(64)"/>
+            <column name="title" type="VARCHAR(500)"/>
+            <column name="description" type="TEXT"/>
+            <column name="owner_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="classification" type="VARCHAR(30)" defaultValue="INTERNAL"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="branch_id" type="BIGINT"/>
+            <column name="department_id" type="BIGINT"/>
+            <column name="current_version" type="INT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="source_type" type="VARCHAR(20)" defaultValue="UPLOAD"><constraints nullable="false"/></column>
+            <column name="source_ref_id" type="BIGINT"/>
+            <column name="retention_until" type="DATETIME"/>
+            <column name="is_deleted" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <createIndex tableName="document_record" indexName="idx_docrec_owner"><column name="owner_id"/></createIndex>
+        <createIndex tableName="document_record" indexName="idx_docrec_status"><column name="status"/></createIndex>
+        <createIndex tableName="document_record" indexName="idx_docrec_sha256"><column name="sha256"/></createIndex>
+        <createIndex tableName="document_record" indexName="idx_docrec_source"><column name="source_type"/><column name="source_ref_id"/></createIndex>
+        <createIndex tableName="document_record" indexName="idx_docrec_created"><column name="created_date"/></createIndex>
+        <comment>Phase 2 — canonical document metadata (bytes live in private storage under storage_key)</comment>
+    </changeSet>
+
+    <changeSet id="20261014-2" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="document_version"/></not></preConditions>
+        <createTable tableName="document_version">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="document_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="version_no" type="INT"><constraints nullable="false"/></column>
+            <column name="storage_key" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="original_filename" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="content_type" type="VARCHAR(120)"/>
+            <column name="size_bytes" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="sha256" type="VARCHAR(64)"/>
+            <column name="notes" type="VARCHAR(500)"/>
+            <column name="uploaded_by_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="document_version" baseColumnNames="document_id"
+                                 referencedTableName="document_record" referencedColumnNames="id"
+                                 constraintName="fk_docver_document"/>
+        <addUniqueConstraint tableName="document_version" columnNames="document_id,version_no"
+                             constraintName="uq_docver_doc_no"/>
+        <createIndex tableName="document_version" indexName="idx_docver_document"><column name="document_id"/><column name="version_no"/></createIndex>
+        <createIndex tableName="document_version" indexName="idx_docver_sha256"><column name="sha256"/></createIndex>
+        <comment>Phase 2 — immutable per-revision snapshots enabling version integrity and comparison</comment>
+    </changeSet>
+
+    <changeSet id="20261014-3" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="document_permission"/></not></preConditions>
+        <createTable tableName="document_permission">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="document_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="subject_type" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="subject_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="can_read" type="BIT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="can_write" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="can_delete" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="can_share" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="granted_by_id" type="BIGINT"/>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="document_permission" baseColumnNames="document_id"
+                                 referencedTableName="document_record" referencedColumnNames="id"
+                                 constraintName="fk_docperm_document"/>
+        <addUniqueConstraint tableName="document_permission" columnNames="document_id,subject_type,subject_id"
+                             constraintName="uq_docperm_doc_subject"/>
+        <createIndex tableName="document_permission" indexName="idx_docperm_document"><column name="document_id"/></createIndex>
+        <createIndex tableName="document_permission" indexName="idx_docperm_subject"><column name="subject_type"/><column name="subject_id"/></createIndex>
+        <comment>Phase 2 — additive grants for USER/ROLE/BRANCH/DEPARTMENT subjects; owner and admins always allowed</comment>
+    </changeSet>
+
+    <changeSet id="20261014-4" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="document_share_link"/></not></preConditions>
+        <createTable tableName="document_share_link">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="document_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="token" type="VARCHAR(64)"><constraints nullable="false" unique="true" uniqueConstraintName="uq_doclink_token"/></column>
+            <column name="expires_at" type="DATETIME"/>
+            <column name="revoked" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="max_downloads" type="INT"/>
+            <column name="download_count" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="password_hash" type="VARCHAR(255)"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="document_share_link" baseColumnNames="document_id"
+                                 referencedTableName="document_record" referencedColumnNames="id"
+                                 constraintName="fk_doclink_document"/>
+        <createIndex tableName="document_share_link" indexName="idx_doclink_document"><column name="document_id"/></createIndex>
+        <comment>Phase 2 — time-boxed, revocable share links with optional download cap and password</comment>
+    </changeSet>
+
+    <changeSet id="20261014-5" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="document_audit_event"/></not></preConditions>
+        <createTable tableName="document_audit_event">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="document_id" type="BIGINT"/>
+            <column name="action" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="actor_id" type="BIGINT"/>
+            <column name="details" type="TEXT"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="SUCCESS"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <createIndex tableName="document_audit_event" indexName="idx_docaudit_document"><column name="document_id"/><column name="created_date"/></createIndex>
+        <createIndex tableName="document_audit_event" indexName="idx_docaudit_actor"><column name="actor_id"/></createIndex>
+        <comment>Phase 2 — per-document audit trail (upload/download/share/permission/delete/denied)</comment>
+    </changeSet>
+
+    <changeSet id="20261014-6" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="document_tag"/></not></preConditions>
+        <createTable tableName="document_tag">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="document_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="tag" type="VARCHAR(80)"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="document_tag" baseColumnNames="document_id"
+                                 referencedTableName="document_record" referencedColumnNames="id"
+                                 constraintName="fk_doctag_document"/>
+        <addUniqueConstraint tableName="document_tag" columnNames="document_id,tag" constraintName="uq_doctag_doc_tag"/>
+        <createIndex tableName="document_tag" indexName="idx_doctag_document"><column name="document_id"/></createIndex>
+        <createIndex tableName="document_tag" indexName="idx_doctag_tag"><column name="tag"/></createIndex>
+        <comment>Phase 2 — free-text tags for catalogue filtering</comment>
+    </changeSet>
+
+    <!-- ============================================================= -->
+    <!-- Enterprise Phase 3: asynchronous, secure compressor           -->
+    <!-- ============================================================= -->
+
+    <changeSet id="20261015-1" author="NexMemo">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="compression_job" columnName="progress_percent"/></not>
+        </preConditions>
+        <addColumn tableName="compression_job">
+            <column name="progress_percent" type="INT" defaultValueNumeric="0"/>
+            <column name="cancel_requested" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="attempts" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="preset" type="VARCHAR(30)"/>
+            <column name="batch_id" type="VARCHAR(64)"/>
+        </addColumn>
+        <createIndex tableName="compression_job" indexName="idx_cj_batch">
+            <column name="batch_id"/>
+        </createIndex>
+        <comment>Phase 3 — async job lifecycle: progress, cooperative cancel, retry attempts, preset and batch grouping</comment>
+    </changeSet>
+
+    <changeSet id="20261015-2" author="NexMemo">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="compression_job" columnName="input_storage_key"/></not>
+        </preConditions>
+        <addColumn tableName="compression_job">
+            <column name="input_storage_key" type="VARCHAR(500)"/>
+            <column name="storage_key" type="VARCHAR(500)"/>
+        </addColumn>
+        <comment>Phase 3 — private, generated storage keys for input and output blobs (storage_path retained as a legacy fallback)</comment>
+    </changeSet>
+
+    <changeSet id="20261015-3" author="NexMemo">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="compression_job" columnName="verified"/></not>
+        </preConditions>
+        <addColumn tableName="compression_job">
+            <column name="verified" type="BIT"/>
+            <column name="archive_entry_count" type="INT"/>
+            <column name="archive_uncompressed_bytes" type="BIGINT"/>
+        </addColumn>
+        <comment>Phase 3 — integrity verification result and archive guardrail summary</comment>
+    </changeSet>
+
+    <!-- ============================================================= -->
+    <!-- Enterprise Phase 4: secure vault — folders, preview, sharing  -->
+    <!-- ============================================================= -->
+
+    <changeSet id="20261016-1" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="document_folder"/></not></preConditions>
+        <createTable tableName="document_folder">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="owner_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="parent_id" type="BIGINT"/>
+            <column name="name" type="VARCHAR(200)"><constraints nullable="false"/></column>
+            <column name="path" type="VARCHAR(1000)" defaultValue="/"><constraints nullable="false"/></column>
+            <column name="is_deleted" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/><column name="modified_by_id" type="BIGINT"/>
+            <column name="created_date" type="DATETIME"/><column name="modified_date" type="DATETIME"/>
+        </createTable>
+        <createIndex tableName="document_folder" indexName="idx_docfolder_owner">
+            <column name="owner_id"/><column name="is_deleted"/>
+        </createIndex>
+        <createIndex tableName="document_folder" indexName="idx_docfolder_parent"><column name="parent_id"/></createIndex>
+        <comment>Phase 4 — owner-scoped organisational folder tree (never affects document access)</comment>
+    </changeSet>
+
+    <changeSet id="20261016-2" author="NexMemo">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="document_record" columnName="folder_id"/></not>
+        </preConditions>
+        <addColumn tableName="document_record">
+            <column name="folder_id" type="BIGINT"/>
+            <column name="hold_reason" type="VARCHAR(500)"/>
+        </addColumn>
+        <createIndex tableName="document_record" indexName="idx_docrec_folder"><column name="folder_id"/></createIndex>
+        <comment>Phase 4 — organisational folder placement and legal-hold reason</comment>
+    </changeSet>
+
+    <changeSet id="20261016-3" author="NexMemo">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="menu"/>
+        </preConditions>
+        <update tableName="menu">
+            <column name="menu_name" value="Document Vault"/>
+            <where>front_url = '/layout/document-list'</where>
+        </update>
+        <comment>Phase 4 — relabel the existing document menu entry as the vault</comment>
+    </changeSet>
+
+    <!-- ============================================================= -->
+    <!-- Enterprise Phase 5: chat document shares, drafts, labels -->
+    <!-- ============================================================= -->
+
+    <changeSet id="20261017-1" author="NexMemo">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_message_document"/></not></preConditions>
+        <createTable tableName="chat_message_document">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="modified_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="message_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="conversation_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="document_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="document_version_no" type="INT"/>
+            <column name="document_title" type="VARCHAR(500)"/>
+            <column name="original_filename" type="VARCHAR(255)"/>
+            <column name="content_type" type="VARCHAR(120)"/>
+            <column name="size_bytes" type="BIGINT"/>
+            <column name="sha256" type="CHAR(64)"/>
+            <column name="classification" type="VARCHAR(30)"/>
+            <column name="note" type="VARCHAR(500)"/>
+            <column name="shared_by_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="granted_read" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="is_revoked" type="BIT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="chat_message_document" indexName="idx_cmsgdoc_message"><column name="message_id"/></createIndex>
+        <createIndex tableName="chat_message_document" indexName="idx_cmsgdoc_conv"><column name="conversation_id"/></createIndex>
+        <createIndex tableName="chat_message_document" indexName="idx_cmsgdoc_document"><column name="document_id"/></createIndex>
+    </changeSet>
+
+    <changeSet id="20261017-2" author="NexMemo" ignore="false">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_draft"/></not></preConditions>
+        <createTable tableName="chat_draft">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="modified_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="conversation_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="body" type="TEXT"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="chat_draft" constraintName="uq_chat_draft_conv_user" columnNames="conversation_id,user_id"/>
+    </changeSet>
+
+    <changeSet id="20261017-3" author="NexMemo" ignore="false">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_conversation_label"/></not></preConditions>
+        <createTable tableName="chat_conversation_label">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="modified_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(60)"><constraints nullable="false"/></column>
+            <column name="color" type="VARCHAR(20)"/>
+        </createTable>
+        <addUniqueConstraint tableName="chat_conversation_label" constraintName="uq_chat_label_user_name" columnNames="user_id,name"/>
+        <createIndex tableName="chat_conversation_label" indexName="idx_chat_label_user"><column name="user_id"/></createIndex>
+    </changeSet>
+
+    <changeSet id="20261017-4" author="NexMemo" ignore="false">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_conversation_label_assignment"/></not></preConditions>
+        <createTable tableName="chat_conversation_label_assignment">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="modified_date" type="DATETIME"><constraints nullable="false"/></column>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="modified_by_id" type="BIGINT"/>
+            <column name="label_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="conversation_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="chat_conversation_label_assignment" constraintName="uq_chat_label_conv" columnNames="label_id,conversation_id"/>
+        <createIndex tableName="chat_conversation_label_assignment" indexName="idx_cmsgass_label"><column name="label_id"/></createIndex>
+        <createIndex tableName="chat_conversation_label_assignment" indexName="idx_cmsgass_conv"><column name="conversation_id"/></createIndex>
+    </changeSet>
+
 </databaseChangeLog>

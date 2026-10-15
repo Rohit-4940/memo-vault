@@ -1,6 +1,7 @@
 package com.nexmemo.web.Controller;
 
 import com.nexmemo.core.dto.ApiResponse;
+import com.nexmemo.core.dto.FormField;
 import com.nexmemo.core.dto.PageResponse;
 import com.nexmemo.core.dto.PaginatedRequest;
 import com.nexmemo.core.entity.MemoType;
@@ -39,6 +40,13 @@ public class MemoTypeManageController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<MemoType>> getMemoType(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(memoTypeService.getMemoTypeById(id)));
+    }
+
+    /** Phase 4c — parsed dynamic form schema for a memo type, used to render the creation form. */
+    @GetMapping("/{id}/form-schema")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<FormField>>> getFormSchema(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(memoTypeService.getFormSchema(id)));
     }
 
     @PostMapping

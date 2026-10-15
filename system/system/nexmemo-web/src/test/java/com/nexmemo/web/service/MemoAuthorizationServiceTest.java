@@ -4,6 +4,7 @@ import com.nexmemo.core.entity.Memo;
 import com.nexmemo.core.entity.MemoWorkflowPermission;
 import com.nexmemo.core.entity.Role;
 import com.nexmemo.core.entity.User;
+import com.nexmemo.core.entity.WorkflowStageInstance;
 import com.nexmemo.core.enums.MemoStatus;
 import com.nexmemo.core.enums.RoleType;
 import com.nexmemo.core.enums.WorkflowStageStatus;
@@ -367,5 +368,58 @@ class MemoAuthorizationServiceTest {
         when(memoRepository.findById(MEMO_ID)).thenReturn(Optional.of(memoOwnedBy(USER)));
         service.assertCanViewMemo(USER, MEMO_ID);
         verifyNoInteractions(auditEventPublisher);
+    }
+
+    // ── assignee pool (Phase 5: every eligible middle approver) ───────────────
+
+    private WorkflowStageInstance stageInstance(WorkflowStageStatus status, String assigneeIds) {
+        WorkflowStageInstance instance = new WorkflowStageInstance();
+        instance.setStatus(status);
+        instance.setAssigneeIds(assigneeIds);
+        return instance;
+    }
+
+    @Test
+    void canViewMemo_poolMemberAllowed() {
+        when(memoRepository.findById(MEMO_ID)).thenReturn(Optional.of(memoOwnedBy(999L)));
+        when(memoCcRepository.findByMemoIdAndUserId(MEMO_ID, USER)).thenReturn(Optional.empty());
+        when(workflowStageInstanceRepository.existsByMemoIdAndAssigneeId(MEMO_ID, USER)).thenReturn(false);
+        when(workflowStageInstanceRepository.findByMemoIdOrderByEnteredAtAsc(MEMO_ID))
+                .thenReturn(List.of(stageInstance(WorkflowStageStatus.IN_PROGRESS, "99," + USER)));
+
+        assertThat(service.canViewMemo(USER, MEMO_ID)).isTrue();
+    }
+
+    @Test
+    void canActOnMemo_poolMemberOfInProgressStageAllowed() {
+        when(memoRepository.findById(MEMO_ID)).thenReturn(Optional.of(memoOwnedBy(999L)));
+        when(workflowStageInstanceRepository.existsByMemoIdAndAssigneeIdAndStatus(
+                MEMO_ID, USER, WorkflowStageStatus.IN_PROGRESS)).thenReturn(false);
+        when(workflowStageInstanceRepository.findByMemoIdOrderByEnteredAtAsc(MEMO_ID))
+                .thenReturn(List.of(stageInstance(WorkflowStageStatus.IN_PROGRESS, "99," + USER)));
+
+        assertThat(service.canActOnMemo(USER, MEMO_ID)).isTrue();
+    }
+
+    @Test
+    void canActOnMemo_poolMemberOfNonInProgressStageDenied() {
+        when(memoRepository.findById(MEMO_ID)).thenReturn(Optional.of(memoOwnedBy(999L)));
+        when(workflowStageInstanceRepository.existsByMemoIdAndAssigneeIdAndStatus(
+                MEMO_ID, USER, WorkflowStageStatus.IN_PROGRESS)).thenReturn(false);
+        when(workflowStageInstanceRepository.findByMemoIdOrderByEnteredAtAsc(MEMO_ID))
+                .thenReturn(List.of(stageInstance(WorkflowStageStatus.DRAFT, String.valueOf(USER))));
+
+        assertThat(service.canActOnMemo(USER, MEMO_ID)).isFalse();
+    }
+
+    @Test
+    void canActOnMemo_poolMemberNotInListDenied() {
+        when(memoRepository.findById(MEMO_ID)).thenReturn(Optional.of(memoOwnedBy(999L)));
+        when(workflowStageInstanceRepository.existsByMemoIdAndAssigneeIdAndStatus(
+                MEMO_ID, USER, WorkflowStageStatus.IN_PROGRESS)).thenReturn(false);
+        when(workflowStageInstanceRepository.findByMemoIdOrderByEnteredAtAsc(MEMO_ID))
+                .thenReturn(List.of(stageInstance(WorkflowStageStatus.IN_PROGRESS, "88,99")));
+
+        assertThat(service.canActOnMemo(USER, MEMO_ID)).isFalse();
     }
 }

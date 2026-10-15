@@ -4,6 +4,7 @@ import com.nexmemo.core.entity.Memo;
 import com.nexmemo.core.entity.MemoWorkflowPermission;
 import com.nexmemo.core.entity.Role;
 import com.nexmemo.core.entity.User;
+import com.nexmemo.core.entity.WorkflowStageInstance;
 import com.nexmemo.core.enums.MemoStatus;
 import com.nexmemo.core.enums.RoleType;
 import com.nexmemo.core.enums.WorkflowStageStatus;
@@ -18,6 +19,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -101,7 +103,8 @@ public class MemoAuthorizationService {
         if (memoCcRepository.findByMemoIdAndUserId(memoId, userId).isPresent()) {
             return true;
         }
-        return workflowStageInstanceRepository.existsByMemoIdAndAssigneeId(memoId, userId);
+        return workflowStageInstanceRepository.existsByMemoIdAndAssigneeId(memoId, userId)
+                || isMemberOfAnyAssigneePool(memoId, userId);
     }
 
     /** May the caller modify this memo's content (submit, cancel, edit drafts)? */
@@ -139,8 +142,21 @@ public class MemoAuthorizationService {
         if (memo.getCurrentApprover() != null && userId.equals(memo.getCurrentApprover().getId())) {
             return true;
         }
-        return workflowStageInstanceRepository.existsByMemoIdAndAssigneeIdAndStatus(
-                memoId, userId, WorkflowStageStatus.IN_PROGRESS);
+        if (workflowStageInstanceRepository.existsByMemoIdAndAssigneeIdAndStatus(
+                memoId, userId, WorkflowStageStatus.IN_PROGRESS)) {
+            return true;
+        }
+        return isMemberOfInProgressPool(memoId, userId);
+    }
+
+    /**
+     * May the caller attach/view a document on this memo? Editors (creator in DRAFT/REVISION) and
+     * the current stage assignees/approvers may attach supporting documents; everyone with view
+     * rights may read them.
+     */
+    @Transactional(readOnly = true)
+    public boolean canAttachDocument(Long userId, Long memoId) {
+        return canEditMemo(userId, memoId) || canActOnMemo(userId, memoId);
     }
 
     /** May the caller acknowledge this memo? Only CC recipients (and admins) may. */
@@ -209,6 +225,39 @@ public class MemoAuthorizationService {
                 && permission.getRoleName().equalsIgnoreCase(roleName);
     }
 
+    // ── Assignee-pool membership (Phase 5) ────────────────────────────────────
+
+    /** True if the user is in the frozen assignee pool of any stage of the memo. */
+    private boolean isMemberOfAnyAssigneePool(Long memoId, Long userId) {
+        return workflowStageInstanceRepository.findByMemoIdOrderByEnteredAtAsc(memoId).stream()
+                .anyMatch(instance -> isInAssigneePool(instance, userId));
+    }
+
+    /** True if the user is in the frozen assignee pool of the currently in-progress stage. */
+    private boolean isMemberOfInProgressPool(Long memoId, Long userId) {
+        return workflowStageInstanceRepository.findByMemoIdOrderByEnteredAtAsc(memoId).stream()
+                .filter(instance -> instance.getStatus() == WorkflowStageStatus.IN_PROGRESS)
+                .anyMatch(instance -> isInAssigneePool(instance, userId));
+    }
+
+    /**
+     * Every eligible approver of a stage may act — not only the primary assignee. The pool is the
+     * frozen comma-separated {@code assignee_ids} captured at submission, plus the primary assignee
+     * for legacy stage instances that predate the pool column.
+     */
+    private boolean isInAssigneePool(WorkflowStageInstance instance, Long userId) {
+        if (instance.getAssignee() != null && Objects.equals(instance.getAssignee().getId(), userId)) {
+            return true;
+        }
+        String ids = instance.getAssigneeIds();
+        if (ids == null || ids.isBlank()) {
+            return false;
+        }
+        return Arrays.stream(ids.split(","))
+                .map(String::trim)
+                .anyMatch(s -> s.equals(String.valueOf(userId)));
+    }
+
     // ── Assertions (throw + audit) ────────────────────────────────────────────
 
     public void assertCanViewMemo(Long userId, Long memoId) {
@@ -232,6 +281,12 @@ public class MemoAuthorizationService {
     public void assertCanAcknowledgeMemo(Long userId, Long memoId) {
         if (!canAcknowledgeMemo(userId, memoId)) {
             deny(userId, ENTITY_MEMO, memoId, "memo acknowledge denied (not a CC recipient)");
+        }
+    }
+
+    public void assertCanAttachDocument(Long userId, Long memoId) {
+        if (!canAttachDocument(userId, memoId)) {
+            deny(userId, ENTITY_MEMO, memoId, "memo document attach denied (not editor, approver or assignee)");
         }
     }
 

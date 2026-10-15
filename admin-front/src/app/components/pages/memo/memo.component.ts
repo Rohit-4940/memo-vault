@@ -17,7 +17,6 @@ import { MemoPdfExportService } from '../../../shared-services/memo-pdf-export.s
 import { MemoDocumentUploadComponent } from '../memo-document-upload/memo-document-upload.component';
 import { PaginationComponent } from '../../../shared-components/pagination/pagination.component';
 import { DynamicFormComponent } from '../../../shared-components/dynamic-form/dynamic-form.component';
-import { MemoFormFieldService } from '../../../shared-services/api-service/memo-form-field.service';
 
 @Component({
   selector: 'app-memo',
@@ -94,8 +93,7 @@ export class MemoComponent implements OnInit {
     private userService: UserService,
     private toastr: ToastrService,
     private http: HttpClient,
-    private route: ActivatedRoute,
-    private formFieldService: MemoFormFieldService
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit() {
@@ -253,10 +251,30 @@ export class MemoComponent implements OnInit {
     this.memoFormFields = [];
     this.memoFormData = {};
     if (!this.selectedMemo.memoTypeId) return;
-    this.formFieldService.getFieldsByMemoType(this.selectedMemo.memoTypeId).subscribe({
-      next: (fields) => { this.memoFormFields = fields || []; },
+    this.memoTypeService.getFormSchema(this.selectedMemo.memoTypeId).subscribe({
+      next: (fields) => { this.memoFormFields = (fields || []).map(f => this.toRenderedField(f)); },
       error: () => this.memoFormFields = []
     });
+  }
+
+  /** Maps the backend form-schema FormField ({key,label,type,options[]}) to the DynamicFormComponent shape. */
+  private toRenderedField(sf: any): any {
+    const typeMap: Record<string, string> = {
+      text: 'TEXT', textarea: 'TEXTAREA', number: 'NUMBER',
+      money: 'CURRENCY', currency: 'CURRENCY', date: 'DATE', datetime: 'DATETIME',
+      select: 'DROPDOWN', dropdown: 'DROPDOWN', multiselect: 'MULTI_SELECT', 'multi-select': 'MULTI_SELECT',
+      radio: 'RADIO', checkbox: 'CHECKBOX'
+    };
+    const opts: string[] = Array.isArray(sf.options) ? sf.options : [];
+    return {
+      fieldKey: sf.key,
+      fieldLabel: sf.label || sf.key,
+      fieldType: typeMap[(sf.type || 'text').toLowerCase()] || 'TEXT',
+      required: !!sf.required,
+      placeholder: sf.placeholder || '',
+      defaultValue: sf.defaultValue || '',
+      options: opts.length ? JSON.stringify(opts) : ''
+    };
   }
 
   onFormDataChange(data: any) {
@@ -313,11 +331,17 @@ export class MemoComponent implements OnInit {
       this.toastr.warning('Please fill in all required dynamic form fields');
       return;
     }
+    // Prefer the live dynamic-form state so untouched fields carrying defaults are captured,
+    // and fall back to the last emitted change set.
+    let formValues: any = this.memoFormData;
+    if (this.dynamicFormRef) {
+      try { formValues = JSON.parse(this.dynamicFormRef.getFormDataJson()); } catch { formValues = this.memoFormData; }
+    }
     const payload = {
       ...this.selectedMemo,
       expenseCategory: this.selectedMemo.expenseCategoryId ? { id: this.selectedMemo.expenseCategoryId } : null,
       fiscalYear: this.selectedMemo.fiscalYearId ? { id: this.selectedMemo.fiscalYearId } : null,
-      formData: this.memoFormData
+      formValues
     };
     this.memoService.createMemo(payload).subscribe({
       next: () => {

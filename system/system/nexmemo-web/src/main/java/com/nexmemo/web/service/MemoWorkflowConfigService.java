@@ -36,10 +36,15 @@ public class MemoWorkflowConfigService {
         config.setMemoTypeId(memoTypeId);
         config.setAssignmentType(dto.getAssignmentType());
         config.setFlowType(dto.getFlowType());
+        config.setSlaHours(dto.getSlaHours());
+        config.setRequireDocumentVerification(dto.getRequireDocumentVerification());
+        config.setEnableVersioning(dto.getEnableVersioning());
         config.setRequiredFields(dto.getRequiredFields());
         config.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
+        config.setRevision(prevRevision(config.getId()) + 1);
         config = configRepository.save(config);
-        log.info("Workflow config saved for memoTypeId={}, configId={}", memoTypeId, config.getId());
+        log.info("Workflow config saved for memoTypeId={}, configId={} (revision {})",
+                memoTypeId, config.getId(), config.getRevision());
         return config;
     }
 
@@ -59,6 +64,11 @@ public class MemoWorkflowConfigService {
     }
 
     public List<MemoWorkflowStage> saveStages(Long configId, List<MemoWorkflowStage> stages) {
+        MemoWorkflowConfig config = configRepository.findById(configId)
+                .orElseThrow(() -> new EntityNotFoundException("Workflow config not found: " + configId));
+        config.setRevision(prevRevision(config.getId()) + 1);
+        configRepository.save(config);
+
         stageRepository.deleteByConfigId(configId);
         for (int i = 0; i < stages.size(); i++) {
             MemoWorkflowStage stage = stages.get(i);
@@ -67,8 +77,18 @@ public class MemoWorkflowConfigService {
             stage.setStageOrder(i + 1);
             stageRepository.save(stage);
         }
-        log.info("{} stages saved for configId={}", stages.size(), configId);
+        log.info("{} stages saved for configId={} (revision {})", stages.size(), configId, config.getRevision());
         return stageRepository.findByConfigIdOrderByStageOrderAsc(configId);
+    }
+
+    private int prevRevision(Long configId) {
+        if (configId == null) {
+            return 0;
+        }
+        return configRepository.findById(configId)
+                .map(MemoWorkflowConfig::getRevision)
+                .map(r -> r == null ? 0 : r)
+                .orElse(0);
     }
 
     // ── Permissions ───────────────────────────────────────────────────────

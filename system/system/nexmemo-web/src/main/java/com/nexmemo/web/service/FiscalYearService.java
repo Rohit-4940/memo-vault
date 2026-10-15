@@ -75,6 +75,12 @@ public class FiscalYearService {
                 .orElseThrow(() -> new RuntimeException("No active fiscal year found"));
     }
 
+    /** Phase 4b: non-throwing variant used when falling back gracefully during memo creation. */
+    @Transactional(readOnly = true)
+    public FiscalYear getActiveFiscalYearSafely() {
+        return fiscalYearRepository.findByIsActiveTrue().orElse(null);
+    }
+
     public FiscalYear setActiveFiscalYear(Long id) {
         FiscalYear fiscalYear = fiscalYearRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("FiscalYear not found with id: " + id));

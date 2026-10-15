@@ -1,0 +1,386 @@
+<div class="vault-page">
+  <!-- Header -->
+  <div class="page-header mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <div class="header-icon"><i class="fas fa-vault"></i></div>
+      <div>
+        <h5 class="fw-bold mb-0">Document Vault</h5>
+        <p class="text-muted mb-0 small">Store, organise, preview and share documents securely</p>
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-2" *ngIf="quota">
+      <div class="quota-chip" [class.quota-warn]="(quota.percentUsed || 0) >= 90">
+        <i class="fas fa-database me-1"></i>
+        <span *ngIf="quota.unlimited">{{ formatBytes(quota.usedBytes) }} used · {{ quota.documentCount }} docs</span>
+        <span *ngIf="!quota.unlimited">{{ formatBytes(quota.usedBytes) }} / {{ formatBytes(quota.limitBytes) }} ({{ quota.percentUsed }}%)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <!-- Left: folder tree -->
+    <div class="col-lg-3">
+      <div class="content-card h-100">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <span><i class="fas fa-folder-tree me-2"></i>Folders</span>
+          <button class="btn btn-icon" title="New folder" (click)="showFolderInput = !showFolderInput">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="folder-input mb-2" *ngIf="showFolderInput">
+            <input class="form-control form-control-sm" placeholder="Folder name"
+                   [(ngModel)]="folderName" (keyup.enter)="submitFolder()">
+            <button class="btn btn-sm btn-primary" (click)="submitFolder()"><i class="fas fa-check"></i></button>
+          </div>
+
+          <ul class="folder-tree">
+            <li class="folder-item all" [class.active]="selectedFolderId === null" (click)="selectFolder(null)">
+              <i class="fas fa-inbox"></i><span>All Documents</span>
+            </li>
+            <li class="folder-item" *ngFor="let f of folders" [class.active]="selectedFolderId === f.id"
+                [style.padding-left.px]="(f.path.split('/').length - 2) * 14 + 8">
+              <ng-container *ngIf="editingFolderId !== f.id; else renameTpl">
+                <i class="fas fa-folder"></i>
+                <span class="folder-name" (click)="selectFolder(f.id)">{{ f.name }}</span>
+                <span class="folder-count" *ngIf="f.documentCount != null">{{ f.documentCount }}</span>
+                <span class="folder-actions">
+                  <button class="btn-icon-xs" title="Rename" (click)="startRenameFolder(f); $event.stopPropagation()"><i class="fas fa-pen"></i></button>
+                  <button class="btn-icon-xs" title="Delete" (click)="deleteFolder(f); $event.stopPropagation()"><i class="fas fa-trash"></i></button>
+                </span>
+              </ng-container>
+              <ng-template #renameTpl>
+                <input class="form-control form-control-sm me-1" [(ngModel)]="editingFolderName"
+                       (keyup.enter)="submitRenameFolder()">
+                <button class="btn-icon-xs" (click)="submitRenameFolder()"><i class="fas fa-check"></i></button>
+                <button class="btn-icon-xs" (click)="editingFolderId = null"><i class="fas fa-xmark"></i></button>
+              </ng-template>
+            </li>
+            <li class="folder-empty" *ngIf="folders.length === 0 && !showFolderInput">
+              No folders yet
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: documents -->
+    <div class="col-lg-9">
+      <div class="content-card">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <span><i class="fas fa-file-shield me-2"></i>{{ activeFolderName }}</span>
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-outline-secondary" (click)="refresh()" title="Refresh"><i class="fas fa-rotate"></i></button>
+            <button class="btn btn-sm btn-primary" (click)="openUpload()"><i class="fas fa-cloud-upload-alt me-1"></i>Upload</button>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <!-- Filters -->
+          <div class="row g-2 mb-2">
+            <div class="col-md-5">
+              <div class="search-box">
+                <i class="fas fa-search search-icon"></i>
+                <input class="form-control form-control-sm" placeholder="Search title or filename..."
+                       [(ngModel)]="searchQuery" (ngModelChange)="onSearch()">
+              </div>
+            </div>
+            <div class="col-md-2">
+              <select class="form-select form-select-sm" [(ngModel)]="classificationFilter" (ngModelChange)="onFilterChange()">
+                <option value="">All classes</option>
+                <option *ngFor="let c of classifications" [value]="c">{{ c }}</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <select class="form-select form-select-sm" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()">
+                <option value="">All statuses</option>
+                <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <input class="form-control form-control-sm" placeholder="Filter by tag"
+                     [(ngModel)]="tagFilter" (keyup.enter)="onFilterChange()">
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>Document</th>
+                  <th class="d-none d-md-table-cell">Class</th>
+                  <th class="d-none d-md-table-cell">Status</th>
+                  <th class="d-none d-lg-table-cell">Size</th>
+                  <th class="d-none d-lg-table-cell">Versions</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let doc of documents; trackBy: trackById">
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="doc-icon"><i class="fas" [ngClass]="fileIcon(doc.originalFilename)"></i></div>
+                      <div class="doc-meta">
+                        <div class="doc-title">{{ doc.title }}</div>
+                        <div class="doc-sub">
+                          {{ doc.originalFilename }}
+                          <span *ngIf="doc.tags?.length"> · <i class="fas fa-tag"></i>
+                            <span class="tag" *ngFor="let t of doc.tags">{{ t }}</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="d-none d-md-table-cell">
+                    <span class="badge-cat" [ngClass]="classificationBadge(doc.classification)">{{ doc.classification }}</span>
+                  </td>
+                  <td class="d-none d-md-table-cell">
+                    <span class="badge-cat" [ngClass]="statusBadge(doc.status)">{{ doc.status }}</span>
+                  </td>
+                  <td class="d-none d-lg-table-cell text-nowrap">{{ formatBytes(doc.sizeBytes) }}</td>
+                  <td class="d-none d-lg-table-cell">v{{ doc.currentVersion || 1 }}</td>
+                  <td class="text-end">
+                    <div class="row-actions">
+                      <button class="btn-icon-xs" title="Preview" (click)="openPreview(doc)"><i class="fas fa-eye"></i></button>
+                      <button class="btn-icon-xs" title="Download" (click)="download(doc)"><i class="fas fa-download"></i></button>
+                      <button class="btn-icon-xs" title="Versions" (click)="openVersions(doc)"><i class="fas fa-clock-rotate-left"></i></button>
+                      <button class="btn-icon-xs" title="Share" (click)="openShare(doc)"><i class="fas fa-link"></i></button>
+                      <button class="btn-icon-xs" title="Permissions" (click)="openPermissions(doc)"><i class="fas fa-user-shield"></i></button>
+                      <button class="btn-icon-xs" title="Audit" (click)="openAudit(doc)"><i class="fas fa-list-check"></i></button>
+                      <button class="btn-icon-xs text-danger" title="Delete" (click)="delete(doc)"><i class="fas fa-trash"></i></button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="empty-state" *ngIf="!loading && documents.length === 0">
+            <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+            <div class="text-muted small">No documents here yet</div>
+          </div>
+
+          <div class="text-center py-3" *ngIf="loading">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-2" *ngIf="totalElements > 0">
+            <div class="text-muted small">{{ totalElements }} document(s)</div>
+            <ngb-pagination [collectionSize]="totalElements" [page]="page" [pageSize]="size"
+                            [maxSize]="5" [rotate]="true" (pageChange)="onPageChange($event)"></ngb-pagination>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Upload modal ══ -->
+<div class="modal-backdrop-custom" *ngIf="showUpload" (click)="showUpload = false"></div>
+<div class="modal-custom" *ngIf="showUpload">
+  <div class="modal-head"><i class="fas fa-cloud-upload-alt me-2"></i>Upload Document
+    <button class="btn-close ms-auto" (click)="showUpload = false"></button>
+  </div>
+  <div class="modal-body-custom">
+    <div class="mb-2">
+      <input type="file" class="form-control form-control-sm" (change)="onUploadFileSelected($event)">
+      <button class="btn btn-sm btn-outline-info mt-1" *ngIf="uploadFile" (click)="checkDuplicate()">
+        <i class="fas fa-clone me-1"></i>Check for duplicates
+      </button>
+    </div>
+    <div class="mb-2"><label class="form-label">Title</label>
+      <input class="form-control form-control-sm" [(ngModel)]="uploadTitle"></div>
+    <div class="mb-2"><label class="form-label">Description</label>
+      <textarea class="form-control form-control-sm" rows="2" [(ngModel)]="uploadDescription"></textarea></div>
+    <div class="row g-2">
+      <div class="col-6"><label class="form-label">Classification</label>
+        <select class="form-select form-select-sm" [(ngModel)]="uploadClassification">
+          <option *ngFor="let c of classifications" [value]="c">{{ c }}</option>
+        </select></div>
+      <div class="col-6"><label class="form-label">Folder</label>
+        <select class="form-select form-select-sm" [(ngModel)]="uploadFolderId">
+          <option [ngValue]="null">Uncategorised</option>
+          <option *ngFor="let f of folders" [ngValue]="f.id">{{ f.name }}</option>
+        </select></div>
+    </div>
+    <div class="mb-2 mt-2"><label class="form-label">Tags (comma separated)</label>
+      <input class="form-control form-control-sm" [(ngModel)]="uploadTags"></div>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="reuse" [(ngModel)]="reuseExisting">
+      <label class="form-check-label small" for="reuse">Reuse an identical existing copy if one is found</label>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-sm btn-light" (click)="showUpload = false">Cancel</button>
+    <button class="btn btn-sm btn-primary" [disabled]="uploading || !uploadFile" (click)="submitUpload()">
+      <span *ngIf="uploading" class="spinner-border spinner-border-sm me-1"></span>Upload
+    </button>
+  </div>
+</div>
+
+<!-- ══ Preview modal ══ -->
+<div class="modal-backdrop-custom" *ngIf="showPreview" (click)="closePreview()"></div>
+<div class="modal-custom modal-lg" *ngIf="showPreview">
+  <div class="modal-head"><i class="fas fa-eye me-2"></i>{{ previewDoc?.title }}
+    <span class="badge-cat ms-2" *ngIf="previewMeta" [ngClass]="classificationBadge(previewDoc?.classification || '')">{{ previewDoc?.classification }}</span>
+    <button class="btn-close ms-auto" (click)="closePreview()"></button>
+  </div>
+  <div class="modal-body-custom preview-body">
+    <div class="text-center py-4" *ngIf="previewLoading"><div class="spinner-border text-primary"></div></div>
+    <ng-container *ngIf="!previewLoading">
+      <ng-container *ngIf="previewMeta?.previewable; else notPreviewable">
+        <img *ngIf="previewMeta?.previewKind === 'IMAGE'" [src]="previewUrl" class="preview-image" alt="preview">
+        <iframe *ngIf="previewMeta?.previewKind === 'PDF'" [src]="previewUrl" class="preview-frame" title="PDF preview"></iframe>
+        <pre *ngIf="previewMeta?.previewKind === 'TEXT'" class="preview-text">{{ previewText }}</pre>
+      </ng-container>
+      <ng-template #notPreviewable>
+        <div class="empty-state">
+          <div class="empty-icon"><i class="fas fa-file-circle-question"></i></div>
+          <div class="text-muted small">This file type cannot be previewed safely inline. Download it to open it.</div>
+        </div>
+      </ng-template>
+    </ng-container>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-sm btn-light" (click)="closePreview()">Close</button>
+    <button class="btn btn-sm btn-primary" (click)="download(previewDoc!)"><i class="fas fa-download me-1"></i>Download</button>
+  </div>
+</div>
+
+<!-- ══ Versions modal ══ -->
+<div class="modal-backdrop-custom" *ngIf="showVersions" (click)="showVersions = false"></div>
+<div class="modal-custom modal-lg" *ngIf="showVersions">
+  <div class="modal-head"><i class="fas fa-clock-rotate-left me-2"></i>Versions — {{ versionsDoc?.title }}
+    <button class="btn-close ms-auto" (click)="showVersions = false"></button></div>
+  <div class="modal-body-custom">
+    <div class="d-flex gap-2 mb-2">
+      <input type="file" class="form-control form-control-sm" (change)="onNewVersionSelected($event)">
+      <button class="btn btn-sm btn-primary text-nowrap" [disabled]="!newVersionFile" (click)="submitNewVersion()">Add version</button>
+    </div>
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Ver</th><th>File</th><th>Size</th><th>SHA-256</th><th>Notes</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let v of versions">
+          <td><span class="badge-cat badge-internal">v{{ v.versionNo }}</span></td>
+          <td>{{ v.originalFilename }}</td>
+          <td>{{ formatBytes(v.sizeBytes) }}</td>
+          <td class="text-muted small text-truncate" style="max-width:120px">{{ v.sha256 }}</td>
+          <td class="small">{{ v.notes }}</td>
+          <td class="text-end">
+            <button class="btn-icon-xs" title="Restore this version"
+                    *ngIf="v.versionNo !== (versionsDoc?.currentVersion || 1)" (click)="restoreVersion(v)">
+              <i class="fas fa-rotate-left"></i>
+            </button>
+            <span class="badge-cat badge-success" *ngIf="v.versionNo === (versionsDoc?.currentVersion || 1)">current</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="text-muted small" *ngIf="versions.length === 0">No versions recorded.</div>
+  </div>
+</div>
+
+<!-- ══ Permissions modal ══ -->
+<div class="modal-backdrop-custom" *ngIf="showPermissions" (click)="showPermissions = false"></div>
+<div class="modal-custom" *ngIf="showPermissions">
+  <div class="modal-head"><i class="fas fa-user-shield me-2"></i>Permissions — {{ permissionsDoc?.title }}
+    <button class="btn-close ms-auto" (click)="showPermissions = false"></button></div>
+  <div class="modal-body-custom">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Subject</th><th>R</th><th>W</th><th>D</th><th>S</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let p of permissions">
+          <td>{{ p.subjectType }} #{{ p.subjectId }}</td>
+          <td><i class="fas" [ngClass]="p.canRead ? 'fa-check text-success' : 'fa-xmark text-muted'"></i></td>
+          <td><i class="fas" [ngClass]="p.canWrite ? 'fa-check text-success' : 'fa-xmark text-muted'"></i></td>
+          <td><i class="fas" [ngClass]="p.canDelete ? 'fa-check text-success' : 'fa-xmark text-muted'"></i></td>
+          <td><i class="fas" [ngClass]="p.canShare ? 'fa-check text-success' : 'fa-xmark text-muted'"></i></td>
+          <td class="text-end"><button class="btn-icon-xs text-danger" (click)="revokePermission(p)"><i class="fas fa-trash"></i></button></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="text-muted small mb-2" *ngIf="permissions.length === 0">No explicit grants (owner/admin only).</div>
+    <hr>
+    <div class="row g-2 align-items-end">
+      <div class="col-4"><label class="form-label">Type</label>
+        <select class="form-select form-select-sm" [(ngModel)]="newGrant.subjectType">
+          <option value="USER">User</option><option value="ROLE">Role</option>
+          <option value="BRANCH">Branch</option><option value="DEPARTMENT">Department</option>
+        </select></div>
+      <div class="col-4"><label class="form-label">Subject id</label>
+        <input type="number" class="form-control form-control-sm" [(ngModel)]="newGrant.subjectId"></div>
+      <div class="col-4">
+        <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" [(ngModel)]="newGrant.canRead"><label class="form-check-label small">Read</label></div>
+        <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" [(ngModel)]="newGrant.canWrite"><label class="form-check-label small">Write</label></div>
+        <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" [(ngModel)]="newGrant.canDelete"><label class="form-check-label small">Delete</label></div>
+        <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" [(ngModel)]="newGrant.canShare"><label class="form-check-label small">Share</label></div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-sm btn-primary" (click)="submitGrant()"><i class="fas fa-plus me-1"></i>Grant access</button>
+  </div>
+</div>
+
+<!-- ══ Share modal ══ -->
+<div class="modal-backdrop-custom" *ngIf="showShare" (click)="showShare = false"></div>
+<div class="modal-custom modal-lg" *ngIf="showShare">
+  <div class="modal-head"><i class="fas fa-link me-2"></i>Share — {{ shareDoc?.title }}
+    <button class="btn-close ms-auto" (click)="showShare = false"></button></div>
+  <div class="modal-body-custom">
+    <div class="row g-2 align-items-end mb-3">
+      <div class="col-3"><label class="form-label">Expires (hours)</label>
+        <input type="number" class="form-control form-control-sm" [(ngModel)]="newLink.expiresInHours"></div>
+      <div class="col-3"><label class="form-label">Max downloads (0 = ∞)</label>
+        <input type="number" class="form-control form-control-sm" [(ngModel)]="newLink.maxDownloads"></div>
+      <div class="col-3"><label class="form-label">Password (optional)</label>
+        <input type="text" class="form-control form-control-sm" [(ngModel)]="newLink.password"></div>
+      <div class="col-3"><button class="btn btn-sm btn-primary w-100" (click)="createLink()"><i class="fas fa-plus me-1"></i>Create link</button></div>
+    </div>
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Link</th><th>Expires</th><th>Downloads</th><th>Password</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let l of shareLinks" [class.opacity-50]="l.revoked">
+          <td class="text-truncate" style="max-width:260px">
+            <a href="javascript:void(0)" (click)="copyLink(l)" title="Copy link">{{ l.shareUrl }}</a>
+            <span class="badge-cat badge-danger ms-1" *ngIf="l.revoked">revoked</span>
+          </td>
+          <td class="small">{{ l.expiresAt ? (l.expiresAt | slice:0:16) : 'never' }}</td>
+          <td class="small">{{ l.downloadCount }}<span *ngIf="l.maxDownloads"> / {{ l.maxDownloads }}</span></td>
+          <td><i class="fas" [ngClass]="l.passwordProtected ? 'fa-lock text-warning' : 'fa-lock-open text-muted'"></i></td>
+          <td class="text-end">
+            <button class="btn-icon-xs text-danger" *ngIf="!l.revoked" (click)="revokeLink(l)"><i class="fas fa-ban"></i></button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="text-muted small" *ngIf="shareLinks.length === 0">No share links yet.</div>
+    <div class="alert alert-info py-1 px-2 small mb-0 mt-2">
+      <i class="fas fa-circle-info me-1"></i>
+      Share links are token-gated and re-validated on every access. Internal messaging can show a
+      preview, but read receipts and external recall are not guaranteed.
+    </div>
+  </div>
+</div>
+
+<!-- ══ Audit modal ══ -->
+<div class="modal-backdrop-custom" *ngIf="showAudit" (click)="showAudit = false"></div>
+<div class="modal-custom" *ngIf="showAudit">
+  <div class="modal-head"><i class="fas fa-list-check me-2"></i>Audit — {{ auditDoc?.title }}
+    <button class="btn-close ms-auto" (click)="showAudit = false"></button></div>
+  <div class="modal-body-custom">
+    <table class="table table-sm">
+      <thead><tr><th>When</th><th>Action</th><th>By</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let e of auditEvents">
+          <td class="small">{{ e.createdDate | slice:0:16 }}</td>
+          <td class="small">{{ e.action || e.eventType }}</td>
+          <td class="small">{{ e.actorId || e.userId }}</td>
+          <td class="small">{{ e.result || e.status }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="text-muted small" *ngIf="auditEvents.length === 0">No audit events.</div>
+  </div>
+</div>

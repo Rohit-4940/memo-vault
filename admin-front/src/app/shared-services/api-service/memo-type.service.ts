@@ -15,6 +15,11 @@ export class MemoTypeService {
     return this.http.get<any>(`${ApiConfig.URL}/api/v1/memo-types/${id}`);
   }
 
+  /** Phase 4c/6 — parsed dynamic form schema of a memo type, for rendering the create form. */
+  getFormSchema(id: number): Observable<any[]> {
+    return this.http.get<any[]>(`${ApiConfig.URL}/api/v1/memo-types/${id}/form-schema`);
+  }
+
   createMemoType(data: any): Observable<any> {
     return this.http.post<any>(`${ApiConfig.URL}/api/v1/memo-types`, data);
   }

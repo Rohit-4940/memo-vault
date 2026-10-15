@@ -20,6 +20,8 @@ public class SystemConfigService {
 
     private final SystemConfigRepository systemConfigRepository;
 
+    private static final String SECRET_MASK = "********";
+
     @Transactional(readOnly = true)
     public List<SystemConfig> getAllConfigs() {
         return systemConfigRepository.findAll();
@@ -92,7 +94,36 @@ public class SystemConfigService {
     public List<SystemConfig> getEmailConfig() {
         return systemConfigRepository.findAll().stream()
                 .filter(c -> c.getConfigKey() != null && c.getConfigKey().toLowerCase().contains("smtp"))
+                .map(this::maskSecrets)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Phase 4a: never hand credentials back to the client. Secret-named keys are returned as
+     * detached copies with their value masked, so SMTP passwords / tokens are not exposed via the
+     * admin config endpoint.
+     */
+    private SystemConfig maskSecrets(SystemConfig config) {
+        if (!isSecretKey(config.getConfigKey())) {
+            return config;
+        }
+        SystemConfig masked = new SystemConfig();
+        masked.setId(config.getId());
+        masked.setConfigKey(config.getConfigKey());
+        masked.setConfigValue(SECRET_MASK);
+        masked.setDescription(config.getDescription());
+        masked.setDataType(config.getDataType());
+        masked.setIsActive(config.getIsActive());
+        return masked;
+    }
+
+    private static boolean isSecretKey(String key) {
+        if (key == null) {
+            return false;
+        }
+        String upper = key.toUpperCase();
+        return upper.contains("PASSWORD") || upper.contains("SECRET")
+                || upper.contains("TOKEN") || upper.contains("CREDENTIAL");
     }
 
     public void updateEmailConfig(Map<String, String> emailSettings) {

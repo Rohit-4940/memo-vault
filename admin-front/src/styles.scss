@@ -16,7 +16,21 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+  background: radial-gradient(1200px 600px at 10% -10%, #eef2ff 0%, transparent 60%),
+              radial-gradient(900px 600px at 110% 10%, #f5f3ff 0%, transparent 55%),
+              var(--nexmemo-bg);
+  background-attachment: fixed;
 }
+
+/* Global modern polish without touching templates */
+.glass-panel { backdrop-filter: blur(18px); background: rgba(255,255,255,0.7); }
+.card { transition: transform var(--transition-fast), box-shadow var(--transition-normal); }
+.card:hover { box-shadow: var(--shadow-card-hover); transform: translateY(-1px); }
+.btn { transition: transform var(--transition-fast), box-shadow var(--transition-normal); }
+.btn-primary:hover, .btn-gradient:hover, .btn-success:hover { transform: translateY(-2px); }
+img { max-width: 100%; height: auto; }
+.form-control:focus { transform: translateY(-1px); }
+* { transition-property: background-color, border-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: cubic-bezier(0.4,0,0.2,1); }
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -456,7 +470,21 @@ select.form-control {
   box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.03);
   animation: modalSlideUp 0.35s cubic-bezier(0.4,0,0.2,1);
   overflow: hidden;
+  background: radial-gradient(1200px 600px at 10% -10%, #eef2ff 0%, transparent 60%),
+              radial-gradient(900px 600px at 110% 10%, #f5f3ff 0%, transparent 55%),
+              var(--nexmemo-bg);
+  background-attachment: fixed;
 }
+
+/* Global modern polish without touching templates */
+.glass-panel { backdrop-filter: blur(18px); background: rgba(255,255,255,0.7); }
+.card { transition: transform var(--transition-fast), box-shadow var(--transition-normal); }
+.card:hover { box-shadow: var(--shadow-card-hover); transform: translateY(-1px); }
+.btn { transition: transform var(--transition-fast), box-shadow var(--transition-normal); }
+.btn-primary:hover, .btn-gradient:hover, .btn-success:hover { transform: translateY(-2px); }
+img { max-width: 100%; height: auto; }
+.form-control:focus { transform: translateY(-1px); }
+* { transition-property: background-color, border-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: cubic-bezier(0.4,0,0.2,1); }
 
 .modal-header {
   display: flex; justify-content: space-between; align-items: center;

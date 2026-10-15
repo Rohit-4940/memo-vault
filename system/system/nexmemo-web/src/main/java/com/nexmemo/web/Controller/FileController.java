@@ -100,13 +100,17 @@ public class FileController {
     }
 
     @GetMapping("/download")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<Resource> downloadFile(@RequestParam("path") String filePath) {
-        // Sanitize path — prevent directory traversal attacks
+        // SECURITY (Phase 2): this endpoint resolves an arbitrary storage path and therefore
+        // previously let any authenticated user read *any* file by guessing its path (BOLA/IDOR).
+        // Feature content must be downloaded through an authorized, id-based endpoint instead
+        // (e.g. /documents/{id}/download or /memo-documents/{id}/download). Direct path access is
+        // now restricted to administrators for operational/support use only.
         String sanitizedPath = sanitizePathParam(filePath);
         Resource resource = storageService.download(sanitizedPath);
         String contentType = "application/octet-stream";
-        log.info("File downloaded: {}", sanitizedPath);
+        log.warn("Administrative path-based download: {}", sanitizedPath);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
@@ -128,12 +132,14 @@ public class FileController {
     }
 
     @DeleteMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<Map<String, String>> deleteFile(@RequestParam("path") String filePath) {
+        // SECURITY (Phase 2): same broken-object-authorization concern as /files/download — an
+        // authenticated non-admin must not be able to delete an arbitrary stored file by path.
         String sanitizedPath = sanitizePathParam(filePath);
         boolean deleted = storageService.delete(sanitizedPath);
         if (deleted) {
-            log.info("File deleted: {}", sanitizedPath);
+            log.warn("Administrative path-based delete: {}", sanitizedPath);
             return ResponseEntity.ok(Map.of("message", "File deleted successfully"));
         }
         return ResponseEntity.badRequest().body(Map.of("error", "File not found"));

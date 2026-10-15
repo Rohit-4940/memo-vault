@@ -3,6 +3,7 @@ import { NgForOf, NgIf, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgbModal, NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
 import { FiscalYearService } from '../../../shared-services/api-service/fiscal-year.service';
+import { FinancialPeriodService } from '../../../shared-services/api-service/financial-period.service';
 import { ToastrService } from 'ngx-toastr';
 import { LocalStorageUtil } from '../../../@core/utils/local-storage-util';
 import { AdvancedTableComponent, TableColumn } from '../../../shared-components/advanced-table/advanced-table.component';
@@ -38,8 +39,16 @@ export class FiscalYearComponent implements OnInit {
   isAdmin = false;
   private modalService = inject(NgbModal);
 
+  // Phase 6c — financial period management (per fiscal year)
+  periods: any[] = [];
+  periodsLoading = false;
+  periodsFiscalYear: any = null;
+  periodForm: any = this.emptyPeriod();
+  editingPeriodId: number | null = null;
+
   constructor(
     private fiscalYearService: FiscalYearService,
+    private financialPeriodService: FinancialPeriodService,
     private toastr: ToastrService
   ) {}
 
@@ -118,6 +127,111 @@ export class FiscalYearComponent implements OnInit {
         next: () => { this.toastr.success('Fiscal year deleted'); this.loadData(); },
         error: () => this.toastr.error('Delete failed')
       });
+    }
+  }
+
+  // ── Phase 6c — financial periods ──────────────────────────────────────────────
+
+  emptyPeriod(): any {
+    return { name: '', startDate: '', endDate: '', status: 'CLOSED' };
+  }
+
+  openPeriodsModal(content: any, fiscalYear: any) {
+    this.periodsFiscalYear = fiscalYear;
+    this.periods = [];
+    this.editingPeriodId = null;
+    this.periodForm = this.emptyPeriod();
+    this.modalService.open(content, { size: 'xl', centered: true, scrollable: true });
+    this.loadPeriods();
+  }
+
+  loadPeriods() {
+    if (!this.periodsFiscalYear) return;
+    this.periodsLoading = true;
+    this.financialPeriodService.getByFiscalYear(this.periodsFiscalYear.id).subscribe({
+      next: (p) => { this.periods = p || []; this.periodsLoading = false; },
+      error: () => { this.periods = []; this.periodsLoading = false; this.toastr.error('Failed to load financial periods'); }
+    });
+  }
+
+  editPeriod(period: any) {
+    this.editingPeriodId = period.id;
+    this.periodForm = {
+      name: period.name,
+      startDate: this.formatDate(period.startDate),
+      endDate: this.formatDate(period.endDate),
+      status: period.status
+    };
+  }
+
+  cancelPeriodEdit() {
+    this.editingPeriodId = null;
+    this.periodForm = this.emptyPeriod();
+  }
+
+  savePeriod() {
+    if (!this.periodForm.name || !this.periodForm.startDate || !this.periodForm.endDate) {
+      this.toastr.warning('Name, start date and end date are required');
+      return;
+    }
+    const payload = {
+      name: this.periodForm.name,
+      startDate: this.periodForm.startDate,
+      endDate: this.periodForm.endDate,
+      status: this.periodForm.status || 'CLOSED',
+      fiscalYear: { id: this.periodsFiscalYear.id }
+    };
+    const obs = this.editingPeriodId
+      ? this.financialPeriodService.update(this.editingPeriodId, payload)
+      : this.financialPeriodService.create(payload);
+    obs.subscribe({
+      next: () => {
+        this.toastr.success(this.editingPeriodId ? 'Period updated' : 'Period created');
+        this.cancelPeriodEdit();
+        this.loadPeriods();
+      },
+      error: (err) => this.toastr.error(err.error?.message || 'Failed to save period')
+    });
+  }
+
+  openPeriod(period: any) {
+    if (!confirm(`Open period "${period.name}"? Any currently open period will be closed.`)) return;
+    this.financialPeriodService.open(period.id).subscribe({
+      next: () => { this.toastr.success('Period opened'); this.loadPeriods(); },
+      error: (err) => this.toastr.error(err.error?.message || 'Failed to open period')
+    });
+  }
+
+  closePeriod(period: any) {
+    if (!confirm(`Close period "${period.name}"?`)) return;
+    this.financialPeriodService.close(period.id).subscribe({
+      next: () => { this.toastr.success('Period closed'); this.loadPeriods(); },
+      error: (err) => this.toastr.error(err.error?.message || 'Failed to close period')
+    });
+  }
+
+  lockPeriod(period: any) {
+    if (!confirm(`Lock period "${period.name}"? A locked period cannot be reopened.`)) return;
+    this.financialPeriodService.lock(period.id).subscribe({
+      next: () => { this.toastr.success('Period locked'); this.loadPeriods(); },
+      error: (err) => this.toastr.error(err.error?.message || 'Failed to lock period')
+    });
+  }
+
+  deletePeriod(period: any) {
+    if (!confirm(`Delete period "${period.name}"?`)) return;
+    this.financialPeriodService.delete(period.id).subscribe({
+      next: () => { this.toastr.success('Period deleted'); this.loadPeriods(); },
+      error: (err) => this.toastr.error(err.error?.message || 'Failed to delete period')
+    });
+  }
+
+  periodBadge(status: string): string {
+    switch (status) {
+      case 'OPEN': return 'badge-success';
+      case 'CLOSED': return 'badge-secondary';
+      case 'LOCKED': return 'badge-dark';
+      default: return 'badge-info';
     }
   }
 }

@@ -3,29 +3,34 @@ package com.nexmemo.web.Controller;
 import com.nexmemo.core.dto.ApiResponse;
 import com.nexmemo.core.dto.CompressionHistoryResponse;
 import com.nexmemo.core.dto.CompressionResponse;
+import com.nexmemo.core.enums.CompressionPreset;
 import com.nexmemo.core.enums.CompressionType;
 import com.nexmemo.web.service.CompressionService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * REST surface of the asynchronous compressor.
+ *
+ * <p>Open to any authenticated user; every operation is scoped to the caller via
+ * {@code CompressionService} (jobs are always looked up by {@code id + createdBy}). Submission
+ * returns {@code 202 Accepted} with a queued job — the work itself happens on a bounded worker
+ * pool, never on this request thread.</p>
+ */
 @RestController
 @RequestMapping("/files/compress")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+@PreAuthorize("isAuthenticated()")
 public class CompressionController {
 
     private final CompressionService compressionService;
@@ -34,30 +39,17 @@ public class CompressionController {
     public ResponseEntity<ApiResponse<CompressionResponse>> compress(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "type", defaultValue = "GZIP") String type,
-            @RequestParam(value = "async", defaultValue = "false") boolean async,
+            @RequestParam(value = "preset", defaultValue = "BALANCED") String preset,
             @AuthenticationPrincipal Long userId,
             HttpServletRequest request) {
-        if (file.isEmpty()) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("File is empty", 400, request.getRequestURI()));
-        }
         try {
-            CompressionType ct = CompressionType.valueOf(type.toUpperCase());
-            CompressionResponse resp;
-            if (async) {
-                compressionService.compressAsync(file, ct, userId);
-                return ResponseEntity.accepted()
-                        .body(ApiResponse.success("Compression started", null));
-            } else {
-                resp = compressionService.compressSync(file, ct, userId);
-                return ResponseEntity.ok(ApiResponse.success(resp));
-            }
+            CompressionResponse resp = compressionService.submit(
+                    file, parseType(type, request), CompressionPreset.from(preset), userId);
+            return ResponseEntity.accepted().body(ApiResponse.success(resp));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Invalid compression type: " + type, 400, request.getRequestURI()));
-        } catch (IOException e) {
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error("Compression failed: " + e.getMessage(), 500, request.getRequestURI()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), 400, request.getRequestURI()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(503).body(ApiResponse.error(e.getMessage(), 503, request.getRequestURI()));
         }
     }
 
@@ -65,6 +57,7 @@ public class CompressionController {
     public ResponseEntity<ApiResponse<List<CompressionResponse>>> compressBatch(
             @RequestParam("files") List<MultipartFile> files,
             @RequestParam(value = "type", defaultValue = "GZIP") String type,
+            @RequestParam(value = "preset", defaultValue = "BALANCED") String preset,
             @AuthenticationPrincipal Long userId,
             HttpServletRequest request) {
         if (files == null || files.isEmpty()) {
@@ -72,15 +65,11 @@ public class CompressionController {
                     .body(ApiResponse.error("No files provided", 400, request.getRequestURI()));
         }
         try {
-            CompressionType ct = CompressionType.valueOf(type.toUpperCase());
-            List<CompressionResponse> results = new ArrayList<>();
-            for (MultipartFile file : files) {
-                results.add(compressionService.batchCompressSingle(file, ct, userId));
-            }
-            return ResponseEntity.ok(ApiResponse.success(results));
+            List<CompressionResponse> results = compressionService.submitBatch(
+                    files, parseType(type, request), CompressionPreset.from(preset), userId);
+            return ResponseEntity.accepted().body(ApiResponse.success(results));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Invalid compression type: " + type, 400, request.getRequestURI()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), 400, request.getRequestURI()));
         }
     }
 
@@ -95,14 +84,19 @@ public class CompressionController {
         return ResponseEntity.ok(ApiResponse.success(history));
     }
 
+    @GetMapping("/batch/{batchId}")
+    public ResponseEntity<ApiResponse<List<CompressionResponse>>> getBatch(
+            @PathVariable String batchId,
+            @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(compressionService.getBatch(batchId, userId)));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CompressionResponse>> getJob(
             @PathVariable Long id,
-            @AuthenticationPrincipal Long userId,
-            HttpServletRequest request) {
+            @AuthenticationPrincipal Long userId) {
         try {
-            CompressionResponse resp = compressionService.getJob(id, userId);
-            return ResponseEntity.ok(ApiResponse.success(resp));
+            return ResponseEntity.ok(ApiResponse.success(compressionService.getJob(id, userId)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
@@ -113,11 +107,7 @@ public class CompressionController {
             @PathVariable Long id,
             @AuthenticationPrincipal Long userId) {
         try {
-            Path filePath = compressionService.getCompressedFilePath(id, userId);
-            Resource resource = new FileSystemResource(filePath.toFile());
-            if (!resource.exists()) {
-                return ResponseEntity.notFound().build();
-            }
+            Resource resource = compressionService.getCompressedResource(id, userId);
             CompressionResponse job = compressionService.getJob(id, userId);
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
@@ -126,6 +116,48 @@ public class CompressionController {
                     .body(resource);
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<CompressionResponse>> cancel(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Long userId,
+            HttpServletRequest request) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(compressionService.cancel(id, userId)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), 400, request.getRequestURI()));
+        }
+    }
+
+    @PostMapping("/{id}/retry")
+    public ResponseEntity<ApiResponse<CompressionResponse>> retry(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Long userId,
+            HttpServletRequest request) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(compressionService.retry(id, userId)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), 400, request.getRequestURI()));
+        }
+    }
+
+    @PostMapping("/{id}/verify")
+    public ResponseEntity<ApiResponse<CompressionResponse>> verify(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Long userId,
+            HttpServletRequest request) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(compressionService.verify(id, userId)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), 400, request.getRequestURI()));
         }
     }
 
@@ -139,6 +171,16 @@ public class CompressionController {
             return ResponseEntity.ok(ApiResponse.success("Deleted", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage(), 400, request.getRequestURI()));
+        }
+    }
+
+    private CompressionType parseType(String type, HttpServletRequest request) {
+        try {
+            return CompressionType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid compression type: " + type);
         }
     }
 }

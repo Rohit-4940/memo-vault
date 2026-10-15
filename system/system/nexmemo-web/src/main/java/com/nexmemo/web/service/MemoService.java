@@ -1,9 +1,11 @@
 package com.nexmemo.web.service;
 
 import com.nexmemo.core.entity.*;
+import com.nexmemo.core.event.MemoNotificationEvent;
 import com.nexmemo.core.enums.LeaveStatus;
 import com.nexmemo.core.enums.MemoRoutingStatus;
 import com.nexmemo.core.enums.MemoStatus;
+import com.nexmemo.core.enums.NotificationEventType;
 import com.nexmemo.core.enums.Priority;
 import com.nexmemo.core.repository.*;
 import com.nexmemo.security.repository.BranchRepository;
@@ -15,6 +17,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -55,6 +58,10 @@ public class MemoService {
     private final MemoCategoryRepository memoCategoryRepository;
     private final AuditEventPublisher auditEventPublisher;
     private final MemoAuthorizationService memoAuthorizationService;
+    private final ApplicationEventPublisher notificationEventPublisher;
+    private final FinancialPeriodService financialPeriodService;
+    private final MemoFormConfigService memoFormConfigService;
+    private final MemoVersionService memoVersionService;
 
     @Data
     public static class CreateMemoRequest {
@@ -65,12 +72,46 @@ public class MemoService {
         private Long memoTypeId;
         private Long departmentId;
         private Long branchId;
-        @NotNull
         private Priority priority;
         private BigDecimal amount;
         private Long templateId;
         private List<Long> ccUserIds;
         private Long categoryId;
+        /** Dynamic values captured by the memo type's form schema (Phase 4c). */
+        private Map<String, Object> formValues;
+        private String paymentMethod;
+        private String budgetCode;
+        private String vendorName;
+        private String vendorAccount;
+        private Boolean isUrgent;
+        private LocalDate expectedDate;
+    }
+
+    /**
+     * Phase 5b — partial update of a request that is still editable (DRAFT / REVISION_REQUESTED).
+     * Every field is optional: only non-null values are applied, so the self-service edit form can
+     * send a delta. Dynamic form values are re-validated against the (possibly new) type schema and
+     * a {@code memo_version} snapshot is appended so edit history is real.
+     */
+    @Data
+    public static class UpdateMemoRequest {
+        private String title;
+        private String description;
+        private String content;
+        private Long memoTypeId;
+        private Long departmentId;
+        private Long branchId;
+        private Long categoryId;
+        private Long templateId;
+        private Priority priority;
+        private BigDecimal amount;
+        private String paymentMethod;
+        private String budgetCode;
+        private String vendorName;
+        private String vendorAccount;
+        private Boolean isUrgent;
+        private LocalDate expectedDate;
+        private Map<String, Object> formValues;
     }
 
     @Transactional(readOnly = true)
@@ -169,11 +210,11 @@ public class MemoService {
                     .orElseThrow(() -> new EntityNotFoundException("Branch not found with id: " + request.getBranchId()));
         }
 
-        String templateContent = null;
+        MemoTemplate template = null;
         if (request.getTemplateId() != null) {
-            templateContent = memoTemplateRepository.findById(request.getTemplateId())
-                    .map(MemoTemplate::getContent).orElse(null);
-            log.debug("Template {} content loaded for memo creation", request.getTemplateId());
+            template = memoTemplateRepository.findById(request.getTemplateId())
+                    .orElseThrow(() -> new EntityNotFoundException("MemoTemplate not found with id: " + request.getTemplateId()));
+            log.debug("Template {} loaded for memo creation", request.getTemplateId());
         }
 
         MemoCategory category = null;
@@ -182,21 +223,43 @@ public class MemoService {
                     .orElseThrow(() -> new EntityNotFoundException("MemoCategory not found: " + request.getCategoryId()));
         }
 
+        // Phase 4c — validate dynamic form values against the type's schema and the template's
+        // required-fields list, then enforce the template's amount ceiling.
+        memoFormConfigService.validateFormValues(memoType, template, request.getFormValues());
+        memoFormConfigService.validateAmount(request.getAmount(), template);
+
         Memo memo = new Memo();
         memo.setTitle(request.getTitle());
         memo.setDescription(request.getDescription());
-        memo.setContent(request.getContent() != null ? request.getContent() : templateContent);
-        memo.setMemoNo(generateMemoNo(null));
+        memo.setContent(request.getContent() != null ? request.getContent()
+                : (template != null ? template.getContent() : null));
+        memo.setFormValues(memoFormConfigService.toJson(request.getFormValues()));
+        assignMemoNumberAndFiscalYear(memo);
         memo.setStatus(MemoStatus.DRAFT);
-        memo.setPriority(request.getPriority() != null ? request.getPriority() : Priority.MEDIUM);
+        memo.setPriority(resolvePriority(request, template));
         memo.setMemoType(memoType);
         memo.setDepartment(department);
         memo.setBranch(branch);
         memo.setCategory(category);
-        memo.setAmount(request.getAmount());
+        memo.setAmount(request.getAmount() != null ? request.getAmount()
+                : (template != null ? template.getDefaultAmount() : null));
+        memo.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod()
+                : (template != null ? template.getDefaultPaymentMethod() : null));
+        memo.setBudgetCode(request.getBudgetCode());
+        memo.setVendorName(request.getVendorName());
+        memo.setVendorAccount(request.getVendorAccount());
+        memo.setIsUrgent(request.getIsUrgent() != null ? request.getIsUrgent() : false);
+        memo.setExpectedDate(request.getExpectedDate());
+        if (template != null && template.getRequiredApprovalLevels() != null) {
+            memo.setTotalApprovalLevels(template.getRequiredApprovalLevels());
+        }
 
         memo = memoRepository.save(memo);
         log.info("Memo created: id={} memoNo={} by userId={}", memo.getId(), memo.getMemoNo(), creatorId);
+
+        // Phase 4c — persist the v1 content/form snapshot so memo-version history is real.
+        memoVersionService.snapshot(memo, creatorId);
+
         final Memo savedMemo = memo;
 
         if (request.getCcUserIds() != null) {
@@ -216,6 +279,86 @@ public class MemoService {
         return memo;
     }
 
+    /**
+     * Phase 5b — edits a request while it is still editable (DRAFT / REVISION_REQUESTED). Only the
+     * creator (or an admin) may edit, the dynamic values are re-validated against the effective memo
+     * type's schema, and a version snapshot is appended so the edit is auditable.
+     */
+    public Memo updateDraftMemo(Long memoId, UpdateMemoRequest request, Long userId) {
+        Memo memo = memoRepository.findByIdForUpdate(memoId)
+                .orElseThrow(() -> new EntityNotFoundException("Memo not found with id: " + memoId));
+
+        if (memo.getStatus() != MemoStatus.DRAFT && memo.getStatus() != MemoStatus.REVISION_REQUESTED) {
+            throw new IllegalStateException(
+                    "Only DRAFT or REVISION_REQUESTED requests can be edited. Current status: " + memo.getStatus());
+        }
+        if (!memoAuthorizationService.isAdmin(userId) && !memo.getCreatedBy().equals(userId)) {
+            throw new IllegalStateException("Only the creator can edit the request");
+        }
+
+        Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), null);
+
+        MemoType memoType = memo.getMemoType();
+        if (request.getMemoTypeId() != null && (memoType == null || !request.getMemoTypeId().equals(memoType.getId()))) {
+            memoType = memoTypeRepository.findById(request.getMemoTypeId())
+                    .orElseThrow(() -> new EntityNotFoundException("MemoType not found with id: " + request.getMemoTypeId()));
+        }
+
+        MemoTemplate template = null;
+        if (request.getTemplateId() != null) {
+            template = memoTemplateRepository.findById(request.getTemplateId())
+                    .orElseThrow(() -> new EntityNotFoundException("MemoTemplate not found with id: " + request.getTemplateId()));
+        }
+
+        // Validate the effective dynamic values (new values when supplied, else the stored ones) and
+        // the effective amount ceiling before mutating anything.
+        Map<String, Object> effectiveFormValues = request.getFormValues() != null
+                ? request.getFormValues()
+                : memoFormConfigService.parseFormValues(memo);
+        memoFormConfigService.validateFormValues(memoType, template, effectiveFormValues);
+        BigDecimal effectiveAmount = request.getAmount() != null ? request.getAmount() : memo.getAmount();
+        memoFormConfigService.validateAmount(effectiveAmount, template);
+
+        if (request.getTitle() != null) {
+            if (request.getTitle().isBlank()) {
+                throw new IllegalArgumentException("Request title must not be blank");
+            }
+            memo.setTitle(request.getTitle());
+        }
+        if (request.getDescription() != null) memo.setDescription(request.getDescription());
+        if (request.getContent() != null) memo.setContent(request.getContent());
+        memo.setMemoType(memoType);
+        if (request.getDepartmentId() != null) {
+            memo.setDepartment(departmentRepository.findById(request.getDepartmentId())
+                    .orElseThrow(() -> new EntityNotFoundException("Department not found with id: " + request.getDepartmentId())));
+        }
+        if (request.getBranchId() != null) {
+            memo.setBranch(branchRepository.findById(request.getBranchId())
+                    .orElseThrow(() -> new EntityNotFoundException("Branch not found with id: " + request.getBranchId())));
+        }
+        if (request.getCategoryId() != null) {
+            memo.setCategory(memoCategoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new EntityNotFoundException("MemoCategory not found: " + request.getCategoryId())));
+        }
+        if (request.getPriority() != null) memo.setPriority(request.getPriority());
+        if (request.getAmount() != null) memo.setAmount(request.getAmount());
+        if (request.getPaymentMethod() != null) memo.setPaymentMethod(request.getPaymentMethod());
+        if (request.getBudgetCode() != null) memo.setBudgetCode(request.getBudgetCode());
+        if (request.getVendorName() != null) memo.setVendorName(request.getVendorName());
+        if (request.getVendorAccount() != null) memo.setVendorAccount(request.getVendorAccount());
+        if (request.getIsUrgent() != null) memo.setIsUrgent(request.getIsUrgent());
+        if (request.getExpectedDate() != null) memo.setExpectedDate(request.getExpectedDate());
+        if (request.getFormValues() != null) memo.setFormValues(memoFormConfigService.toJson(request.getFormValues()));
+
+        memo = memoRepository.save(memo);
+        memoVersionService.snapshot(memo, userId);
+        log.info("Request {} edited by userId={}", memo.getMemoNo(), userId);
+
+        auditEventPublisher.recordChange(userId, ACTION_UPDATED, ENTITY_MEMO, memoId, before,
+                stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), null));
+        return memo;
+    }
+
     public Memo submitMemo(Long memoId, Long userId) {
         Memo memo = memoRepository.findByIdForUpdate(memoId)
                 .orElseThrow(() -> new EntityNotFoundException("Memo not found with id: " + memoId));
@@ -230,7 +373,7 @@ public class MemoService {
 
         Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), null);
 
-        if (memo.getCategory() != null) {
+        if (workflowEngineService.hasActiveConfigForMemoType(memoTypeIdOf(memo)) || memo.getCategory() != null) {
             Memo submitted = workflowEngineService.submitMemo(memo, userId);
             auditEventPublisher.recordChange(userId, ACTION_SUBMITTED, ENTITY_MEMO, memoId, before,
                     stateSnapshot(submitted.getStatus(), submitted.getApprovalLevel(), approverIdOf(submitted), null));
@@ -267,6 +410,9 @@ public class MemoService {
                 "MEMO_APPROVAL", memo.getId(), "MEMO");
         log.debug("Notification sent to approver userId={} for memo {}", nextApprover.getId(), memo.getId());
 
+        emailNotify(NotificationEventType.MEMO_SUBMITTED, memo, nextApprover,
+                userId, nameOrNull(userId), null);
+
         auditEventPublisher.recordChange(userId, ACTION_SUBMITTED, ENTITY_MEMO, memoId, before,
                 stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), null));
 
@@ -283,10 +429,10 @@ public class MemoService {
 
         Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks);
 
-        if (memo.getCategory() != null) {
+        if (workflowEngineService.hasActiveConfigForMemoType(memoTypeIdOf(memo)) || memo.getCategory() != null) {
             WorkflowStageInstance current = workflowEngineService.getCurrentStage(memoId);
             if (current != null) {
-                workflowEngineService.approveStage(memoId, current.getStage().getId(), approverId, remarks);
+                workflowEngineService.approveStage(memoId, current.getId(), approverId, remarks);
             }
             Memo after = memoRepository.findById(memoId).orElse(memo);
             auditEventPublisher.recordChange(approverId, ACTION_APPROVED, ENTITY_MEMO, memoId, before,
@@ -326,6 +472,9 @@ public class MemoService {
                     "Memo Approved",
                     "Your memo " + memo.getMemoNo() + " has been fully approved",
                     "MEMO_APPROVED", memo.getId(), "MEMO");
+
+            emailNotify(NotificationEventType.MEMO_APPROVED, memo, userOrNull(memo.getCreatedBy()),
+                    approverId, approver.getName(), remarks);
         } else {
             User nextApprover = approvalEngineService.getNextApprover(memo, newLevel);
             memo.setCurrentApprover(nextApprover);
@@ -343,6 +492,11 @@ public class MemoService {
                     "Memo Pending Approval",
                     "Memo " + memo.getMemoNo() + " (" + memo.getTitle() + ") requires your approval (Level " + (newLevel + 1) + ")",
                     "MEMO_APPROVAL", memo.getId(), "MEMO");
+
+            emailNotify(NotificationEventType.MEMO_APPROVED, memo, userOrNull(memo.getCreatedBy()),
+                    approverId, approver.getName(), remarks);
+            emailNotify(NotificationEventType.MEMO_SUBMITTED, memo, nextApprover,
+                    approverId, approver.getName(), null);
         }
 
         memo = memoRepository.save(memo);
@@ -361,10 +515,10 @@ public class MemoService {
 
         Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks);
 
-        if (memo.getCategory() != null) {
+        if (workflowEngineService.hasActiveConfigForMemoType(memoTypeIdOf(memo)) || memo.getCategory() != null) {
             WorkflowStageInstance current = workflowEngineService.getCurrentStage(memoId);
             if (current != null) {
-                workflowEngineService.rejectStage(memoId, current.getStage().getId(), approverId, remarks);
+                workflowEngineService.rejectStage(memoId, current.getId(), approverId, remarks);
             }
             Memo after = memoRepository.findById(memoId).orElse(memo);
             auditEventPublisher.recordChange(approverId, ACTION_REJECTED, ENTITY_MEMO, memoId, before,
@@ -397,6 +551,9 @@ public class MemoService {
                         + (remarks != null ? ": " + remarks : ""),
                 "MEMO_REJECTED", memo.getId(), "MEMO");
 
+        emailNotify(NotificationEventType.MEMO_REJECTED, memo, userOrNull(memo.getCreatedBy()),
+                approverId, approver.getName(), remarks);
+
         auditEventPublisher.recordChange(approverId, ACTION_REJECTED, ENTITY_MEMO, memoId, before,
                 stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks));
 
@@ -413,10 +570,10 @@ public class MemoService {
 
         Map<String, Object> before = stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks);
 
-        if (memo.getCategory() != null) {
+        if (workflowEngineService.hasActiveConfigForMemoType(memoTypeIdOf(memo)) || memo.getCategory() != null) {
             WorkflowStageInstance current = workflowEngineService.getCurrentStage(memoId);
             if (current != null) {
-                workflowEngineService.returnToStage(memoId, current.getStage().getId(), approverId, remarks);
+                workflowEngineService.returnToStage(memoId, current.getId(), approverId, remarks);
             }
             Memo after = memoRepository.findById(memoId).orElse(memo);
             auditEventPublisher.recordChange(approverId, ACTION_RETURNED, ENTITY_MEMO, memoId, before,
@@ -441,6 +598,9 @@ public class MemoService {
         approvalHistoryRepository.save(history);
 
         log.info("Memo {} returned for revision by user {}: {}", memo.getMemoNo(), approverId, remarks);
+
+        emailNotify(NotificationEventType.MEMO_RETURNED, memo, userOrNull(memo.getCreatedBy()),
+                approverId, approver.getName(), remarks);
 
         auditEventPublisher.recordChange(approverId, ACTION_RETURNED, ENTITY_MEMO, memoId, before,
                 stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks));
@@ -484,6 +644,8 @@ public class MemoService {
         approvalHistoryRepository.save(history);
 
         log.info("Memo {} forwarded from user {} to user {}", memo.getMemoNo(), userId, toUserId);
+
+        emailNotify(NotificationEventType.MEMO_FORWARDED, memo, toUser, userId, fromUser.getName(), remarks);
 
         auditEventPublisher.recordChange(userId, ACTION_FORWARDED, ENTITY_MEMO, memoId, before,
                 stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks));
@@ -533,6 +695,10 @@ public class MemoService {
 
         log.info("Memo {} backwarded to level {} by user {}", memo.getMemoNo(), previousLevel, userId);
 
+        if (previousApprover != null) {
+            emailNotify(NotificationEventType.MEMO_SUBMITTED, memo, previousApprover, userId, user.getName(), remarks);
+        }
+
         auditEventPublisher.recordChange(userId, ACTION_BACKWARDED, ENTITY_MEMO, memoId, before,
                 stateSnapshot(memo.getStatus(), memo.getApprovalLevel(), approverIdOf(memo), remarks));
 
@@ -564,6 +730,42 @@ public class MemoService {
 
     public void enableBranchRouting(Long memoId, boolean enabled) {
         throw new UnsupportedOperationException("Branch routing enable/disable not yet implemented");
+    }
+
+    // ── Phase 4a: email notification publishing ──────────────────────────────────────────────
+
+    /**
+     * Publishes an email notification event for a memo lifecycle change. The event is delivered
+     * after the current transaction commits (see {@code NotificationDispatchService}), so a failed
+     * email can never roll back the memo operation.
+     */
+    private void emailNotify(NotificationEventType type, Memo memo, User recipient,
+                             Long actorId, String actorName, String remarks) {
+        if (memo == null || recipient == null
+                || recipient.getEmail() == null || recipient.getEmail().isBlank()) {
+            return;
+        }
+        notificationEventPublisher.publishEvent(MemoNotificationEvent.builder()
+                .eventType(type)
+                .memoId(memo.getId())
+                .memoNo(memo.getMemoNo())
+                .memoTitle(memo.getTitle())
+                .recipientId(recipient.getId())
+                .recipientEmail(recipient.getEmail())
+                .recipientName(recipient.getName())
+                .actorId(actorId)
+                .actorName(actorName)
+                .remarks(remarks)
+                .build());
+    }
+
+    private User userOrNull(Long id) {
+        return id == null ? null : userRepository.findById(id).orElse(null);
+    }
+
+    private String nameOrNull(Long id) {
+        User user = userOrNull(id);
+        return user == null ? null : user.getName();
     }
 
     @Transactional(readOnly = true)
@@ -629,24 +831,48 @@ public class MemoService {
         return memoDocumentRepository.findByMemoId(memoId);
     }
 
-    public String generateMemoNo(Long fiscalYearId) {
-        long sequence = 1;
-        Memo lastMemo = memoRepository.findTopByOrderByIdDesc().orElse(null);
-        if (lastMemo != null && lastMemo.getMemoNo() != null) {
-            String lastNo = lastMemo.getMemoNo();
-            int lastDash = lastNo.lastIndexOf('-');
-            if (lastDash > 0) {
-                try {
-                    sequence = Long.parseLong(lastNo.substring(lastDash + 1)) + 1;
-                } catch (NumberFormatException e) {
-                    sequence = memoRepository.count() + 1;
-                }
-            }
+    @Transactional(readOnly = true)
+    public MemoDocument getDocument(Long documentId) {
+        return memoDocumentRepository.findById(documentId)
+                .orElseThrow(() -> new EntityNotFoundException("MemoDocument not found with id: " + documentId));
+    }
+
+    /** Resolves the owning memo id of a document for authorization purposes. */
+    @Transactional(readOnly = true)
+    public Long getMemoIdForDocument(Long documentId) {
+        MemoDocument doc = getDocument(documentId);
+        return doc.getMemo() != null ? doc.getMemo().getId() : null;
+    }
+
+    /**
+     * Phase 4b: unifies memo numbering. When a fiscal year is resolvable (open financial period's
+     * fiscal year, else the active fiscal year) the number is a row-locked per-fiscal-year sequence
+     * {@code NEXM-{fiscalYearId}-{sequence}}; otherwise a legacy global {@code NEXM-{sequence}}
+     * number derived from the memo count is used as a documented fallback.
+     */
+    private void assignMemoNumberAndFiscalYear(Memo memo) {
+        FiscalYear fiscalYear = financialPeriodService.resolveCreationFiscalYear();
+        if (fiscalYear != null) {
+            memo.setFiscalYear(fiscalYear);
+            memo.setMemoNo(memoNumberGeneratorService.generateMemoNumber(fiscalYear.getId()));
+        } else {
+            log.warn("No fiscal year / open financial period configured; using legacy memo numbering");
+            memo.setMemoNo(String.format("NEXM-%04d", memoRepository.count() + 1));
         }
-        if (fiscalYearId == null) {
-            return String.format("NEXM-%04d", sequence);
+    }
+
+    /**
+     * Phase 4c — priority resolution: explicit request value wins, then the template default, then
+     * {@link Priority#MEDIUM}.
+     */
+    private Priority resolvePriority(CreateMemoRequest request, MemoTemplate template) {
+        if (request.getPriority() != null) {
+            return request.getPriority();
         }
-        return String.format("NEXM-%d-%04d", fiscalYearId, sequence);
+        if (template != null && template.getDefaultPriority() != null) {
+            return template.getDefaultPriority();
+        }
+        return Priority.MEDIUM;
     }
 
     @Transactional(readOnly = true)
@@ -685,6 +911,7 @@ public class MemoService {
 
     static final String ENTITY_MEMO = "MEMO";
     static final String ACTION_SUBMITTED = "MEMO_SUBMITTED";
+    static final String ACTION_UPDATED = "MEMO_UPDATED";
     static final String ACTION_APPROVED = "MEMO_APPROVED";
     static final String ACTION_REJECTED = "MEMO_REJECTED";
     static final String ACTION_RETURNED = "MEMO_RETURNED";
@@ -694,6 +921,10 @@ public class MemoService {
 
     private static Long approverIdOf(Memo memo) {
         return memo != null && memo.getCurrentApprover() != null ? memo.getCurrentApprover().getId() : null;
+    }
+
+    private static Long memoTypeIdOf(Memo memo) {
+        return memo != null && memo.getMemoType() != null ? memo.getMemoType().getId() : null;
     }
 
     private static Map<String, Object> stateSnapshot(MemoStatus status, Integer level, Long approverId, String remarks) {

@@ -8,6 +8,11 @@ spring:
     username: sa
     password: root
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  liquibase:
+    enabled: true
+    drop-first: false
+    clear-checksums: true
     hikari:
       minimum-idle: 2
       maximum-pool-size: 10
@@ -45,6 +50,13 @@ nexmemo:
     brute-force:
       # No lockout in dev — won't block you while testing
       max-attempts: 999
+    clamav:
+      enabled: false
+  compression:
+    max-input-bytes: 1073741824
+    guardrails:
+      scan-with-clamav: false
+      inspect-archives: true
   cors:
     allowed-origins: http://localhost:3000,http://localhost:4200,http://localhost:4202,http://localhost:8080
   email:
@@ -65,7 +77,16 @@ logging:
     liquibase: INFO
 
 server:
+  tomcat:
+    max-swallow-size: -1
   error:
     include-stacktrace: always
     include-message: always
     include-binding-errors: always
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 1000MB
+      max-request-size: 1000MB
+      enabled: true

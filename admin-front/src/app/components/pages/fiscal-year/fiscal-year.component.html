@@ -28,6 +28,7 @@
         <ng-template #actions let-row>
           @if (isAdmin) {
             <button class="btn btn-sm btn-outline-primary me-1" (click)="openEditModal(editModal, row); $event.stopPropagation()"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-outline-info me-1" (click)="openPeriodsModal(periodsModal, row); $event.stopPropagation()" title="Manage periods"><i class="fas fa-calendar-day"></i></button>
             @if (!row.isActive) {
               <button class="btn btn-sm btn-outline-success me-1" (click)="setActive(row); $event.stopPropagation()"><i class="fas fa-check-circle"></i></button>
             }
@@ -76,5 +77,92 @@
   <div class="modal-footer">
     <button class="btn btn-secondary" (click)="modal.dismiss()">Cancel</button>
     <button class="btn btn-primary" (click)="saveFiscalYear()">Save</button>
+  </div>
+</ng-template>
+
+<!-- Phase 6c — Financial periods for the selected fiscal year -->
+<ng-template #periodsModal let-modal>
+  <div class="modal-header">
+    <h5 class="modal-title">
+      <i class="fas fa-calendar-day"></i> Financial Periods
+      @if (periodsFiscalYear?.name) { <span class="text-muted">— {{ periodsFiscalYear.name }}</span> }
+    </h5>
+    <button type="button" class="btn-close" (click)="modal.dismiss()"></button>
+  </div>
+  <div class="modal-body">
+    <p class="text-muted small">
+      At most one period may be <strong>OPEN</strong> at a time. Once periods are configured, a memo may only be
+      created while an open period covers today.
+    </p>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <h6 class="mb-3">{{ editingPeriodId ? 'Edit Period' : 'Add Period' }}</h6>
+        <div class="row">
+          <div class="col-md-4 mb-2"><label class="form-label">Name</label>
+            <input class="form-control" [(ngModel)]="periodForm.name" placeholder="e.g. Q1" /></div>
+          <div class="col-md-3 mb-2"><label class="form-label">Start</label>
+            <input type="date" class="form-control" [(ngModel)]="periodForm.startDate" /></div>
+          <div class="col-md-3 mb-2"><label class="form-label">End</label>
+            <input type="date" class="form-control" [(ngModel)]="periodForm.endDate" /></div>
+          <div class="col-md-2 mb-2"><label class="form-label">Status</label>
+            <select class="form-control" [(ngModel)]="periodForm.status">
+              <option value="CLOSED">Closed</option>
+              <option value="OPEN">Open</option>
+              <option value="LOCKED">Locked</option>
+            </select></div>
+        </div>
+        <div class="text-end">
+          @if (editingPeriodId) {
+            <button class="btn btn-sm btn-secondary me-1" (click)="cancelPeriodEdit()">Cancel</button>
+          }
+          <button class="btn btn-sm btn-primary" (click)="savePeriod()">
+            <i class="fas fa-save"></i> {{ editingPeriodId ? 'Update' : 'Add' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    @if (periodsLoading) {
+      <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+    } @else if (periods.length === 0) {
+      <div class="text-center text-muted py-3">No periods configured for this fiscal year.</div>
+    } @else {
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr><th>Name</th><th>Start</th><th>End</th><th>Status</th><th class="text-end">Actions</th></tr>
+          </thead>
+          <tbody>
+            @for (p of periods; track p.id) {
+              <tr>
+                <td>{{ p.name }}</td>
+                <td><small>{{ p.startDate | date:'mediumDate' }}</small></td>
+                <td><small>{{ p.endDate | date:'mediumDate' }}</small></td>
+                <td><span class="badge" [class]="periodBadge(p.status)">{{ p.status }}</span></td>
+                <td class="text-end">
+                  @if (p.status === 'CLOSED') {
+                    <button class="btn btn-sm btn-outline-success me-1" (click)="openPeriod(p)" title="Open"><i class="fas fa-lock-open"></i></button>
+                  }
+                  @if (p.status === 'OPEN') {
+                    <button class="btn btn-sm btn-outline-warning me-1" (click)="closePeriod(p)" title="Close"><i class="fas fa-lock"></i></button>
+                  }
+                  @if (p.status !== 'LOCKED') {
+                    <button class="btn btn-sm btn-outline-dark me-1" (click)="lockPeriod(p)" title="Lock (permanent)"><i class="fas fa-user-lock"></i></button>
+                    <button class="btn btn-sm btn-outline-primary me-1" (click)="editPeriod(p)" title="Edit"><i class="fas fa-edit"></i></button>
+                  }
+                  @if (p.status !== 'OPEN') {
+                    <button class="btn btn-sm btn-outline-danger" (click)="deletePeriod(p)" title="Delete"><i class="fas fa-trash"></i></button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="modal.dismiss()">Close</button>
   </div>
 </ng-template>

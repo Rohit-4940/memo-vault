@@ -1,6 +1,7 @@
 package com.nexmemo.web.service;
 
 import com.nexmemo.core.dto.ChatAttachmentDto;
+import com.nexmemo.core.dto.ChatMessageDocumentDto;
 import com.nexmemo.core.dto.ChatMessageDto;
 import com.nexmemo.core.dto.EditMessageRequest;
 import com.nexmemo.core.dto.ForwardMessageRequest;
@@ -81,6 +82,8 @@ public class ChatMessageService {
     private final ChatConversationService conversationService;
     private final ChatMentionService mentionService;
     private final ChatAuthorizationService chatAuth;
+    private final ChatDocumentService documentService;
+    private final ChatDraftService draftService;
     private final SimpMessagingTemplate messagingTemplate;
 
     // ── Send ──────────────────────────────────────────────────────────────────
@@ -144,11 +147,14 @@ public class ChatMessageService {
         // Resolve/persist @mentions and notify newly tagged users (authorized targets only).
         mentionService.syncMentions(conversation, saved, userId);
 
+        // Sending consumes the caller's autosaved draft for this conversation.
+        draftService.clear(userId, conversationId);
+
         List<ChatParticipant> participants =
                 participantRepository.findByConversationIdAndIsActiveTrue(conversationId);
         ChatMessageDto dto = toDto(userId, saved, chatAuth.isAdmin(userId), participants,
                 reactionsFor(saved.getId()), mentionsFor(saved.getId()),
-                attachmentsFor(saved.getId()), isBookmarked(userId, saved.getId()));
+                attachmentsFor(saved.getId()), List.of(), isBookmarked(userId, saved.getId()));
         broadcast(conversation, dto, participants);
         log.debug("Message {} sent to conversation {} by userId={}", saved.getId(), conversationId, userId);
         return dto;
@@ -227,7 +233,9 @@ public class ChatMessageService {
                 participantRepository.findByConversationIdAndIsActiveTrue(conversationId);
         ChatMessageDto dto = toDto(userId, saved, chatAuth.isAdmin(userId), participants,
                 reactionsFor(saved.getId()), mentionsFor(saved.getId()),
-                attachmentsFor(saved.getId()), isBookmarked(userId, saved.getId()));
+                attachmentsFor(saved.getId()),
+                documentService.renderForMessage(userId, saved.getId()),
+                isBookmarked(userId, saved.getId()));
         broadcast(conversation, dto, participants);
         log.info("Message {} pinned={} by userId={} in conversation {}",
                 messageId, saved.getIsPinned(), userId, conversationId);
@@ -302,7 +310,7 @@ public class ChatMessageService {
                 participantRepository.findByConversationIdAndIsActiveTrue(target.getId());
         ChatMessageDto dto = toDto(userId, saved, chatAuth.isAdmin(userId), participants,
                 reactionsFor(saved.getId()), mentionsFor(saved.getId()),
-                attachmentsFor(saved.getId()), isBookmarked(userId, saved.getId()));
+                attachmentsFor(saved.getId()), List.of(), isBookmarked(userId, saved.getId()));
         broadcast(target, dto, participants);
         log.info("Message {} forwarded by userId={} from conversation {} to conversation {}",
                 sourceMessageId, userId, source.getConversationId(), target.getId());
@@ -324,7 +332,9 @@ public class ChatMessageService {
                 participantRepository.findByConversationIdAndIsActiveTrue(conversation.getId());
         ChatMessageDto dto = toDto(userId, message, chatAuth.isAdmin(userId), participants,
                 reactionsFor(message.getId()), mentionsFor(message.getId()),
-                attachmentsFor(message.getId()), isBookmarked(userId, message.getId()));
+                attachmentsFor(message.getId()),
+                documentService.renderForMessage(userId, message.getId()),
+                isBookmarked(userId, message.getId()));
         broadcast(conversation, dto, participants);
         return dto;
     }
@@ -413,7 +423,9 @@ public class ChatMessageService {
                 participantRepository.findByConversationIdAndIsActiveTrue(conversationId);
         ChatMessageDto dto = toDto(userId, saved, chatAuth.isAdmin(userId), participants,
                 reactionsFor(saved.getId()), mentionsFor(saved.getId()),
-                attachmentsFor(saved.getId()), isBookmarked(userId, saved.getId()));
+                attachmentsFor(saved.getId()),
+                documentService.renderForMessage(userId, saved.getId()),
+                isBookmarked(userId, saved.getId()));
         broadcast(conversation, dto, participants);
         log.info("Message {} edited by userId={} in conversation {}", messageId, userId, conversationId);
         return dto;
@@ -447,7 +459,7 @@ public class ChatMessageService {
                 participantRepository.findByConversationIdAndIsActiveTrue(conversationId);
         ChatMessageDto dto = toDto(userId, saved, chatAuth.isAdmin(userId), participants,
                 reactionsFor(saved.getId()), List.of(),
-                attachmentsFor(saved.getId()), isBookmarked(userId, saved.getId()));
+                attachmentsFor(saved.getId()), List.of(), isBookmarked(userId, saved.getId()));
         broadcast(conversation, dto, participants);
         log.info("Message {} soft-deleted by userId={} (author={}, admin={}) in conversation {}",
                 messageId, userId, isAuthor, isAdmin, conversationId);
@@ -463,7 +475,9 @@ public class ChatMessageService {
                 : List.of();
         return toDto(viewerId, m, chatAuth.isAdmin(viewerId), participants,
                 reactionsFor(m.getId()), mentionsFor(m.getId()),
-                attachmentsFor(m.getId()), isBookmarked(viewerId, m.getId()));
+                attachmentsFor(m.getId()),
+                documentService.renderForMessage(viewerId, m.getId()),
+                isBookmarked(viewerId, m.getId()));
     }
 
     /** Bulk renderer: shared by history, threads and search (single participant/reaction pass). */
@@ -479,6 +493,7 @@ public class ChatMessageService {
                 ChatMentionService.groupByMessage(mentionRepository.findByMessageIdIn(ids));
         Map<Long, List<ChatAttachmentDto>> attachments =
                 ChatAttachmentService.groupByMessage(attachmentRepository.findByMessageIdInOrderByIdAsc(ids));
+        Map<Long, List<ChatMessageDocumentDto>> documents = documentService.renderForMessages(viewerId, messages);
         Set<Long> bookmarked = bookmarkMessageIds(viewerId, ids);
 
         List<Long> conversationIds = messages.stream()
@@ -503,6 +518,7 @@ public class ChatMessageService {
                     reactions.getOrDefault(m.getId(), List.of()),
                     mentions.getOrDefault(m.getId(), List.of()),
                     attachments.getOrDefault(m.getId(), List.of()),
+                    documents.getOrDefault(m.getId(), List.of()),
                     bookmarked.contains(m.getId())));
         }
         return out;
@@ -543,7 +559,8 @@ public class ChatMessageService {
     private ChatMessageDto toDto(Long viewerId, ChatMessage m, boolean viewerIsAdmin,
                                  List<ChatParticipant> participants, List<ChatMessageReaction> reactions,
                                  List<Long> mentionedUserIds,
-                                 List<ChatAttachmentDto> attachments, boolean bookmarked) {
+                                 List<ChatAttachmentDto> attachments,
+                                 List<ChatMessageDocumentDto> documents, boolean bookmarked) {
         boolean deleted = Boolean.TRUE.equals(m.getIsDeleted());
         ChatMessageDto.ChatMessageDtoBuilder builder = ChatMessageDto.builder()
                 .id(m.getId())
@@ -566,7 +583,8 @@ public class ChatMessageService {
                 .clientMessageId(m.getClientMessageId())
                 .reactions(ChatReactionService.summarize(reactions, viewerId))
                 .mentionedUserIds(mentionedUserIds == null ? List.of() : mentionedUserIds)
-                .attachments(attachments == null ? List.of() : attachments);
+                .attachments(attachments == null ? List.of() : attachments)
+                .documents(documents == null ? List.of() : documents);
 
         if (viewerIsAdmin) {
             builder.deletedReason(m.getDeletedReason());

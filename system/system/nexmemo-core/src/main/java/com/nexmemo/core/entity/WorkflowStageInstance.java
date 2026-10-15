@@ -19,13 +19,37 @@ public class WorkflowStageInstance extends BaseEntity<Long> implements Serializa
     @JoinColumn(name = "memo_id", nullable = false)
     private Memo memo;
 
+    /**
+     * Global stage reference used by the legacy rule-matrix path. Config-driven (Phase 5) stage
+     * instances do not reference a global stage; they snapshot everything on the instance instead,
+     * so later config versions can never rewrite an in-progress instance.
+     */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stage_id", nullable = false)
+    @JoinColumn(name = "stage_id")
     private WorkflowStage stage;
+
+    /** Frozen display name for config-driven stages (Phase 5). */
+    @Column(name = "stage_name", length = 255)
+    private String stageName;
+
+    /** Config id the instance was launched from (Phase 5). */
+    @Column(name = "config_id")
+    private Long configId;
+
+    /** Config version the instance was launched from — in-flight instances keep this forever (Phase 5). */
+    @Column(name = "config_version")
+    private Integer configVersion;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignee_id")
     private User assignee;
+
+    /**
+     * Frozen assignee pool (comma-separated user ids). Every eligible approver of the stage may
+     * act on it, not just the primary {@link #getAssignee()} (Phase 5).
+     */
+    @Column(name = "assignee_ids", length = 800)
+    private String assigneeIds;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -48,4 +72,12 @@ public class WorkflowStageInstance extends BaseEntity<Long> implements Serializa
 
     @Column(name = "action_by")
     private Long actionBy;
+
+    /** Frozen require-comment guard (Phase 5); falls back to the global stage when null. */
+    @Column(name = "require_comment")
+    private Boolean requireComment;
+
+    /** Frozen require-document guard (Phase 5); falls back to the global stage when null. */
+    @Column(name = "require_document")
+    private Boolean requireDocument;
 }

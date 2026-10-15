@@ -320,6 +320,27 @@
   i { font-size: 0.75rem; color: var(--nexmemo-primary); }
 }
 
+/* ── Phase 6c — per-stage decision guards ── */
+.add-stage-guards { flex-shrink: 0; }
+
+.guard-toggles {
+  display: flex; align-items: center; gap: 0.9rem;
+  padding-bottom: 0.35rem;
+}
+
+.stage-guards {
+  display: flex; align-items: center; gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.guard-toggle {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.78rem; color: var(--nexmemo-text-muted);
+  white-space: nowrap; cursor: pointer; margin: 0;
+
+  input { cursor: pointer; }
+}
+
 /* ── Add Permission Bar ── */
 .add-permission-bar {
   display: flex; align-items: flex-end; gap: 0.75rem;

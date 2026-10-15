@@ -61,6 +61,8 @@ class ChatMessageServiceTest {
     @Mock private ChatMentionService chatMentionService;
     @Mock private ChatConversationService conversationService;
     @Mock private ChatAuthorizationService chatAuth;
+    @Mock private com.nexmemo.web.service.ChatDocumentService documentService;
+    @Mock private com.nexmemo.web.service.ChatDraftService draftService;
     @Mock private SimpMessagingTemplate messagingTemplate;
 
     @InjectMocks private ChatMessageService service;

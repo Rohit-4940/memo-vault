@@ -32,6 +32,13 @@ public class EscalationService {
                 .orElseThrow(() -> new EntityNotFoundException("StageInstance not found: " + stageInstanceId));
 
         WorkflowStage stage = instance.getStage();
+        if (stage == null) {
+            // Phase 5 config-driven instances do not reference a global workflow_stage, so no
+            // global escalation rule is attached. Nothing to escalate.
+            log.warn("No escalation rule available for config-driven stage instance {} (stage '{}')",
+                    stageInstanceId, instance.getStageName());
+            return;
+        }
         if (stage.getEscalationRule() == null) {
             log.warn("No escalation rule for stage {} on instance {}", stage.getId(), stageInstanceId);
             return;
@@ -69,6 +76,7 @@ public class EscalationService {
             User newAssignee = userRepository.findById(rule.getEscalateToUser())
                     .orElseThrow(() -> new EntityNotFoundException("User not found: " + rule.getEscalateToUser()));
             instance.setAssignee(newAssignee);
+            instance.setAssigneeIds(String.valueOf(newAssignee.getId()));
             log.info("Reassigned stage instance {} to user {}", instance.getId(), newAssignee.getId());
         }
     }
@@ -78,6 +86,7 @@ public class EscalationService {
             List<User> users = userRepository.findByRoleId(rule.getEscalateToRole());
             if (!users.isEmpty()) {
                 instance.setAssignee(users.get(0));
+                instance.setAssigneeIds(String.valueOf(users.get(0).getId()));
                 log.info("Escalated stage instance {} to role {} user {}", instance.getId(), rule.getEscalateToRole(), users.get(0).getId());
             }
         }

@@ -1,36 +1,21 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { NgIf, NgFor, NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { ApiConfig } from '../../../@core/utils/api/ApiConfig';
 import { ToastrService } from 'ngx-toastr';
 import { WebSocketService } from '../../../shared-services/websocket.service';
+import { FileService, CompressionResponse } from '../../../shared-services/api-service/file.service';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 import { NgbPaginationModule } from '@ng-bootstrap/ng-bootstrap';
 
 interface QueueItem {
   file: File;
   status: 'pending' | 'processing' | 'done' | 'error';
-  result?: any;
+  jobId?: number;
+  progressPercent?: number;
+  message?: string;
 }
 
-interface HistoryItem {
-  id: number;
-  originalName: string;
-  originalSize: number;
-  originalType: string;
-  compressedName: string;
-  compressedSize: number;
-  compressionType: string;
-  status: string;
-  durationMs: number;
-  ratioPercent: number;
-  savings: number;
-  savingsPercent: number;
-  errorMessage: string;
-  createdDate: string;
-  completedDate: string;
-}
+type HistoryItem = CompressionResponse;
 
 interface Stats {
   totalJobs: number;
@@ -47,7 +32,7 @@ interface Stats {
   styleUrl: './document-compressor.component.scss'
 })
 export class DocumentCompressorComponent implements OnInit, OnDestroy {
-  private http = inject(HttpClient);
+  private fileService = inject(FileService);
   private toastr = inject(ToastrService);
   private wsService = inject(WebSocketService);
 
@@ -55,11 +40,18 @@ export class DocumentCompressorComponent implements OnInit, OnDestroy {
   compressing = false;
   isDragover = false;
   compressType = 'GZIP';
+  preset = 'BALANCED';
   compressionTypes = [
     { value: 'GZIP', label: 'GZIP', desc: 'Fast, single-file', icon: 'fas fa-file-archive' },
     { value: 'ZIP', label: 'ZIP', desc: 'Universal archive', icon: 'fas fa-file-zipper' },
     { value: 'TAR', label: 'TAR', desc: 'Uncompressed archive', icon: 'fas fa-tape' },
     { value: 'TAR_GZ', label: 'TAR.GZ', desc: 'Compressed archive', icon: 'fas fa-box' },
+  ];
+  presets = [
+    { value: 'FAST', label: 'Fast', desc: 'Quick, larger' },
+    { value: 'BALANCED', label: 'Balanced', desc: 'Recommended' },
+    { value: 'MAXIMUM', label: 'Maximum', desc: 'Smallest output' },
+    { value: 'IMAGE_OPTIMIZE', label: 'Image', desc: 'Re-encode images' },
   ];
 
   historyItems: HistoryItem[] = [];
@@ -75,6 +67,7 @@ export class DocumentCompressorComponent implements OnInit, OnDestroy {
   private searchSubject = new Subject<string>();
   private searchSub!: Subscription;
   private progressSub!: Subscription;
+  private pollTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
   ngOnInit() {
     this.searchSub = this.searchSubject.pipe(
@@ -82,19 +75,10 @@ export class DocumentCompressorComponent implements OnInit, OnDestroy {
       distinctUntilChanged()
     ).subscribe(() => this.loadHistory());
 
-    this.progressSub = this.wsService.subscribe('/topic/compress/*').subscribe({
-      next: (event) => {
-        const jobId = event.jobId;
-        const status = event.status;
-        const fileName = event.fileName;
-        const percent = event.progressPercent;
-
-        if (percent === 100 && (status === 'COMPLETED' || status === 'FAILED')) {
-          this.updateQueueItem(fileName, status === 'COMPLETED' ? 'done' : 'error');
-          this.loadHistory();
-          this.loadStats();
-        }
-      }
+    // Private per-user queue: the broker scopes /user/** to the authenticated principal, so no
+    // other user's job progress (and therefore no filenames) can be observed here.
+    this.progressSub = this.wsService.subscribe('/user/queue/compress').subscribe({
+      next: (event) => this.onProgress(event)
     });
 
     this.loadHistory();
@@ -103,6 +87,8 @@ export class DocumentCompressorComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.searchSub?.unsubscribe();
     this.progressSub?.unsubscribe();
+    this.pollTimers.forEach(t => clearTimeout(t));
+    this.pollTimers.clear();
   }
 
   onDragOver(e: DragEvent) { e.preventDefault(); this.isDragover = true; }
@@ -133,94 +119,154 @@ export class DocumentCompressorComponent implements OnInit, OnDestroy {
   }
 
   removeFromQueue(item: QueueItem) {
+    if (item.status === 'processing' && item.jobId != null) {
+      this.cancelJobById(item.jobId);
+    }
     this.queue = this.queue.filter(q => q !== item);
   }
 
   clearQueue() {
+    this.queue.filter(q => q.status === 'processing' && q.jobId != null)
+      .forEach(q => this.cancelJobById(q.jobId!));
     this.queue = [];
   }
 
   compressAll() {
     if (this.queue.length === 0 || this.compressing) return;
-    this.compressing = true;
-
     const pending = this.queue.filter(q => q.status === 'pending' || q.status === 'error');
-    if (pending.length === 0) { this.compressing = false; return; }
+    if (pending.length === 0) { return; }
 
-    let completed = 0;
+    this.compressing = true;
+    let submitted = 0;
+
     for (const item of pending) {
       item.status = 'processing';
-      const fd = new FormData();
-      fd.append('file', item.file);
-      fd.append('type', this.compressType);
-
-      this.http.post(`${ApiConfig.URL}/api/v1/files/compress`, fd).subscribe({
+      item.progressPercent = 0;
+      this.fileService.compress(item.file, this.compressType, this.preset).subscribe({
         next: (res: any) => {
-          item.status = 'done';
-          item.result = res?.data || res;
-          completed++;
-          if (completed === pending.length) {
-            this.compressing = false;
-            this.loadHistory();
+          const job = res?.data ?? res;
+          item.jobId = job?.id;
+          const initialProgress = job?.progressPercent;
+if (initialProgress != null && (item.progressPercent == null || initialProgress >= item.progressPercent)) {
+  item.progressPercent = initialProgress;
+}
+          if (item.jobId != null) {
+            this.pollJob(item.jobId);
+          } else {
+            item.status = 'error';
+          }
+          submitted++;
+          if (submitted === pending.length) {
             this.loadStats();
-            this.toastr.success(`${completed} file(s) compressed`);
           }
         },
         error: (err) => {
           item.status = 'error';
-          completed++;
-          if (completed === pending.length) {
-            this.compressing = false;
-            this.loadHistory();
-            this.loadStats();
-            this.toastr.error('Some files failed to compress');
-          }
+          item.message = err?.error?.message || 'Failed to submit';
+          submitted++;
+          this.toastr.error(`${item.file.name}: ${item.message}`);
         }
       });
     }
   }
 
-  private updateQueueItem(fileName: string, status: 'done' | 'error') {
-    const item = this.queue.find(q => q.file.name === fileName);
-    if (item) item.status = status;
+  private onProgress(event: any) {
+    if (!event) return;
+    const item = this.queue.find(q => q.jobId === event.jobId);
+    if (item) {
+      const incomingProgress = event.progressPercent;
+if (incomingProgress != null && (item.progressPercent == null || incomingProgress >= item.progressPercent)) {
+  item.progressPercent = incomingProgress;
+}
+      item.message = event.message;
+      if (event.status === 'COMPLETED') {
+        this.finishItem(item, 'done');
+      } else if (event.status === 'FAILED') {
+        item.message = event.message;
+        this.finishItem(item, 'error');
+      } else if (event.status === 'CANCELLED') {
+        this.finishItem(item, 'error');
+      }
+    }
+  }
+
+  /** Fallback poll: guarantees completion detection even if the WebSocket is unavailable. */
+  private pollJob(jobId: number) {
+    if (this.pollTimers.has(jobId)) return;
+    const tick = () => {
+      this.fileService.getJob(jobId).subscribe({
+        next: (res: any) => {
+          const job = res?.data ?? res;
+          const item = this.queue.find(q => q.jobId === jobId);
+          if (item) {
+            const polledProgress = job?.progressPercent;
+if (polledProgress != null && (item.progressPercent == null || polledProgress >= item.progressPercent)) {
+  item.progressPercent = polledProgress;
+}
+          }
+          if (job?.status === 'COMPLETED') {
+            if (item) this.finishItem(item, 'done');
+            return;
+          }
+          if (job && ['FAILED', 'CANCELLED'].includes(job.status)) {
+            if (item) { item.message = job.errorMessage; this.finishItem(item, 'error'); }
+            return;
+          }
+          this.pollTimers.set(jobId, setTimeout(tick, 2000));
+        },
+        error: () => {
+          this.pollTimers.set(jobId, setTimeout(tick, 3000));
+        }
+      });
+    };
+    tick();
+  }
+
+  private finishItem(item: QueueItem, status: 'done' | 'error') {
+    item.status = status;
+    if (item.jobId != null) {
+      const timer = this.pollTimers.get(item.jobId);
+      if (timer) { clearTimeout(timer); this.pollTimers.delete(item.jobId); }
+    }
     if (this.queue.every(q => q.status === 'done' || q.status === 'error')) {
       this.compressing = false;
+      this.loadHistory();
+      this.loadStats();
     }
+  }
+
+  private cancelJobById(jobId: number) {
+    this.fileService.cancelJob(jobId).subscribe({ error: () => {} });
   }
 
   loadHistory() {
     this.loadingHistory = true;
-    const params: any = { page: this.historyPage - 1, size: this.historySize };
-    if (this.statusFilter) params.status = this.statusFilter;
-    if (this.searchQuery.trim()) params.search = this.searchQuery.trim();
+    this.fileService.getHistory(this.historyPage - 1, this.historySize, this.statusFilter || undefined, this.searchQuery.trim() || undefined)
+      .subscribe({
+        next: (res: any) => {
+          const data = res?.data || res;
+          this.historyItems = data.items || [];
+          this.historyPage = (data.page || 0) + 1;
+          this.historySize = data.size || 20;
+          this.historyTotalElements = data.totalElements || 0;
+          this.historyTotalPages = data.totalPages || 1;
 
-    this.http.get(`${ApiConfig.URL}/api/v1/files/compress/history`, { params }).subscribe({
-      next: (res: any) => {
-        const data = res?.data || res;
-        this.historyItems = data.items || [];
-        this.historyPage = (data.page || 0) + 1;
-        this.historySize = data.size || 20;
-        this.historyTotalElements = data.totalElements || 0;
-        this.historyTotalPages = data.totalPages || 1;
-
-        if (!this.stats) {
-          this.stats = {
-            totalJobs: data.totalElements || 0,
-            totalOriginalBytes: data.totalOriginalBytes || 0,
-            totalCompressedBytes: data.totalCompressedBytes || 0,
-            totalSavings: data.totalSavings || 0,
-          };
-        }
-        this.loadingHistory = false;
-      },
-      error: () => { this.loadingHistory = false; }
-    });
+          if (!this.stats) {
+            this.stats = {
+              totalJobs: data.totalElements || 0,
+              totalOriginalBytes: data.totalOriginalBytes || 0,
+              totalCompressedBytes: data.totalCompressedBytes || 0,
+              totalSavings: data.totalSavings || 0,
+            };
+          }
+          this.loadingHistory = false;
+        },
+        error: () => { this.loadingHistory = false; }
+      });
   }
 
   private loadStats() {
-    this.http.get(`${ApiConfig.URL}/api/v1/files/compress/history`, {
-      params: { page: 0, size: 1 }
-    }).subscribe({
+    this.fileService.getHistory(0, 1).subscribe({
       next: (res: any) => {
         const data = res?.data || res;
         this.stats = {
@@ -234,30 +280,59 @@ export class DocumentCompressorComponent implements OnInit, OnDestroy {
   }
 
   downloadJob(item: HistoryItem) {
-    this.http.get(`${ApiConfig.URL}/api/v1/files/compress/${item.id}/download`, {
-      responseType: 'blob'
-    }).subscribe({
-      next: (blob) => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = item.compressedName || 'download';
-        a.click();
-        URL.revokeObjectURL(a.href);
+    this.fileService.downloadJob(item.id).subscribe({
+      next: (event: any) => {
+        if (event.type === 4) { // HttpEventType.Response
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(event.body);
+          a.download = item.compressedName || 'download';
+          a.click();
+          URL.revokeObjectURL(a.href);
+        }
       },
       error: () => this.toastr.error('Download failed')
     });
   }
 
+  verifyJob(item: HistoryItem) {
+    this.fileService.verifyJob(item.id).subscribe({
+      next: (res: any) => {
+        const job = res?.data ?? res;
+        item.verified = job?.verified;
+        if (job?.verified) {
+          this.toastr.success(`Integrity verified for ${item.originalName}`);
+        } else {
+          this.toastr.error(`Integrity check FAILED for ${item.originalName}`);
+        }
+      },
+      error: () => this.toastr.error('Verification failed')
+    });
+  }
+
+  cancelJob(item: HistoryItem) {
+    this.fileService.cancelJob(item.id).subscribe({
+      next: () => { this.toastr.info('Cancellation requested'); this.refreshHistory(); },
+      error: () => this.toastr.error('Could not cancel')
+    });
+  }
+
+  retryJob(item: HistoryItem) {
+    this.fileService.retryJob(item.id).subscribe({
+      next: () => { this.toastr.info('Retrying'); this.refreshHistory(); },
+      error: (err) => this.toastr.error(err?.error?.message || 'Could not retry')
+    });
+  }
+
   deleteJob(item: HistoryItem) {
     if (!confirm(`Delete compression record for "${item.originalName}"?`)) return;
-    this.http.delete(`${ApiConfig.URL}/api/v1/files/compress/${item.id}`).subscribe({
+    this.fileService.deleteJob(item.id).subscribe({
       next: () => {
         this.historyItems = this.historyItems.filter(h => h.id !== item.id);
         this.historyTotalElements--;
         this.loadStats();
         this.toastr.success('Record deleted');
       },
-      error: () => this.toastr.error('Failed to delete')
+      error: (err) => this.toastr.error(err?.error?.message || 'Failed to delete')
     });
   }
 
@@ -265,6 +340,20 @@ export class DocumentCompressorComponent implements OnInit, OnDestroy {
   onFilterChange() { this.historyPage = 1; this.loadHistory(); }
   onPageChange(page: number) { this.historyPage = page; this.loadHistory(); }
   refreshHistory() { this.loadHistory(); this.loadStats(); }
+
+  isTerminal(status: string): boolean {
+    return status === 'COMPLETED' || status === 'FAILED' || status === 'CANCELLED';
+  }
+
+  statusBadgeClass(status: string): string {
+    switch (status) {
+      case 'COMPLETED': return 'badge-success';
+      case 'FAILED': return 'badge-danger';
+      case 'CANCELLED': return 'badge-secondary';
+      case 'QUEUED': return 'badge-pending';
+      default: return 'badge-progress';
+    }
+  }
 
   getFileIcon(name: string): string {
     const ext = name.split('.').pop()?.toLowerCase() || '';

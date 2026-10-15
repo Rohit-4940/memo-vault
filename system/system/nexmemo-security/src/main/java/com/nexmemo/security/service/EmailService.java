@@ -101,6 +101,31 @@ public class EmailService {
 
     // ── Core send logic ───────────────────────────────────────────────────────
 
+    /**
+     * Sends a pre-rendered HTML email synchronously and <strong>propagates</strong> any failure so
+     * callers (e.g. the memo notification dispatcher) can record a FAILED delivery attempt. Unlike
+     * the private {@code send}, this does not swallow exceptions.
+     */
+    public void sendHtml(String to, String subject, String htmlBody) {
+        try {
+            JavaMailSender sender = resolveMailSender();
+            String         from   = resolveFrom();
+
+            MimeMessage message = sender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(from, fallbackFromName);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true);
+            sender.send(message);
+
+            log.info("Email sent: to={} subject={}", to, subject);
+        } catch (Exception e) {
+            log.error("Email send failed: to={} subject={} error={}", to, subject, e.getMessage());
+            throw new org.springframework.mail.MailSendException("Failed to send email to " + to, e);
+        }
+    }
+
     private void send(String to, String subject, String template, Context ctx) {
         try {
             JavaMailSender sender  = resolveMailSender();

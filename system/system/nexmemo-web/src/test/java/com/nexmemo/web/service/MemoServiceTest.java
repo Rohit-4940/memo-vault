@@ -58,6 +58,10 @@ class MemoServiceTest {
     @Mock private MemoCategoryRepository memoCategoryRepository;
     @Mock private AuditEventPublisher auditEventPublisher;
     @Mock private MemoAuthorizationService memoAuthorizationService;
+    @Mock private org.springframework.context.ApplicationEventPublisher notificationEventPublisher;
+    @Mock private FinancialPeriodService financialPeriodService;
+    @Mock private MemoFormConfigService memoFormConfigService;
+    @Mock private MemoVersionService memoVersionService;
 
     @InjectMocks private MemoService service;
 
@@ -134,5 +138,80 @@ class MemoServiceTest {
                 .thenReturn(List.of());
         service.searchMemos(ADMIN, "budget");
         verify(memoRepository).findByTitleContainingIgnoreCaseOrMemoNoContainingIgnoreCase("budget");
+    }
+
+    // ── Phase 5b — draft edit (self-service request engine) ───────────────────
+
+    @Test
+    void updateDraftMemo_appliesDeltaValidatesAndSnapshots() {
+        Memo memo = new Memo();
+        memo.setId(100L);
+        memo.setStatus(MemoStatus.DRAFT);
+        memo.setCreatedBy(USER);
+        memo.setTitle("old title");
+        when(memoRepository.findByIdForUpdate(100L)).thenReturn(java.util.Optional.of(memo));
+        when(memoRepository.save(any(Memo.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        java.util.Map<String, Object> values = new java.util.HashMap<>();
+        values.put("days", 3);
+        MemoService.UpdateMemoRequest request = new MemoService.UpdateMemoRequest();
+        request.setTitle("new title");
+        request.setFormValues(values);
+        when(memoFormConfigService.toJson(values)).thenReturn("{\"days\":3}");
+
+        Memo result = service.updateDraftMemo(100L, request, USER);
+
+        assertThat(result.getTitle()).isEqualTo("new title");
+        assertThat(memo.getFormValues()).isEqualTo("{\"days\":3}");
+        verify(memoFormConfigService).validateFormValues(null, null, values);
+        verify(memoVersionService).snapshot(memo, USER);
+        verify(auditEventPublisher).recordChange(eq(USER), eq("MEMO_UPDATED"), eq("MEMO"), eq(100L), any(), any());
+    }
+
+    @Test
+    void updateDraftMemo_rejectsWhenNotEditable() {
+        Memo memo = new Memo();
+        memo.setId(100L);
+        memo.setStatus(MemoStatus.PENDING_APPROVAL);
+        memo.setCreatedBy(USER);
+        when(memoRepository.findByIdForUpdate(100L)).thenReturn(java.util.Optional.of(memo));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> service.updateDraftMemo(100L, new MemoService.UpdateMemoRequest(), USER))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(memoRepository, never()).save(any(Memo.class));
+        verify(memoVersionService, never()).snapshot(any(), any());
+    }
+
+    @Test
+    void updateDraftMemo_nonCreatorNonAdminIsRejected() {
+        Memo memo = new Memo();
+        memo.setId(100L);
+        memo.setStatus(MemoStatus.DRAFT);
+        memo.setCreatedBy(99L);
+        when(memoRepository.findByIdForUpdate(100L)).thenReturn(java.util.Optional.of(memo));
+        when(memoAuthorizationService.isAdmin(USER)).thenReturn(false);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> service.updateDraftMemo(100L, new MemoService.UpdateMemoRequest(), USER))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("creator");
+    }
+
+    @Test
+    void updateDraftMemo_adminMayEditAnotherUsersDraft() {
+        Memo memo = new Memo();
+        memo.setId(100L);
+        memo.setStatus(MemoStatus.DRAFT);
+        memo.setCreatedBy(99L);
+        when(memoRepository.findByIdForUpdate(100L)).thenReturn(java.util.Optional.of(memo));
+        when(memoAuthorizationService.isAdmin(ADMIN)).thenReturn(true);
+        when(memoRepository.save(any(Memo.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(memoFormConfigService.parseFormValues(memo)).thenReturn(new java.util.HashMap<>());
+
+        service.updateDraftMemo(100L, new MemoService.UpdateMemoRequest(), ADMIN);
+
+        verify(memoRepository).save(any(Memo.class));
     }
 }

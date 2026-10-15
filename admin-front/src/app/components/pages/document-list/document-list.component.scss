@@ -1,0 +1,183 @@
+.vault-page {
+  .page-header .header-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--nexmemo-500), var(--nexmemo-700));
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    i { font-size: 1.05rem; color: white; }
+  }
+
+  .quota-chip {
+    font-size: 0.72rem; font-weight: 600;
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--radius-md);
+    background: var(--nexmemo-100);
+    color: var(--nexmemo-700);
+    border: 1px solid var(--nexmemo-border);
+
+    &.quota-warn { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+  }
+
+  .content-card {
+    background: var(--nexmemo-surface);
+    border: 1px solid var(--nexmemo-border);
+    border-radius: var(--radius-lg);
+
+    .card-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--nexmemo-text);
+      background: var(--nexmemo-bg);
+      border-bottom: 1px solid var(--nexmemo-border);
+    }
+    .card-body { padding: 0.65rem; }
+  }
+
+  .btn-icon {
+    border: none; background: transparent; color: var(--nexmemo-600);
+    padding: 0.1rem 0.35rem; border-radius: var(--radius-sm);
+    &:hover { background: var(--nexmemo-100); }
+  }
+
+  .btn-icon-xs {
+    border: none; background: transparent;
+    width: 26px; height: 26px; border-radius: var(--radius-sm);
+    color: var(--nexmemo-text-muted);
+    &:hover { background: var(--nexmemo-100); color: var(--nexmemo-700); }
+    i { font-size: 0.72rem; }
+  }
+
+  // ── Folder tree ──
+  .folder-input {
+    display: flex; gap: 0.25rem;
+  }
+
+  .folder-tree {
+    list-style: none; margin: 0; padding: 0;
+
+    .folder-item {
+      display: flex; align-items: center; gap: 0.35rem;
+      padding: 0.3rem 0.4rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 0.76rem;
+      color: var(--nexmemo-text);
+
+      &:hover { background: var(--nexmemo-50); }
+      &.active { background: var(--nexmemo-100); font-weight: 600; color: var(--nexmemo-700); }
+
+      .folder-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .folder-count {
+        font-size: 0.62rem; color: var(--nexmemo-text-muted);
+        background: var(--nexmemo-bg); border-radius: 8px; padding: 0 0.35rem;
+      }
+      .folder-actions { display: none; }
+      &:hover .folder-actions { display: inline-flex; }
+    }
+
+    .folder-empty { font-size: 0.7rem; color: var(--nexmemo-text-muted); padding: 0.4rem; text-align: center; }
+  }
+
+  // ── Table ──
+  .table {
+    font-size: 0.78rem; margin-bottom: 0;
+    th {
+      font-weight: 600; font-size: 0.66rem; text-transform: uppercase;
+      letter-spacing: 0.03em; color: var(--nexmemo-text-muted); white-space: nowrap;
+    }
+    td { vertical-align: middle; }
+  }
+
+  .doc-icon {
+    width: 30px; height: 30px; flex-shrink: 0;
+    background: var(--nexmemo-100); border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    i { font-size: 0.8rem; color: var(--nexmemo-600); }
+  }
+  .doc-meta { min-width: 0; }
+  .doc-title { font-weight: 600; color: var(--nexmemo-text); line-height: 1.2; }
+  .doc-sub {
+    font-size: 0.66rem; color: var(--nexmemo-text-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;
+  }
+  .tag {
+    background: var(--nexmemo-bg); border: 1px solid var(--nexmemo-border);
+    border-radius: 8px; padding: 0 0.3rem; margin-left: 0.2rem; font-size: 0.6rem;
+  }
+
+  .badge-cat {
+    font-size: 0.6rem; font-weight: 700; padding: 0.22em 0.5em;
+    border-radius: var(--radius-sm); text-transform: uppercase; letter-spacing: 0.02em;
+  }
+  .badge-public { background: #d1fae5; color: #065f46; }
+  .badge-internal { background: #dbeafe; color: #1d4ed8; }
+  .badge-confidential { background: #fef3c7; color: #92400e; }
+  .badge-restricted { background: #fee2e2; color: #991b1b; }
+  .badge-success { background: #d1fae5; color: #065f46; }
+  .badge-secondary { background: #e5e7eb; color: #374151; }
+  .badge-danger { background: #fee2e2; color: #991b1b; }
+
+  .row-actions { display: inline-flex; flex-wrap: wrap; gap: 0.1rem; justify-content: flex-end; }
+
+  .search-box {
+    position: relative;
+    .search-icon {
+      position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      font-size: 0.7rem; color: var(--nexmemo-text-muted); pointer-events: none;
+    }
+    input { padding-left: 26px; }
+  }
+
+  .empty-state {
+    text-align: center; padding: 1.5rem 1rem;
+    .empty-icon { font-size: 1.75rem; color: var(--nexmemo-300); margin-bottom: 0.4rem; }
+  }
+
+  // ── Preview ──
+  .preview-body { min-height: 240px; max-height: 70vh; overflow: auto; text-align: center; }
+  .preview-image { max-width: 100%; max-height: 65vh; border-radius: var(--radius-sm); }
+  .preview-frame { width: 100%; height: 65vh; border: 1px solid var(--nexmemo-border); border-radius: var(--radius-sm); }
+  .preview-text {
+    text-align: left; font-size: 0.74rem; white-space: pre-wrap; word-break: break-word;
+    background: var(--nexmemo-bg); padding: 0.75rem; border-radius: var(--radius-sm);
+    max-height: 65vh; overflow: auto;
+  }
+}
+
+// ── Custom modals (shared with the standalone overlay divs) ──
+.modal-backdrop-custom {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 1050;
+}
+
+.modal-custom {
+  position: fixed; z-index: 1051;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(560px, 94vw);
+  max-height: 92vh;
+  display: flex; flex-direction: column;
+  background: var(--nexmemo-surface);
+  border: 1px solid var(--nexmemo-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+
+  &.modal-lg { width: min(860px, 96vw); }
+
+  .modal-head {
+    display: flex; align-items: center;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.82rem; font-weight: 600;
+    background: var(--nexmemo-bg);
+    border-bottom: 1px solid var(--nexmemo-border);
+  }
+  .modal-body-custom { padding: 0.8rem; overflow: auto; flex: 1; }
+  .modal-foot {
+    display: flex; justify-content: flex-end; gap: 0.4rem;
+    padding: 0.55rem 0.8rem;
+    border-top: 1px solid var(--nexmemo-border);
+  }
+  .form-label { font-size: 0.68rem; font-weight: 600; color: var(--nexmemo-text-muted); margin-bottom: 0.15rem; }
+}
